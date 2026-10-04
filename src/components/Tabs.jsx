@@ -2053,7 +2053,7 @@ export function FocoTab(props) {
             <GhostButton onClick={reiniciarCiclo}><RotateCcw className="w-4 h-4" /> Reiniciar ciclo</GhostButton>
             <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar sessão</GhostButton>
           </div>
-            <FocusPet timerOn={phase === "work" && running} streak={streak} />
+            <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} />
             {props.config?.enableLofi !== false && (
             <div className="flex items-center justify-center gap-2 mt-4">
               <GhostButton onClick={() => setLofiOn(!lofiOn)} style={{ color: lofiOn ? T.brand : T.inkSoft }}>
@@ -2163,7 +2163,7 @@ export function FocoTab(props) {
 
         <Card>
           <div className="flex flex-col gap-3">
-            <FocusPet timerOn={false} streak={streak} />
+            <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} />
             <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowRoom(!showRoom)}>
                 <SectionLabel><Globe size={18} className="inline mr-2 -mt-0.5" /> Modo Multiplayer</SectionLabel>
