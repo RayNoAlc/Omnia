@@ -1939,9 +1939,9 @@ function FocusPet({ timerOn, streak, petName, onNameChange }) {
   else if (streak > 0) { position = "100%"; status = "Animado"; }
   else { position = "0%"; status = "Esperando você estudar..."; }
 
-  let animClass = "pet-breathe";
-  if (timerOn) animClass = "pet-focus";
-  else if (streak > 0) animClass = "pet-cool";
+  let animClass = "animate-pet-breathe";
+  if (timerOn) animClass = "animate-pet-focus";
+  else if (streak > 0) animClass = "animate-pet-cool";
 
   const handleSave = () => {
     setEditing(false);
