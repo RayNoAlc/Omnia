@@ -85,7 +85,24 @@ export function TabNav({ tab, setTab }) {
 /* ---------------------------------------------------------------------- */
 /* Aba: Hoje                                                                */
 /* ---------------------------------------------------------------------- */
-const TIPO_ROTINA_ICONE = { sono: "🌙", aula: "📖", trabalho: "💼", estudo: "📚", academia: "🏋ï¸", refeicao: "🍽ï¸", livre: "🌿", lazer: "ðŸŽ§", esporte: "⚽", pessoal: "ðŸ§©", consulta: "🩺", evento: "🎉" };
+const getRoutineIcon = (type) => {
+  const props = { size: 20, strokeWidth: 1.5, className: "opacity-80" };
+  switch(type) {
+    case "sono": return <Moon {...props} />;
+    case "aula": return <BookOpen {...props} />;
+    case "trabalho": return <Briefcase {...props} />;
+    case "estudo": return <Book {...props} />;
+    case "academia": return <Dumbbell {...props} />;
+    case "refeicao": return <Utensils {...props} />;
+    case "livre": return <Leaf {...props} />;
+    case "lazer": return <Headphones {...props} />;
+    case "esporte": return <Activity {...props} />;
+    case "pessoal": return <Globe {...props} />;
+    case "consulta": return <Target {...props} />;
+    case "evento": return <Sparkles {...props} />;
+    default: return <Pin {...props} />;
+  }
+};
 
 function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudadosHoje }) {
   const [editing, setEditing] = useState(false);
@@ -212,7 +229,7 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-4 rounded-lg p-3 transition-colors" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${item.done ? T.brandDark : T.border}` }}>
                     {item.isRoutine && (
-                      <div className="w-8 text-center shrink-0 text-xl" title={item.tipo}>{TIPO_ROTINA_ICONE[item.tipo] || "📌"}</div>
+                      <div className="w-8 text-center shrink-0 text-xl" title={item.tipo}>{getRoutineIcon(item.tipo)}</div>
                     )}
                     {!item.isCommitment && !item.isRoutine && (
                       <button
@@ -700,12 +717,12 @@ function Heatmap({ sessions }) {
 
 function Badges({ sessions }) {
   const badges = [];
-  if (sessions.some(s => { const d = new Date(s.date); return d.getDay() === 0; })) badges.push({ ic: "🧟", n: "Sobrevivente", d: "Estudou num Domingo" });
-  if (sessions.some(s => { const h = parseInt((s.date || "T00:00:00").slice(11,13)); return h >= 4 && h <= 6; })) badges.push({ ic: "🌅", n: "Madrugador", d: "Estudou antes das 7h" });
+  if (sessions.some(s => { const d = new Date(s.date); return d.getDay() === 0; })) badges.push({ ic: <Skull size={24} />, n: "Sobrevivente", d: "Estudou num Domingo" });
+  if (sessions.some(s => { const h = parseInt((s.date || "T00:00:00").slice(11,13)); return h >= 4 && h <= 6; })) badges.push({ ic: <Sunrise size={24} />, n: "Madrugador", d: "Estudou antes das 7h" });
   if (sessions.some(s => s.minutos >= 120)) badges.push({ ic: "🏃", n: "Maratonista", d: "Sessão de +2h" });
-  if (sessions.length >= 10) badges.push({ ic: "🥉", n: "Iniciante", d: "10 sessões" });
+  if (sessions.length >= 10) badges.push({ ic: <Medal size={24} />, n: "Iniciante", d: "10 sessões" });
   if (sessions.length >= 50) badges.push({ ic: "🥈", n: "Veterano", d: "50 sessões" });
-  if (sessions.length >= 100) badges.push({ ic: "🥇", n: "Lenda", d: "100 sessões" });
+  if (sessions.length >= 100) badges.push({ ic: <Crown size={24} />, n: "Lenda", d: "100 sessões" });
 
   return (
     <Card className="mt-6">
@@ -737,7 +754,7 @@ function OmniaWrapped({ sessions }) {
   return (
     <>
       <PrimaryButton onClick={() => setOpen(true)} className="w-full mt-6 py-4 text-lg animate-pulse" style={{ background: 'linear-gradient(45deg, #FF007A, #7928CA)', color: 'white', border: 'none' }}>
-        ✨ Ver Meu Omnia Wrapped
+        <span className="flex items-center gap-2 justify-center"><Sparkles size={16}/> Ver Meu Omnia Wrapped</span>
       </PrimaryButton>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setOpen(false)}>
@@ -775,9 +792,9 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts }) {
   };
 
   const classes = [
-    { id: 'coruja', name: 'O Coruja 🦉', desc: '+50% XP em sessões à noite (após 19h).' },
-    { id: 'maratonista', name: 'O Maratonista 🏃', desc: '+50% XP em sessões de Foco de 2h+.' },
-    { id: 'estrategista', name: 'O Estrategista ♟️', desc: '+20% XP em Quizzes e Modo Professor.' }
+    { id: 'coruja', name: <span className="flex items-center gap-2">O Coruja <Bird size={16} /></span>, desc: '+50% XP em sessões à noite (após 19h).' },
+    { id: 'maratonista', name: <span className="flex items-center gap-2">O Maratonista <Activity size={16} /></span>, desc: '+50% XP em sessões de Foco de 2h+.' },
+    { id: 'estrategista', name: <span className="flex items-center gap-2">O Estrategista <Target size={16} /></span>, desc: '+20% XP em Quizzes e Modo Professor.' }
   ];
 
   return (
@@ -867,7 +884,7 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex-1 w-full">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-bold" style={{ color: T.brand }}>✨ Nível {level}</span>
+                <span className="text-sm font-bold" style={{ color: T.brand }}><Sparkles size={16} className="inline mr-1 -mt-1"/> Nível {level}</span>
                 <span className="text-xs" style={{ color: T.inkSoft }}>{totalXp} / {xpProximoNivel} XP</span>
               </div>
               <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: T.surfaceAlt }}>
@@ -877,7 +894,7 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
             <div className="flex items-center gap-3 shrink-0">
               <div className="flex flex-col items-center p-2 px-4 rounded-lg" style={{ backgroundColor: T.surfaceAlt }}>
                 <span className="text-[10px] uppercase font-semibold tracking-wider" style={{ color: T.inkSoft }}>Ofensiva</span>
-                <div className="flex items-center gap-1 font-bold text-lg" style={{ color: streak > 0 ? T.importante : T.ink }}>🔥 {streak} {streak === 1 ? 'dia' : 'dias'}</div>
+                <div className="flex items-center gap-1 font-bold text-lg" style={{ color: streak > 0 ? T.importante : T.ink }}><Flame size={20} className="inline mr-1 -mt-1"/> {streak} {streak === 1 ? 'dia' : 'dias'}</div>
               </div>
             </div>
           </div>
@@ -1965,7 +1982,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange }) {
           onClick={() => setEditing(true)}
           title="Clique para renomear"
         >
-          {petName || "Coruja Omnia"} ✏️
+          {petName || "Coruja Omnia"} <Pencil size={14} className="inline ml-1 opacity-50"/>
         </div>
       )}
       <div className="text-xs mt-1" style={{ color: T.inkSoft }}>{status}</div>
@@ -2056,12 +2073,12 @@ export function FocoTab(props) {
           <Card style={{ borderColor: T.brand }}>
             <SectionLabel>Sessão concluída</SectionLabel>
             <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span style={{ color: T.inkSoft }}>📚 Disciplina</span><span style={{ color: T.ink }}>{ultimaSessao.disciplina}</span></div>
-              <div className="flex justify-between"><span style={{ color: T.inkSoft }}>⏱️ Essa sessão</span><span style={{ color: T.ink }}>{ultimaSessao.minutos} min</span></div>
-              <div className="flex justify-between"><span style={{ color: T.inkSoft }}>📈 Total hoje</span><span style={{ color: T.ink }}>{totalHoje} min</span></div>
+              <div className="flex justify-between"><span style={{ color: T.inkSoft }}><Book size={14} className="inline mr-1 -mt-0.5" /> Disciplina</span><span style={{ color: T.ink }}>{ultimaSessao.disciplina}</span></div>
+              <div className="flex justify-between"><span style={{ color: T.inkSoft }}><Clock size={14} className="inline mr-1 -mt-0.5" /> Essa sessão</span><span style={{ color: T.ink }}>{ultimaSessao.minutos} min</span></div>
+              <div className="flex justify-between"><span style={{ color: T.inkSoft }}><TrendingUp size={14} className="inline mr-1 -mt-0.5" /> Total hoje</span><span style={{ color: T.ink }}>{totalHoje} min</span></div>
               {metaHoje && (
                 <div className="flex justify-between">
-                  <span style={{ color: T.inkSoft }}>🎯 Meta</span>
+                  <span style={{ color: T.inkSoft }}><Target size={14} className="inline mr-1 -mt-0.5" /> Meta</span>
                   <span style={{ color: totalHoje >= metaHoje ? T.brand : T.ink }}>{totalHoje}/{metaHoje} min {totalHoje >= metaHoje ? "✅" : ""}</span>
                 </div>
               )}
@@ -2149,7 +2166,7 @@ export function FocoTab(props) {
             <FocusPet timerOn={false} streak={streak} />
             <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowRoom(!showRoom)}>
-                <SectionLabel>🌐 Modo Multiplayer</SectionLabel>
+                <SectionLabel><Globe size={18} className="inline mr-2 -mt-0.5" /> Modo Multiplayer</SectionLabel>
                 <span className="text-xs" style={{ color: T.brand }}>{showRoom ? "Esconder" : "Mostrar"}</span>
               </div>
               {showRoom && (
@@ -2972,7 +2989,7 @@ function QAAutomatedSystem({ userId }) {
   return (
     <section className='p-6 rounded-2xl shadow-sm border mt-6' style={{ backgroundColor: T.surface, borderColor: T.importante }}>
       <div className='flex items-center justify-between mb-4'>
-        <h3 className='text-xl font-bold' style={{ color: T.importante }}>🛠️ Painel do Desenvolvedor (QA)</h3>
+        <h3 className='text-xl font-bold' style={{ color: T.importante }}><Wrench size={20} className="inline mr-2 -mt-1" /> Painel do Desenvolvedor (QA)</h3>
         <PrimaryButton onClick={runAllTests} disabled={running}>{running ? "Rodando Testes..." : "Executar Testes QA"}</PrimaryButton>
       </div>
       <div className='bg-black p-4 rounded-lg h-64 overflow-y-auto font-mono text-xs shadow-inner'>
@@ -3044,7 +3061,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
         <div className='space-y-4'>
           <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
             <div>
-              <div className='font-bold' style={{ color: T.ink }}>🎮 Gamificação Completa</div>
+              <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
               <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba Desempenho, XP, Nível e Streak.</div>
             </div>
             <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
@@ -3052,7 +3069,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
 
           <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
             <div>
-              <div className='font-bold' style={{ color: T.ink }}>🎧 Modo Imersivo Lo-Fi</div>
+              <div className='font-bold' style={{ color: T.ink }}><Headphones size={20} className="inline mr-2 -mt-1" /> Modo Imersivo Lo-Fi</div>
               <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Player de música ambiente integrado na aba Foco.</div>
             </div>
             <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
@@ -3060,7 +3077,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
 
           <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
             <div>
-              <div className='font-bold' style={{ color: T.ink }}>📅 Sincronizar Calendário (Google/Apple)</div>
+              <div className='font-bold' style={{ color: T.ink }}><Calendar size={20} className="inline mr-2 -mt-1" /> Sincronizar Calendário (Google/Apple)</div>
               <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para exportar arquivos .ics da Rotina.</div>
             </div>
             <input type='checkbox' checked={safeConfig.enableCalendar} onChange={() => handleToggle('enableCalendar')} className='w-6 h-6 accent-blue-500' />
@@ -3068,7 +3085,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
 
           <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
             <div>
-              <div className='font-bold' style={{ color: T.ink }}>📄 Gerar PDF da Rotina</div>
+              <div className='font-bold' style={{ color: T.ink }}><FileText size={20} className="inline mr-2 -mt-1" /> Gerar PDF da Rotina</div>
               <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para baixar a Tabela de Horários em PDF.</div>
             </div>
             <input type='checkbox' checked={safeConfig.enablePdf} onChange={() => handleToggle('enablePdf')} className='w-6 h-6 accent-blue-500' />
@@ -3078,7 +3095,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
 
       <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
         <div className='flex items-center gap-3 mb-4'>
-          <h3 className='text-xl font-bold' style={{ color: T.ink }}>🔑 Inteligência Artificial</h3>
+          <h3 className='text-xl font-bold' style={{ color: T.ink }}><Key size={20} className="inline mr-2 -mt-1" /> Inteligência Artificial</h3>
         </div>
         <p className='mb-4 text-sm' style={{ color: T.inkSoft }}>Insira sua própria chave de API da Groq para ter limite de uso individual, independente dos outros usuários. Deixe em branco para usar a chave padrão do Omnia.</p>
         <a href='https://console.groq.com/keys' target='_blank' rel='noopener noreferrer' className='text-xs underline mb-4 block' style={{ color: T.brand }}>→ Criar chave gratuita em console.groq.com/keys</a>
@@ -3090,7 +3107,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
           className='w-full p-3 rounded-xl text-sm'
           style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
         />
-        {safeConfig.groqApiKey && <p className='text-xs mt-2' style={{ color: T.brand }}>✓ Chave pessoal configurada</p>}
+        {safeConfig.groqApiKey && <p className='text-xs mt-2' style={{ color: T.brand }}><Check size={14} className="inline mr-1 -mt-0.5" /> Chave pessoal configurada</p>}
       </section>
       {isDev && <QAAutomatedSystem userId={userId} />}
     </div>
