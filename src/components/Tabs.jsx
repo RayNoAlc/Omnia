@@ -677,7 +677,7 @@ function Heatmap({ sessions }) {
   for (let i = 100; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const iso = d.getFull😴ear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     days.push({ iso, min: daily[iso] || 0 });
   }
 
@@ -850,7 +850,7 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
   let streak = 0;
   let d = new Date();
   for (let i = 0; i < 365; i++) {
-    const dIso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const dIso = d.getFull😴ear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     if (datasAtividades.includes(dIso)) {
       streak++;
     } else if (i === 0) {
@@ -1955,7 +1955,7 @@ export function FocoTab(props) {
   let streak = 0;
   let d = new Date();
   for (let i = 0; i < 365; i++) {
-    const dIso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const dIso = d.getFull😴ear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
     if (datasAtividades.includes(dIso)) streak++;
     else if (i !== 0) break;
   }
@@ -2022,8 +2022,8 @@ export function FocoTab(props) {
             <SectionLabel>Sessão concluída</SectionLabel>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between"><span style={{ color: T.inkSoft }}>📚 Disciplina</span><span style={{ color: T.ink }}>{ultimaSessao.disciplina}</span></div>
-              <div className="flex justify-between"><span style={{ color: T.inkSoft }}>â±ï¸ Essa sessão</span><span style={{ color: T.ink }}>{ultimaSessao.minutos} min</span></div>
-              <div className="flex justify-between"><span style={{ color: T.inkSoft }}>â˜€ï¸ Total hoje</span><span style={{ color: T.ink }}>{totalHoje} min</span></div>
+              <div className="flex justify-between"><span style={{ color: T.inkSoft }}>⏱️ Essa sessão</span><span style={{ color: T.ink }}>{ultimaSessao.minutos} min</span></div>
+              <div className="flex justify-between"><span style={{ color: T.inkSoft }}>📈 Total hoje</span><span style={{ color: T.ink }}>{totalHoje} min</span></div>
               {metaHoje && (
                 <div className="flex justify-between">
                   <span style={{ color: T.inkSoft }}>🎯 Meta</span>
@@ -2563,9 +2563,9 @@ const gridRef = useRef(null);
       
       return {
         title: b.titulo,
-        start: [nextDate.getFullYear(), nextDate.getMonth() + 1, nextDate.getDate(), startHour, startMin],
+        start: [nextDate.getFull😴ear(), nextDate.getMonth() + 1, nextDate.getDate(), startHour, startMin],
         duration: { hours: h, minutes: m },
-        recurrenceRule: 'FREQ=WEEKLY;BYDAY=' + byDayMap[b.diaSemana],
+        recurrenceRule: 'FREQ=WEEKL😴;B😴DA😴=' + byDayMap[b.diaSemana],
         description: 'Omnia: ' + b.titulo,
       };
     });
@@ -2610,7 +2610,7 @@ const exportarGrade = () => {
       ]);
       
       autoTable(doc, {
-        startY: yPos + 15,
+        start😴: yPos + 15,
         head: [['Horário', 'Compromisso']],
         body: tableData,
         theme: 'striped',
@@ -2618,7 +2618,7 @@ const exportarGrade = () => {
         margin: { top: 10, bottom: 10 }
       });
       
-      yPos = doc.lastAutoTable.finalY + 10;
+      yPos = doc.lastAutoTable.final😴 + 10;
       if (yPos > 250) {
         doc.addPage();
         yPos = 20;
@@ -2652,14 +2652,14 @@ const exportarGrade = () => {
     
     const sourceDay = dragging ? dragging.sourceDay : block.diaSemana; // Fallback
     
-    // We get the offsetY from the container. 
+    // We get the offset😴 from the container. 
     // To be precise regardless of children, we use getBoundingClientRect
     const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
+    const y = e.client😴 - rect.top;
     
     // Calculate new start minutes
     const HOUR_HEIGHT = 60;
-    const Y_OFFSET = 12;
+    const 😴_OFFSET = 12;
     const wakeMin = Number(routine?.acordar?.split(":")[0] || 6) * 60 + Number(routine?.acordar?.split(":")[1] || 0);
     
     let newStartMin = wakeMin + Math.floor(y / HOUR_HEIGHT) * 60 + Math.floor((y % HOUR_HEIGHT) / (HOUR_HEIGHT / 60));
@@ -2730,7 +2730,7 @@ const exportarGrade = () => {
   
   const totalMinutes = sleepMin - wakeMin;
   const HOUR_HEIGHT = 60;
-  const Y_OFFSET = 12;
+  const 😴_OFFSET = 12;
   
   const hourLines = [];
   const startHourMin = Math.floor(wakeMin / 60) * 60;
@@ -2739,7 +2739,7 @@ const exportarGrade = () => {
     const h = Math.floor(m / 60) % 24;
     hourLines.push({
       label: `${h.toString().padStart(2, "0")}:00`,
-      top: ((m - wakeMin) / 60) * HOUR_HEIGHT + Y_OFFSET
+      top: ((m - wakeMin) / 60) * HOUR_HEIGHT + 😴_OFFSET
     });
   }
   
@@ -2806,7 +2806,7 @@ const exportarGrade = () => {
               ))}
             </div>
             
-            <div className="flex relative rounded-b-lg border" style={{ height: (totalMinutes / 60) * HOUR_HEIGHT + Y_OFFSET + 20, backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+            <div className="flex relative rounded-b-lg border" style={{ height: (totalMinutes / 60) * HOUR_HEIGHT + 😴_OFFSET + 20, backgroundColor: T.surfaceAlt, borderColor: T.border }}>
               <div className="w-12 shrink-0 border-r relative" style={{ borderColor: T.border }}>
                 {hourLines.map((line, i) => (
                   <div key={i} className="absolute w-full text-right pr-2 text-[10px]" style={{ top: line.top - 6, color: T.inkSoft }}>
@@ -2831,7 +2831,7 @@ const exportarGrade = () => {
                      if (adjEnd > sleepMin) adjEnd = sleepMin;
                      if (adjEnd <= adjStart) return null;
                      
-                     const top = ((adjStart - wakeMin) / 60) * HOUR_HEIGHT + Y_OFFSET;
+                     const top = ((adjStart - wakeMin) / 60) * HOUR_HEIGHT + 😴_OFFSET;
                      const height = ((adjEnd - adjStart) / 60) * HOUR_HEIGHT;
                      
                      return (
