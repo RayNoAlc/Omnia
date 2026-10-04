@@ -1910,7 +1910,10 @@ export function BibliotecaTab({ userId, setCommitments, notes, commitments, mate
 /* Aba: Foco                                                                */
 /* ---------------------------------------------------------------------- */
 
-function FocusPet({ timerOn, streak }) {
+function FocusPet({ timerOn, streak, petName, onNameChange }) {
+  const [editing, setEditing] = useState(false);
+  const [tempName, setTempName] = useState(petName || "Coruja Omnia");
+
   let position = "0%";
   let status = "Dormindo...";
   
@@ -1918,6 +1921,15 @@ function FocusPet({ timerOn, streak }) {
   else if (streak > 5) { position = "100%"; status = "Mestre da Rotina"; }
   else if (streak > 0) { position = "100%"; status = "Animado"; }
   else { position = "0%"; status = "Esperando você estudar..."; }
+
+  let animClass = "pet-breathe";
+  if (timerOn) animClass = "pet-focus";
+  else if (streak > 0) animClass = "pet-cool";
+
+  const handleSave = () => {
+    setEditing(false);
+    if (onNameChange) onNameChange(tempName);
+  };
 
   return (
     <div className="flex flex-col items-center justify-center p-4">
@@ -1931,15 +1943,38 @@ function FocusPet({ timerOn, streak }) {
           transition: "background-position 0.4s steps(1)",
           imageRendering: "pixelated"
         }}
-        className={timerOn ? "animate-pet-focus" : streak > 0 ? "animate-pet-cool" : "animate-pet-breathe"}
+        className={animClass}
       />
-      <div className="text-sm font-bold" style={{ color: T.ink }}>Coruja Omnia</div>
-      <div className="text-xs" style={{ color: T.inkSoft }}>{status}</div>
+      
+      {editing ? (
+        <div className="flex items-center gap-2 mt-1">
+          <input 
+            autoFocus
+            value={tempName}
+            onChange={e => setTempName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            onBlur={handleSave}
+            className="text-sm font-bold text-center rounded px-2 py-1 outline-none"
+            style={{ backgroundColor: T.surfaceAlt, color: T.ink, width: '120px' }}
+          />
+        </div>
+      ) : (
+        <div 
+          className="text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity" 
+          style={{ color: T.ink }}
+          onClick={() => setEditing(true)}
+          title="Clique para renomear"
+        >
+          {petName || "Coruja Omnia"} ✏️
+        </div>
+      )}
+      <div className="text-xs mt-1" style={{ color: T.inkSoft }}>{status}</div>
     </div>
   );
 }
 
 export function FocoTab(props) {
+  const { config, updateConfig } = props;
   const { commitments, sessions, metaHoje, timer, userId, notes, materials, summaries, quizAttempts, professorAttempts, setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts } = props;
   const [lofiOn, setLofiOn] = useState(false);
 

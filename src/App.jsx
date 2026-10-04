@@ -357,7 +357,7 @@ function AppInner() {
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
           {tab === "foco" && (
-            <FocoTab userId={userId} commitments={commitments} sessions={sessions} metaHoje={metaHoje} timer={focusTimer}
+            <FocoTab config={config} updateConfig={updateConfig} userId={userId} commitments={commitments} sessions={sessions} metaHoje={metaHoje} timer={focusTimer}
               notes={notes} materials={materials} summaries={summaries}
               quizAttempts={quizAttempts} professorAttempts={professorAttempts}
               setNotes={setNotes} setMaterials={setMaterials} setSummaries={setSummaries}
