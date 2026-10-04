@@ -1,0 +1,31 @@
+﻿{
+  "manifest_version": 3,
+  "name": "Omnia Blocker (Modo Foco)",
+  "version": "1.0",
+  "description": "Bloqueia distrações automaticamente quando o Modo Foco do Omnia está ativado.",
+  "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://*.instagram.com/*",
+    "*://*.twitter.com/*",
+    "*://*.x.com/*",
+    "*://*.tiktok.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://localhost:*/*", "*://*.vercel.app/*", "*://minha-vida-em-um-app.vercel.app/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "icons": {
+    "128": "icon.png"
+  }
+}

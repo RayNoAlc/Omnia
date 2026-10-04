@@ -1,0 +1,35 @@
+=========================================================
+      MINHA VIDA EM UM APP - INSTRUÇÕES E BACKUP
+=========================================================
+
+1. AMBIENTE VERCEL E VARIAVEIS
+Para rodar a aplicação, as seguintes variáveis de ambiente precisam estar configuradas na Vercel (ou no arquivo .env local):
+- VITE_SUPABASE_URL (URL do seu projeto Supabase)
+- VITE_SUPABASE_ANON_KEY (Sua chave pública do Supabase)
+- VITE_GROQ_API_KEY (Chave da API da Groq para a IA)
+
+2. CONFIGURAÇÃO DO SUPABASE - STORAGE E RLS
+Se você precisar recriar o projeto ou configurar um novo ambiente no Supabase, siga os passos abaixo para que a Biblioteca funcione:
+
+a) Criar o Bucket de Storage:
+- Acesse o painel do Supabase.
+- Vá em "Storage" (Armazenamento) no menu lateral.
+- Clique em "New Bucket" (Novo Bucket).
+- Nomeie como exatamente: materials
+- Ative a opção "Public bucket" se quiser acesso direto aos links, ou mantenha privado conforme o seu gosto.
+
+b) Configurar as Políticas de Segurança (RLS - Row Level Security) do Bucket:
+O erro comum de upload ocorre quando não há política de segurança liberando a gravação no Storage. Para corrigir isso:
+- No painel do Supabase, vá em "Storage" -> "Policies".
+- Embaixo do bucket "materials", clique em "New Policy".
+- Escolha "For Full Customization".
+- Nome da política: Ex: "Permitir tudo para usuários logados"
+- Ação permitida: ALL (Select, Insert, Update, Delete)
+- Target roles: Selecione "authenticated"
+- Na regra (USING e WITH CHECK), você pode apenas colocar: (auth.uid() = owner) ou se for um ambiente mais flexível, apenas true (para permitir se o usuário estiver autenticado).
+
+3. DEPLOY
+Para subir alterações para a Vercel, abra o terminal na pasta do projeto e rode:
+vercel --prod
+
+=========================================================

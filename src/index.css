@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+}
+@keyframes pet-breathe {
+  0%, 100% { transform: scaleY(1) translateY(0); }
+  50% { transform: scaleY(0.95) scaleX(1.02) translateY(2px); }
+}
+.animate-pet-breathe {
+  animation: pet-breathe 4s ease-in-out infinite;
+}
+
+@keyframes pet-focus {
+  0%, 100% { transform: scale(1) translateY(0); }
+  25% { transform: scale(1.05, 0.95) translateY(2px); }
+  50% { transform: scale(0.95, 1.05) translateY(-4px); }
+  75% { transform: scale(1.02, 0.98) translateY(1px); }
+}
+.animate-pet-focus {
+  animation: pet-focus 2s ease-in-out infinite;
+}
+
+@keyframes pet-cool {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3px) rotate(-3deg); }
+  75% { transform: translateY(-3px) rotate(3deg); }
+}
+.animate-pet-cool {
+  animation: pet-cool 3s ease-in-out infinite;
+}
