@@ -1,4 +1,10 @@
 import React from "react";
+import {
+  BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  Gamepad2, Calendar, Key, Flame, TrendingUp,
+  CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
+} from 'lucide-react';
+
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as ics from 'ics';
