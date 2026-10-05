@@ -132,7 +132,7 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, children }) 
       )}
 
       {/* Main Content Area */}
-      <main className='flex-1 overflow-y-auto custom-scrollbar md:pt-0 pt-16 relative bg-gradient-to-br from-[var(--bg-from)] to-[var(--bg-to)]' style={{ '--bg-from': T.bg, '--bg-to': '#0f172a' }}>
+      <main className='flex-1 overflow-y-auto custom-scrollbar md:pt-0 pt-16 relative' style={{ backgroundColor: T.bg }}>
         <div className='max-w-[1400px] mx-auto p-4 md:p-8 min-h-full'>
           {children}
         </div>

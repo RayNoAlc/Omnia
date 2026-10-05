@@ -287,7 +287,7 @@ function AppInner() {
   /* ---------------- Renderização ---------------- */
   if (session === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: `radial-gradient(1200px 600px at 15% -10%, #172554 0%, ${T.bg} 55%)` }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: T.bg }}>
         <Loader2 className="w-6 h-6 animate-spin" style={{ color: T.inkSoft }} />
       </div>
     );
