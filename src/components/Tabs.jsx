@@ -278,7 +278,7 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
                 <div className="space-y-3">
                   {proximos.map((c) => (
                     <button key={c.id} onClick={onGoAgenda} className="w-full text-left outline-none focus:outline-none bg-transparent hover:bg-transparent group">
-                      <div className="flex items-center justify-between p-3 rounded-lg transition-transform group-hover:scale-[1.02] origin-left transform-gpu overflow-hidden" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                      <div className="flex items-center justify-between p-3 rounded-lg transition-transform group-hover:scale-[1.01] origin-left transform-gpu overflow-hidden" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
                         <div className="min-w-0 pr-3">
                           <div className="text-sm font-medium truncate" style={{ color: T.ink }}>{c.disciplina} — {c.assunto}</div>
                           <div className="text-xs mt-1" style={{ color: T.inkSoft }}>
@@ -1302,7 +1302,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
       <div className="space-y-2 mb-2">
         {compromissosDisc.map((c) => (
           <button key={c.id} onClick={() => onOpenCommitment(c)} className="w-full text-left outline-none focus:outline-none bg-transparent hover:bg-transparent group">
-            <Card className="py-2.5 flex items-center justify-between transition-transform group-hover:scale-[1.02] origin-left transform-gpu">
+            <Card className="py-2.5 flex items-center justify-between transition-transform group-hover:scale-[1.01] origin-left transform-gpu">
               <div className="text-sm">{c.assunto}</div>
               <TypeTag tipo={c.tipo} />
             </Card>
@@ -2896,7 +2896,7 @@ const exportarGrade = () => {
                        <button
                          key={b.id}
                          onClick={() => setModal({ block: b, dia })} draggable onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData("text/plain", b.id); setDragging({ id: b.id, sourceDay: dia }); }} onDragEnd={() => setDragging(null)}
-                         className="absolute left-1 right-1 rounded p-1.5 text-left transition-transform hover:scale-[1.02] origin-left overflow-hidden"
+                         className="absolute left-1 right-1 rounded p-1.5 text-left transition-transform hover:scale-[1.01] origin-left overflow-hidden"
                          style={{ top, height, backgroundColor: hexToRgba(b.cor, 0.2), borderLeft: `3px solid ${b.cor}` }}
                        >
                          <div className="text-[11px] font-bold truncate leading-tight" style={{ color: T.ink }}>{b.titulo}</div>
