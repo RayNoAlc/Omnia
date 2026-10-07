@@ -248,12 +248,12 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-base font-medium truncate" style={{ color: T.ink, textDecoration: item.done ? "line-through" : "none" }}>
-                        {item.isRoutine ? item.titulo : `${item.disciplina} — {item.assunto}`}
+                        {item.isRoutine ? item.titulo : `${item.disciplina} — ${item.assunto}`}
                       </div>
                       <div className="text-sm mt-0.5" style={{ color: T.inkSoft }}>
                         {item.isRoutine
                           ? `${item.horaInicio?.slice(0, 5)} - ${item.horaFim?.slice(0, 5)}`
-                          : `${PERIODO_LABELS[item.periodo] || ""} ${item.isCommitment ? `? ${TIPO_LABELS[item.tipo]}` : item.tipo === "revisao" ? "? revisão" : "? estudo"}`}
+                          : `${PERIODO_LABELS[item.periodo] || ""} ${item.isCommitment ? `• ${TIPO_LABELS[item.tipo]}` : item.tipo === "revisao" ? "• revisão" : "• estudo"}`}
                       </div>
                     </div>
                     {item.isCommitment && <PriorityDot prioridade={item.prioridade} />}
@@ -641,7 +641,7 @@ export function AgendaTab({
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate" style={{ textDecoration: item.done ? "line-through" : "none" }}>
-                        {item.kind === "routine" ? item.titulo : `${item.disciplina} — {item.assunto}`}
+                        {item.kind === "routine" ? item.titulo : `${item.disciplina} — ${item.assunto}`}
                       </div>
                       <div className="text-xs mt-0.5" style={{ color: T.inkSoft }}>
                         {item.kind === "commitment" && TIPO_LABELS[item.tipo]}
