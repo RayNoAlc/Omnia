@@ -667,6 +667,7 @@ export function AgendaTab({
         <CompromissoWorkspaceModal
           userId={userId}
           commitment={openCommitment}
+            onDeleteCommitment={onDeleteCommitment}
           notes={notes}
           materials={materials}
           summaries={summaries}
@@ -1190,7 +1191,7 @@ function QuizPanel({ disciplina, sourceTexts, userId, commitmentId, setQuizAttem
   );
 }
 
-function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDisc, onDeleteNote, onDeleteMaterial, onOpenCommitment, summaries, setSummaries, setQuizAttempts, setProfessorAttempts }) {
+function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDisc, onDeleteNote, onDeleteMaterial, onOpenCommitment, onDeleteCommitment, summaries, setSummaries, setQuizAttempts, setProfessorAttempts }) {
   const [panel, setPanel] = useState(null);
   const [resumoLoading, setResumoLoading] = useState(false);
   const [resumoDraft, setResumoDraft] = useState("");
@@ -1304,9 +1305,12 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
           <button key={c.id} onClick={() => onOpenCommitment(c)} className="w-full text-left outline-none focus:outline-none bg-transparent hover:bg-transparent group">
             <Card className="py-2.5 flex items-center justify-between transition-transform group-hover:scale-[1.01] origin-left transform-gpu">
               <div className="text-sm">{c.assunto}</div>
-              <TypeTag tipo={c.tipo} />
-            </Card>
-          </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <TypeTag tipo={c.tipo} />
+                  <button onClick={(e) => { e.stopPropagation(); if(confirm("Excluir compromisso?")) onDeleteCommitment(c.id); }} style={{ color: T.inkSoft }} className="hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              </Card>
+            </button>
         ))}
         {notasDisc.map((n) => (
           <Card key={n.id} className="py-2.5 flex items-start justify-between gap-2">
@@ -1688,8 +1692,8 @@ function CompromissoWorkspaceContent({
 
 function CompromissoWorkspaceModal({
   userId, commitment, notes, materials, summaries, quizAttempts, professorAttempts,
-  setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts, onClose,
-}) {
+  setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts, onClose, onDeleteCommitment
+  }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ backgroundColor: "rgba(13,25,23,0.65)" }} onClick={onClose}>
       <div
@@ -1707,10 +1711,15 @@ function CompromissoWorkspaceModal({
               {commitment.prazo && <span className="text-xs font-mono" style={{ color: T.inkSoft }}>{formatDateBR(commitment.prazo)}</span>}
             </div>
           </div>
-          <button onClick={onClose} style={{ color: T.inkSoft }} className="shrink-0"><X className="w-5 h-5" /></button>
-        </div>
-
-        <CompromissoWorkspaceContent
+            <div className="flex items-center gap-4 shrink-0">
+              {onDeleteCommitment && (
+                <button onClick={() => { if(confirm("Excluir este compromisso?")) { onDeleteCommitment(commitment.id); onClose(); } }} style={{ color: T.critico }} className="hover:opacity-80 transition-opacity" title="Excluir"><Trash2 className="w-5 h-5" /></button>
+              )}
+              <button onClick={onClose} style={{ color: T.inkSoft }} className="hover:opacity-80 transition-opacity"><X className="w-5 h-5" /></button>
+            </div>
+          </div>
+  
+          <CompromissoWorkspaceContent
           userId={userId} commitment={commitment} notes={notes} materials={materials}
           summaries={summaries} quizAttempts={quizAttempts} professorAttempts={professorAttempts}
           setNotes={setNotes} setMaterials={setMaterials} setSummaries={setSummaries}
@@ -1833,7 +1842,7 @@ function ExportarBiblioteca({ userId, commitments, notes, materials, summaries, 
   );
 }
 
-export function BibliotecaTab({ userId, setCommitments, notes, commitments, materials, quizAttempts, professorAttempts, onDeleteNote, summaries, setSummaries, setNotes, setMaterials, setQuizAttempts, setProfessorAttempts }) {
+export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, notes, commitments, materials, quizAttempts, professorAttempts, onDeleteNote, summaries, setSummaries, setNotes, setMaterials, setQuizAttempts, setProfessorAttempts }) {
   const [openCommitment, setOpenCommitment] = useState(null);
 
   async function handleDeleteMaterialLib(m) {
@@ -1877,9 +1886,12 @@ export function BibliotecaTab({ userId, setCommitments, notes, commitments, mate
                       {c.prazo ? formatDateBR(c.prazo) : "Sem data"} — {TIPO_LABELS[c.tipo]}
                     </div>
                   </div>
-                  <PriorityDot prioridade={c.prioridade} />
-                </Card>
-              </button>
+                  <div className="flex items-center gap-3 shrink-0">
+                      <PriorityDot prioridade={c.prioridade} />
+                      <button onClick={(e) => { e.stopPropagation(); if(confirm("Excluir compromisso?")) onDeleteCommitment(c.id); }} style={{ color: T.inkSoft }} className="hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </Card>
+                </button>
             ))}
           </div>
         </div>
@@ -1899,6 +1911,7 @@ export function BibliotecaTab({ userId, setCommitments, notes, commitments, mate
               onDeleteNote={onDeleteNote}
               onDeleteMaterial={handleDeleteMaterialLib}
               onOpenCommitment={setOpenCommitment}
+                onDeleteCommitment={onDeleteCommitment}
               summaries={summaries}
               setSummaries={setSummaries}
               setQuizAttempts={setQuizAttempts}
@@ -1912,6 +1925,7 @@ export function BibliotecaTab({ userId, setCommitments, notes, commitments, mate
         <CompromissoWorkspaceModal
           userId={userId}
           commitment={openCommitment}
+            onDeleteCommitment={onDeleteCommitment}
           notes={notes}
           materials={materials}
           summaries={summaries}

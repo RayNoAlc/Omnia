@@ -350,7 +350,7 @@ function AppInner() {
               quizAttempts={quizAttempts} professorAttempts={professorAttempts} />
           )}
           {tab === "biblioteca" && (
-            <BibliotecaTab userId={userId} setCommitments={setCommitments} notes={notes} commitments={commitments} materials={materials}
+            <BibliotecaTab userId={userId} setCommitments={setCommitments} onDeleteCommitment={handleDeleteCommitment} notes={notes} commitments={commitments} materials={materials}
               quizAttempts={quizAttempts} professorAttempts={professorAttempts}
               onDeleteNote={handleDeleteNote} summaries={summaries} setSummaries={setSummaries}
               setNotes={setNotes} setMaterials={setMaterials}
