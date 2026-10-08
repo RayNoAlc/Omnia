@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -3042,7 +3042,7 @@ export function ConfigTab(props) {
 function ConfigTabInner({ config = {}, updateConfig, userId }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
-  const safeConfig = { enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
+  const safeConfig = { fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
   const handleToggle = (key) => {
     updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
   };
@@ -3071,14 +3071,45 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
         </div>
       </section>
 
-      <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-        <div className='flex items-center gap-3 mb-4'>
-          <Settings className='w-6 h-6' style={{ color: T.brand }} />
-          <h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos Opcionais</h3>
-        </div>
-        <p className='mb-6' style={{ color: T.inkSoft }}>Ative ou desative funcionalidades secundárias para manter a interface limpa e objetiva.</p>
+        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+          <div className='flex items-center gap-3 mb-4'>
+            <Type className='w-6 h-6' style={{ color: T.brand }} />
+            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Tipografia e Fontes</h3>
+          </div>
+          <p className='mb-6' style={{ color: T.inkSoft }}>Escolha a fonte que mais lhe agrada para leitura e foco.</p>
+          
+          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+            {[
+              { id: "Inter, sans-serif", name: "Padrão (Inter)", desc: "Limpa e moderna" },
+              { id: "Georgia, serif", name: "Foco (Serifada)", desc: "Estilo livro clássico" },
+              { id: "monospace", name: "Terminal", desc: "Monoespaçada para devs" },
+              { id: "Comic Sans MS, cursive", name: "Relaxada", desc: "Divertida e informal" }
+            ].map(f => (
+              <button key={f.id} onClick={() => updateConfig({ ...safeConfig, fontFamily: f.id })} className='flex flex-col items-start p-4 rounded-xl border hover:opacity-80 transition-all'
+                style={{ backgroundColor: safeConfig.fontFamily === f.id ? T.brand + '22' : T.surfaceAlt, borderColor: safeConfig.fontFamily === f.id ? T.brand : T.border, fontFamily: f.id }}>
+                <span className='font-bold' style={{ color: T.ink }}>{f.name}</span>
+                <span className='text-xs mt-1' style={{ color: T.inkSoft }}>{f.desc}</span>
+              </button>
+            ))}
+          </div>
+        </section>
 
-        <div className='space-y-4'>
+
+        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+          <div className='flex items-center gap-3 mb-4'>
+            <Settings className='w-6 h-6' style={{ color: T.brand }} />
+            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos Opcionais</h3>
+          </div>
+          <p className='mb-6' style={{ color: T.inkSoft }}>Ative ou desative funcionalidades secundárias para manter a interface limpa e objetiva.</p>
+  
+          <div className='space-y-4'>
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><PartyPopper size={20} className="inline mr-2 -mt-1" /> Animações de Conclusão</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Disparar confetes ao marcar tarefas como concluídas.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableConfetti} onChange={() => handleToggle('enableConfetti')} className='w-6 h-6 accent-blue-500' />
+            </label>
           <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
             <div>
               <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
