@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -44,6 +44,18 @@ const TIPO_ARQUIVO_META = {
 /* ---------------------------------------------------------------------- */
 /* Header + navegação                                                      */
 /* ---------------------------------------------------------------------- */
+
+export function formatTextWithTags(text, T) {
+  if (!text) return null;
+  const parts = text.split(/(#\w+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('#')) {
+      return <span key={i} className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold mx-1" style={{ backgroundColor: T.brand + '33', color: T.brand }}>{part}</span>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 export function Header({ onLogout }) {
   return (
     <div className="mb-5 flex items-start justify-between">
@@ -844,6 +856,25 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts }) {
   const xpQuiz = quizAttempts.reduce((a, q) => a + q.acertos * 50, 0);
   const xpProf = professorAttempts.reduce((a, p) => a + (p.nota || 0) * 100, 0);
   const totalXp = xpSessions + xpQuiz + xpProf;
+  
+    const diasSemanaMap = {"Dom":0, "Seg":0, "Ter":0, "Qua":0, "Qui":0, "Sex":0, "Sáb":0};
+    const periodosMap = {"Manhã":0, "Tarde":0, "Noite":0, "Madrugada":0};
+    
+    sessions.forEach(s => {
+      if (!s.date) return;
+      const wDay = weekdayShort(s.date);
+      if (diasSemanaMap[wDay] !== undefined) diasSemanaMap[wDay] += s.minutos;
+      
+      const hour = parseInt(s.date.split('T')[1]?.split(':')[0] || "12");
+      if (hour >= 6 && hour < 12) periodosMap["Manhã"] += s.minutos;
+      else if (hour >= 12 && hour < 18) periodosMap["Tarde"] += s.minutos;
+      else if (hour >= 18 && hour < 24) periodosMap["Noite"] += s.minutos;
+      else periodosMap["Madrugada"] += s.minutos;
+    });
+
+    const maxDia = Math.max(...Object.values(diasSemanaMap), 1);
+    const picoPeriodo = Object.keys(periodosMap).reduce((a, b) => periodosMap[a] > periodosMap[b] ? a : b);
+
   const level = Math.floor(totalXp / 1000) + 1;
 
   const handleSelect = (c) => {
@@ -882,7 +913,7 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts }) {
   );
 }
 
-export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAttempts }) {
+export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAttempts, config }) {
   const hoje = todayISO();
   const disciplinas = Array.from(new Set([
     ...commitments.map((c) => c.disciplina),
@@ -3153,7 +3184,7 @@ export function ConfigTab(props) {
 function ConfigTabInner({ config = {}, updateConfig, userId }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
-  const safeConfig = { enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
+  const safeConfig = { enableAnalytics: true, enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
   const handleToggle = (key) => {
     updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
   };
@@ -3209,6 +3240,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
         
         
         
+        
         <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
           <div className='flex items-center gap-3 mb-4'>
             <Settings className='w-6 h-6' style={{ color: T.brand }} />
@@ -3217,6 +3249,14 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
           <p className='mb-6' style={{ color: T.inkSoft }}>Ative ou desative funcionalidades secundárias para manter a interface limpa e objetiva.</p>
   
           <div className='space-y-4'>
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><BarChart size={20} className="inline mr-2 -mt-1" /> Dashboard de Análises</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Gráficos semanais e horários de pico na aba Desempenho.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableAnalytics} onChange={() => handleToggle('enableAnalytics')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><Heart size={20} className="inline mr-2 -mt-1" /> Pausas Ativas</div>
