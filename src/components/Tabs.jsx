@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  Volume2, Square, BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -44,6 +44,38 @@ const TIPO_ARQUIVO_META = {
 /* ---------------------------------------------------------------------- */
 /* Header + navegação                                                      */
 /* ---------------------------------------------------------------------- */
+
+
+export function AudioReaderButton({ text, T }) {
+  const [playing, setPlaying] = React.useState(false);
+  const synth = window.speechSynthesis;
+  
+  const toggle = (e) => {
+    e.stopPropagation();
+    if (playing) {
+      synth.cancel();
+      setPlaying(false);
+    } else {
+      synth.cancel(); // clear previous
+      // text can be very long or have markdown, just stripping basic markdown chars
+      const cleanText = (text||"").replace(/[#*_~>]/g, "");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'pt-BR';
+      utterance.onend = () => setPlaying(false);
+      synth.speak(utterance);
+      setPlaying(true);
+    }
+  };
+  React.useEffect(() => {
+    return () => { if(playing) synth.cancel(); }
+  }, [playing]);
+
+  return (
+    <button onClick={toggle} title="Ouvir em Áudio" style={{ color: playing ? T.brand : T.inkSoft }} className="hover:opacity-70 transition-opacity ml-2">
+      {playing ? <Square className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
 
 export function formatTextWithTags(text, T) {
   if (!text) return null;
@@ -1401,8 +1433,8 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
         ))}
         {notasDisc.map((n) => (
           <Card key={n.id} className="py-2.5 flex items-start justify-between gap-2">
-            <div className="text-sm" style={{ color: T.inkSoft }}>{n.texto}</div>
-            <button onClick={() => onDeleteNote(n.id)} style={{ color: T.inkSoft }} className="shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+            <div className="text-sm" style={{ color: T.inkSoft }}>{formatTextWithTags(n.texto, T)}</div>
+              <div className="flex gap-2"><AudioReaderButton text={n.texto} T={T} /><button onClick={() => onDeleteNote(n.id)} style={{ color: T.inkSoft }} className="shrink-0"><Trash2 className="w-3.5 h-3.5" /></button></div>
           </Card>
         ))}
       </div>
@@ -1648,8 +1680,8 @@ function CompromissoWorkspaceContent({
           <div className="space-y-1.5">
             {notasC.map((n) => (
               <div key={n.id} className="flex items-start justify-between gap-2 text-sm rounded-md p-2" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
-                <span style={{ color: T.inkSoft }}>{n.texto}</span>
-                <button onClick={() => handleDeleteNote(n.id)} style={{ color: T.inkSoft }} className="shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                <span style={{ color: T.inkSoft }}>{formatTextWithTags(n.texto, T)}</span>
+                  <div className="flex gap-2"><AudioReaderButton text={n.texto} T={T} /><button onClick={() => handleDeleteNote(n.id)} style={{ color: T.inkSoft }} className="shrink-0"><Trash2 className="w-3.5 h-3.5" /></button></div>
               </div>
             ))}
           </div>
@@ -3210,6 +3242,34 @@ class ConfigErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
+export function generateMarkdownBackup(commitments, notes, summaries) {
+  let md = "# Backup Omnia\n\nGerado em: " + new Date().toLocaleString() + "\n\n";
+  const disciplinas = Array.from(new Set([...notes.map(n=>n.disciplina), ...commitments.map(c=>c.disciplina)])).filter(Boolean);
+  
+  disciplinas.forEach(d => {
+    md += `## Disciplina: ${d}\n\n`;
+    const cDisc = commitments.filter(c => c.disciplina === d);
+    if(cDisc.length) {
+      md += "### Compromissos\n";
+      cDisc.forEach(c => md += `- [${c.concluido ? 'x' : ' '}] ${c.assunto} (Prazo: ${c.prazo||'N/A'})\n`);
+      md += "\n";
+    }
+    const nDisc = notes.filter(n => n.disciplina === d);
+    if(nDisc.length) {
+      md += "### Anotações\n";
+      nDisc.forEach(n => md += `> ${n.texto}\n\n`);
+    }
+    const sDisc = summaries.filter(s => s.disciplina === d && !s.commitmentId);
+    if(sDisc.length) {
+      md += "### Resumos\n";
+      sDisc.forEach(s => md += `${s.markdown}\n\n`);
+    }
+    md += "---\n\n";
+  });
+  return md;
+}
+
 export function ConfigTab(props) {
   return React.createElement(ConfigErrorBoundary, null, React.createElement(ConfigTabInner, props));
 }
@@ -3280,8 +3340,23 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
             <h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos Opcionais</h3>
           </div>
           <p className='mb-6' style={{ color: T.inkSoft }}>Ative ou desative funcionalidades secundárias para manter a interface limpa e objetiva.</p>
-  
           <div className='space-y-4'>
+
+            <div className='flex items-center justify-between p-4 rounded-xl border' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Download size={20} className="inline mr-2 -mt-1" /> Backup Completo (Markdown)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exportar todas as suas anotações, compromissos e resumos em um único arquivo de texto legível.</div>
+              </div>
+              <GhostButton onClick={() => {
+                const blob = new Blob([generateMarkdownBackup(commitments, notes, summaries)], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_omnia_${new Date().toISOString().slice(0,10)}.md`;
+                a.click();
+              }}>Baixar .md</GhostButton>
+            </div>
+
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><BarChart size={20} className="inline mr-2 -mt-1" /> Dashboard de Análises</div>
