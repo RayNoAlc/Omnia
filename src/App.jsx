@@ -25,6 +25,7 @@ import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsFo
 import { useFocusTimer } from "./lib/useFocusTimer";
 import { AppLayout } from "./layouts/AppLayout";
 import { TABS, applyTheme } from "./components/ui";
+import { GlobalSearchModal } from "./components/Tabs.jsx";
 
 
 class GlobalErrorBoundary extends React.Component {
@@ -57,6 +58,8 @@ function AppInner() {
     if (savedCfg) { const parsed = JSON.parse(savedCfg); if (parsed) setConfig(parsed); }
   }, []); // undefined = carregando, null = deslogado
   const [tab, setTab] = useState("hoje");
+  const [isZen, setIsZen] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const updateConfig = (newCfg) => { setConfig(newCfg); localStorage.setItem("omnia_config", JSON.stringify(newCfg)); };
   const [dataLoaded, setDataLoaded] = useState(false);
 
@@ -326,7 +329,7 @@ function AppInner() {
 
     const visibleTabs = TABS.filter(t => t.id !== "desempenho" || config?.enableGamification);
     return (
-    <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()}>
+    <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()} isZen={isZen}>
       {!dataLoaded ? (
         <div className="py-16 flex justify-center" style={{ color: T.inkSoft }}>
           <Loader2 className="w-5 h-5 animate-spin" />
@@ -367,7 +370,7 @@ function AppInner() {
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
           {tab === "foco" && (
-            <FocoTab config={config} updateConfig={updateConfig} userId={userId} commitments={commitments} sessions={sessions} metaHoje={metaHoje} timer={focusTimer}
+              <FocoTab isZen={isZen} setIsZen={setIsZen} config={config} updateConfig={updateConfig} userId={userId} commitments={commitments} sessions={sessions} metaHoje={metaHoje} timer={focusTimer}
               notes={notes} materials={materials} summaries={summaries}
               quizAttempts={quizAttempts} professorAttempts={professorAttempts}
               setNotes={setNotes} setMaterials={setMaterials} setSummaries={setSummaries}
@@ -386,6 +389,7 @@ function AppInner() {
           )}
         </>
       )}
+      {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} setTab={setTab} commitments={commitments} notes={notes} materials={materials} />}
     </AppLayout>
   );
 }

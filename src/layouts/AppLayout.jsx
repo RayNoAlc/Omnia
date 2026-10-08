@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LogOut, Menu, Palette, X, Download } from 'lucide-react';
 import { TINT, applyTheme, THEMES, T } from '../components/ui';
 
-export function AppLayout({ activeTab, onTabChange, TABS, onLogout, children }) {
+export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -25,7 +25,7 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, children }) 
   return (
     <div className='flex h-screen overflow-hidden' style={{ backgroundColor: T.bg, color: T.ink }}>
       {/* Sidebar (Desktop) */}
-      <aside className='hidden md:flex w-64 flex-col border-r shadow-lg relative z-20' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+      <aside className={`hidden ${isZen ? '' : 'md:flex'} w-64 flex-col border-r shadow-lg relative z-20`} style={{ backgroundColor: T.surface, borderColor: T.border }}>
         <div className='p-6 flex items-center justify-center'>
           <div className='h-20 w-40'><div className='w-full h-full' style={{
             maskImage: 'url(/omnia.png)',
