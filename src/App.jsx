@@ -223,7 +223,8 @@ function AppInner() {
   }
 
   async function saveAsNote(edited) {
-    const saved = await addNote(userId, { disciplina: edited.disciplina || "Geral", texto: edited.origemTexto });
+    const texto = edited.texto || edited.origemTexto || "";
+    const saved = await addNote(userId, { disciplina: edited.disciplina || "Geral", texto });
     setNotes((prev) => [saved, ...prev]);
     setPendingReview(null);
   }
@@ -337,11 +338,7 @@ function AppInner() {
       ) : (
         <>
           {tab === "hoje" && (
-            <HojeTab overdue={overdue} blocksHoje={blocksHoje} commitmentsHoje={commitmentsHoje} routineItemsHoje={routineItemsHoje}
-              proximos={proximos} overload={overloadWindow} onToggleBlock={handleToggleBlock}
-              onGoInbox={() => setTab("inbox")} onGoAgenda={() => setTab("agenda")}
-              routine={routine} metaHoje={metaHoje} onSetMeta={handleSetMeta} minutosEstudadosHoje={minutosEstudadosHoje}
-              avisos={avisos} />
+            <HojeTab overdue={overdue} blocksHoje={blocksHoje} commitmentsHoje={commitmentsHoje} routineItemsHoje={routineItemsHoje} proximos={proximos} overload={overloadWindow} onToggleBlock={handleToggleBlock} onGoInbox={() => setTab("inbox")} onGoAgenda={() => setTab("agenda")} routine={routine} metaHoje={metaHoje} onSetMeta={handleSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} avisos={avisos} config={config} notes={notes} onSaveNote={saveAsNote} />
           )}
           {tab === "inbox" && (
             <InboxTab userId={userId} onSubmit={handleInboxSubmit} loading={inboxLoading} error={inboxError}

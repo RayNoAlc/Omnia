@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -170,7 +170,23 @@ function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudad
   );
 }
 
-export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje, proximos, overload, onToggleBlock, onGoInbox, onGoAgenda, routine, metaHoje, onSetMeta, minutosEstudadosHoje, avisos }) {
+export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje, proximos, overload, onToggleBlock, onGoInbox, onGoAgenda, routine, metaHoje, onSetMeta, minutosEstudadosHoje, avisos, config, notes, onSaveNote }) {
+  
+  const [mood, setMood] = React.useState(null);
+  const [journalText, setJournalText] = React.useState("");
+  const hojeDateStr = todayISO().slice(0,10);
+  const hasJournalToday = notes && notes.some(n => n.disciplina === "Diário de Bordo" && n.created_at && n.created_at.startsWith(hojeDateStr));
+
+  const handleSaveJournal = async () => {
+    if (!mood || !journalText.trim()) return alert("Escolha um humor e escreva algo!");
+    const finalTxt = `Humor: ${mood}\n\n${journalText.trim()}`;
+    if (onSaveNote) {
+      await onSaveNote({ disciplina: "Diário de Bordo", texto: finalTxt });
+      setMood(null);
+      setJournalText("");
+    }
+  };
+
   const items = [
     ...routineItemsHoje.map((r) => ({ ...r, isRoutine: true, sortKey: r.horaInicio || "99:99" })),
     ...blocksHoje.map((b) => ({ ...b, sortKey: { manha: "09:00", tarde: "15:00", noite: "19:00" }[b.periodo] || "12:00" })),
@@ -576,11 +592,51 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
           );
         })}
       </div>
-    </div>
-  );
-}
 
-export function AgendaTab({
+        {/* Diário de Bordo (Idea 36 & 38) */}
+        {config?.enableJournal !== false && !hasJournalToday && (
+          <Card style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+            <div className="flex items-center gap-2 mb-3">
+              <BookHeart className="w-5 h-5" style={{ color: T.brand }} />
+              <h3 className="text-lg font-bold" style={{ color: T.ink }}>Diário de Bordo</h3>
+            </div>
+            <p className="text-sm mb-4" style={{ color: T.inkSoft }}>Como você está se sentindo hoje? Faça um rápido check-in mental.</p>
+            
+            <div className="flex gap-2 mb-4">
+              {['🤩', '😊', '😐', '😩', '💀'].map(em => (
+                <button key={em} onClick={() => setMood(em)} className="text-2xl p-2 rounded-full transition-transform hover:scale-110" style={{ backgroundColor: mood === em ? T.brand + '40' : 'transparent', border: mood === em ? `1px solid ${T.brand}` : '1px solid transparent' }}>
+                  {em}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              value={journalText} onChange={e => setJournalText(e.target.value)}
+              placeholder="Escreva sobre o seu dia, suas vitórias ou desabafos..."
+              className="w-full p-3 rounded-xl text-sm outline-none resize-none min-h-[100px] mb-3"
+              style={{ backgroundColor: T.bg, color: T.ink, border: `1px solid ${T.border}` }}
+            />
+            
+            <div className="flex justify-end">
+              <button onClick={handleSaveJournal} className="px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-80" style={{ backgroundColor: T.brand, color: T.bg }}>
+                Salvar no Diário
+              </button>
+            </div>
+          </Card>
+        )}
+        
+        {config?.enableJournal !== false && hasJournalToday && (
+          <div className="text-center p-4 rounded-xl text-sm" style={{ backgroundColor: T.surfaceAlt, color: T.inkSoft, border: `1px solid ${T.border}` }}>
+            <Smile className="w-5 h-5 mx-auto mb-2" style={{ color: T.brand }} />
+            Você já registrou seu diário hoje! Suas notas estão seguras na Biblioteca.
+          </div>
+        )}
+
+    </div>
+    );
+  }
+
+  export function AgendaTab({
   userId, commitments, studyBlocks, onDeleteCommitment, onToggleBlock, onReplan, onReduzir,
   routine, routineBlocks, routineExceptions,
   notes, materials, summaries, quizAttempts, professorAttempts,
@@ -3043,7 +3099,7 @@ export function ConfigTab(props) {
 function ConfigTabInner({ config = {}, updateConfig, userId }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
-  const safeConfig = { fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
+  const safeConfig = { enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
   const handleToggle = (key) => {
     updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
   };
@@ -3096,6 +3152,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
         </section>
 
 
+        
         <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
           <div className='flex items-center gap-3 mb-4'>
             <Settings className='w-6 h-6' style={{ color: T.brand }} />
@@ -3106,44 +3163,53 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
           <div className='space-y-4'>
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
+                <div className='font-bold' style={{ color: T.ink }}><BookHeart size={20} className="inline mr-2 -mt-1" /> Diário de Bordo e Humor</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Card na aba Hoje para registrar seu humor e pensamentos diários.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableJournal} onChange={() => handleToggle('enableJournal')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
                 <div className='font-bold' style={{ color: T.ink }}><PartyPopper size={20} className="inline mr-2 -mt-1" /> Animações de Conclusão</div>
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Disparar confetes ao marcar tarefas como concluídas.</div>
               </div>
               <input type='checkbox' checked={safeConfig.enableConfetti} onChange={() => handleToggle('enableConfetti')} className='w-6 h-6 accent-blue-500' />
             </label>
-          <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-            <div>
-              <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
-              <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba Desempenho, XP, Nível e Streak.</div>
-            </div>
-            <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
-          </label>
 
-          <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-            <div>
-              <div className='font-bold' style={{ color: T.ink }}><Headphones size={20} className="inline mr-2 -mt-1" /> Modo Imersivo Lo-Fi</div>
-              <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Player de música ambiente integrado na aba Foco.</div>
-            </div>
-            <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
-          </label>
-
-          <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-            <div>
-              <div className='font-bold' style={{ color: T.ink }}><Calendar size={20} className="inline mr-2 -mt-1" /> Sincronizar Calendário (Google/Apple)</div>
-              <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para exportar arquivos .ics da Rotina.</div>
-            </div>
-            <input type='checkbox' checked={safeConfig.enableCalendar} onChange={() => handleToggle('enableCalendar')} className='w-6 h-6 accent-blue-500' />
-          </label>
-
-          <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-            <div>
-              <div className='font-bold' style={{ color: T.ink }}><FileText size={20} className="inline mr-2 -mt-1" /> Gerar PDF da Rotina</div>
-              <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para baixar a Tabela de Horários em PDF.</div>
-            </div>
-            <input type='checkbox' checked={safeConfig.enablePdf} onChange={() => handleToggle('enablePdf')} className='w-6 h-6 accent-blue-500' />
-          </label>
-        </div>
-      </section>
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba Desempenho, XP, Nível e Streak.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
+            </label>
+  
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Headphones size={20} className="inline mr-2 -mt-1" /> Modo Imersivo Lo-Fi</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Player de música ambiente integrado na aba Foco.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
+            </label>
+  
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Calendar size={20} className="inline mr-2 -mt-1" /> Sincronizar Calendário (Google/Apple)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para exportar arquivos .ics da Rotina.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableCalendar} onChange={() => handleToggle('enableCalendar')} className='w-6 h-6 accent-blue-500' />
+            </label>
+  
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><FileText size={20} className="inline mr-2 -mt-1" /> Gerar PDF da Rotina</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para baixar a Tabela de Horários em PDF.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enablePdf} onChange={() => handleToggle('enablePdf')} className='w-6 h-6 accent-blue-500' />
+            </label>
+          </div>
+        </section>
 
       <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
         <div className='flex items-center gap-3 mb-4'>
