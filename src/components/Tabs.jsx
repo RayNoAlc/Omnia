@@ -2132,14 +2132,46 @@ export function FocoTab(props) {
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
 
-    const [showHealthBreak, setShowHealthBreak] = useState(false);
     useEffect(() => {
-      if (config?.enableHealthBreak === false) return;
-      if (timer.isRunning && timer.phase === 'work' && timer.remaining % 1200 === 0 && timer.remaining > 0 && timer.remaining < (timer.workSeconds || 999999)) {
-        setShowHealthBreak(true);
-        setTimeout(() => setShowHealthBreak(false), 8000);
+      const handleFsChange = () => {
+        if (!document.fullscreenElement && isZen) {
+          setIsZen(false);
+        }
+      };
+      document.addEventListener('fullscreenchange', handleFsChange);
+      return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, [isZen, setIsZen]);
+
+    const toggleZen = () => {
+      if (!isZen) {
+        document.documentElement.requestFullscreen().catch(()=>{});
+        setIsZen(true);
+      } else {
+        document.exitFullscreen().catch(()=>{});
+        setIsZen(false);
       }
-    }, [timer.remaining, timer.isRunning, timer.phase, config?.enableHealthBreak, timer.duration]);
+    };
+
+
+    const [showHealthBreak, setShowHealthBreak] = useState(false);
+
+      const [lastHealthBreak, setLastHealthBreak] = useState(0);
+      useEffect(() => {
+        if (config?.enableHealthBreak === false) return;
+        if (timer.isRunning && timer.phase === 'work') {
+          const elapsed = (timer.workSeconds || 999999) - timer.remaining;
+          const currentInterval = Math.floor(elapsed / 1200);
+          
+          if (currentInterval > 0 && currentInterval > lastHealthBreak) {
+            setShowHealthBreak(true);
+            setLastHealthBreak(currentInterval);
+            setTimeout(() => setShowHealthBreak(false), 8000);
+          }
+        } else if (timer.phase !== 'work') {
+          setLastHealthBreak(0);
+        }
+      }, [timer.remaining, timer.isRunning, timer.phase, config?.enableHealthBreak, timer.workSeconds, lastHealthBreak]);
+
 
   
   function createRoom() {
@@ -2196,6 +2228,7 @@ export function FocoTab(props) {
             )}
             <GhostButton onClick={reiniciarCiclo}><RotateCcw className="w-4 h-4" /> Reiniciar ciclo</GhostButton>
             <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar sessão</GhostButton>
+              <GhostButton onClick={toggleZen} style={{ color: isZen ? T.brand : T.inkSoft }}><Maximize className="w-4 h-4" /> {isZen ? "Sair do Zen" : "Modo Zen"}</GhostButton>
           </div>
             <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} />
             {props.config?.enableLofi !== false && (
