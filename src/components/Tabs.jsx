@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -2003,9 +2003,29 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
 /* Aba: Foco                                                                */
 /* ---------------------------------------------------------------------- */
 
-function FocusPet({ timerOn, streak, petName, onNameChange }) {
+function FocusPet({ timerOn, streak, petName, onNameChange, config, phase, remaining }) {
   const [editing, setEditing] = useState(false);
   const [tempName, setTempName] = useState(petName || "Coruja Omnia");
+
+    const [bubble, setBubble] = useState(null);
+    useEffect(() => {
+      if (config?.enableSincereOwl === false) return;
+      const phrases = {
+        idle: ["Pronto para começar?", "Um pomodoro por dia...", "A procrastinação é sua inimiga!"],
+        work: ["Foco total!", "Não olhe para o celular...", "Continue assim!"],
+        rest: ["Respire fundo...", "Beba uma água!", "Estique as pernas um pouquinho."]
+      };
+      
+      const interval = setInterval(() => {
+        if (Math.random() > 0.3) {
+          const arr = phrases[phase] || phrases.idle;
+          setBubble(arr[Math.floor(Math.random() * arr.length)]);
+          setTimeout(() => setBubble(null), 8000);
+        }
+      }, 30000); // Check every 30 seconds
+      return () => clearInterval(interval);
+    }, [phase, config?.enableSincereOwl]);
+
 
   let position = "0%";
   let status = "Dormindo...";
@@ -2025,10 +2045,16 @@ function FocusPet({ timerOn, streak, petName, onNameChange }) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-4">
-      <div 
-        style={{
-          width: 80, height: 80,
+    <div className="flex flex-col items-center justify-center p-4 relative">
+      {bubble && (
+          <div className="absolute -top-10 bg-white border shadow-md text-xs px-3 py-1 rounded-2xl animate-fade-in z-10" style={{ color: '#000', borderColor: T.border, whiteSpace: 'nowrap' }}>
+            {bubble}
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-b border-r transform rotate-45" style={{ borderColor: T.border }}></div>
+          </div>
+        )}
+        <div 
+          style={{
+            width: 80, height: 80,
           backgroundImage: "url('/pet_sprites.png')",
           backgroundSize: "300% auto",
           backgroundPosition: `${position} 50%`,
@@ -3099,7 +3125,7 @@ export function ConfigTab(props) {
 function ConfigTabInner({ config = {}, updateConfig, userId }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
-  const safeConfig = { enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
+  const safeConfig = { enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
   const handleToggle = (key) => {
     updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
   };
@@ -3153,6 +3179,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
 
 
         
+        
         <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
           <div className='flex items-center gap-3 mb-4'>
             <Settings className='w-6 h-6' style={{ color: T.brand }} />
@@ -3167,6 +3194,14 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Card na aba Hoje para registrar seu humor e pensamentos diários.</div>
               </div>
               <input type='checkbox' checked={safeConfig.enableJournal} onChange={() => handleToggle('enableJournal')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><MessageCircle size={20} className="inline mr-2 -mt-1" /> Coruja Sincera</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Balões de fala com dicas e avisos sobre o seu foco e progresso.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableSincereOwl} onChange={() => handleToggle('enableSincereOwl')} className='w-6 h-6 accent-blue-500' />
             </label>
 
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
