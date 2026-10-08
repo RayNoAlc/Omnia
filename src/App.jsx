@@ -60,6 +60,24 @@ function AppInner() {
   const [tab, setTab] = useState("hoje");
   const [isZen, setIsZen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [initialInboxText, setInitialInboxText] = useState("");
+  
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const clipperText = params.get('clipperText');
+    const clipperTitle = params.get('clipperTitle');
+    const clipperUrl = params.get('clipperUrl');
+    
+    if (clipperText || clipperUrl) {
+      const compiled = `[${clipperTitle || 'Sem Título'}](${clipperUrl || ''})\n\n${clipperText || ''}`;
+      setInitialInboxText(compiled);
+      setTab("inbox");
+      
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const updateConfig = (newCfg) => { setConfig(newCfg); localStorage.setItem("omnia_config", JSON.stringify(newCfg)); };
   const [dataLoaded, setDataLoaded] = useState(false);
 

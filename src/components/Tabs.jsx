@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Volume2, Square, BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  Lock, Volume2, Square, BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -240,6 +240,43 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
 
   return (
     <div className="space-y-6 max-w-[1400px] mx-auto pt-2">
+
+        {/* Revisão Espaçada (Ideia 11) */}
+        {(() => {
+          const hoje = new Date(todayISO() + "T12:00:00Z");
+          const revs = (notes||[]).filter(n => {
+            if (!n.created_at || n.disciplina === "Diário de Bordo") return false;
+            const diffTime = Math.abs(hoje - new Date(n.created_at));
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays === 1 || diffDays === 7 || diffDays === 30 || diffDays === 90;
+          });
+          if (revs.length === 0) return null;
+          return (
+            <Card style={{ borderColor: T.brand, backgroundColor: T.brand + '11' }} className="mb-6">
+              <SectionLabel><RotateCcw size={16} className="inline mr-2 -mt-0.5" /> Revisão Espaçada (Curva de Esquecimento)</SectionLabel>
+              <p className="text-xs mb-3" style={{ color: T.inkSoft }}>A IA separou estas anotações (de 1, 7, 30 ou 90 dias atrás) para você revisar hoje e fixar o conteúdo a longo prazo!</p>
+              <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+                {revs.map(r => {
+                  const d = new Date(r.created_at);
+                  const daysAgo = Math.floor(Math.abs(hoje - d) / (1000 * 60 * 60 * 24));
+                  return (
+                    <div key={r.id} className="min-w-[240px] max-w-[240px] snap-center rounded-lg p-3 text-sm flex flex-col justify-between" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
+                      <div>
+                        <div className="font-bold mb-1 truncate" style={{ color: T.brand }}>{r.disciplina}</div>
+                        <div className="line-clamp-4 text-xs whitespace-pre-wrap" style={{ color: T.inkSoft }}>{formatTextWithTags(r.texto, T)}</div>
+                      </div>
+                      <div className="mt-3 flex justify-between items-center">
+                        <AudioReaderButton text={r.texto} T={T} />
+                        <div className="text-[10px] font-bold uppercase text-right" style={{ color: T.ink }}>Há {daysAgo} dias</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          );
+        })()}
+
       
       {/* Alertas Globais (Topo) */}
       {(overdue.length > 0 || overload.length >= 2 || avisos.length > 0) && (
@@ -909,6 +946,18 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts }) {
 
   const level = Math.floor(totalXp / 1000) + 1;
 
+    const conquistas = [
+      { nome: "Primeiro Passo", desc: "Começou a focar", icone: "🎉", earned: sessions.length > 0 },
+      { nome: "Caminhante", desc: "Completou 5 sessões", icone: "🚶", earned: sessions.length >= 5 },
+      { nome: "Mestre do Foco", desc: "Completou 50 sessões", icone: "🧠", earned: sessions.length >= 50 },
+      { nome: "On Fire!", desc: "Streak de 3 dias", icone: "🔥", earned: streak >= 3 },
+      { nome: "Imbatível", desc: "Streak de 7 dias", icone: "🏆", earned: streak >= 7 },
+      { nome: "Sabe Tudo", desc: "Gabaritou um Quiz", icone: "💯", earned: quizAttempts.some(q => q.acertos === q.total && q.total > 0) },
+      { nome: "Aprovado", desc: "Tirou 10 com o Professor", icone: "🎓", earned: professorAttempts.some(p => p.nota === 10) },
+      { nome: "Organizado", desc: "Enviou 10 materiais", icone: "📚", earned: notes.length + commitments.length > 10 }
+    ];
+
+
   const handleSelect = (c) => {
     if (level < 5) return alert("Você precisa atingir o Nível 5 para escolher uma classe!");
     localStorage.setItem('omnia_rpg_class', c);
@@ -945,7 +994,7 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts }) {
   );
 }
 
-export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAttempts, config }) {
+export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAttempts, config, notes }) {
   const hoje = todayISO();
   const disciplinas = Array.from(new Set([
     ...commitments.map((c) => c.disciplina),
@@ -3439,9 +3488,29 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
           </div>
         </section>
 
-      <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-        <div className='flex items-center gap-3 mb-4'>
-          <h3 className='text-xl font-bold' style={{ color: T.ink }}><Key size={20} className="inline mr-2 -mt-1" /> Inteligência Artificial</h3>
+      
+        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+          <div className='flex items-center gap-3 mb-4'>
+            <Paperclip className='w-6 h-6' style={{ color: T.brand }} />
+            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Web Clipper (Favorito)</h3>
+          </div>
+          <p className='mb-4 text-sm' style={{ color: T.inkSoft }}>Arraste o botão abaixo para a barra de favoritos do seu navegador. Quando estiver em qualquer site ou artigo, clique no favorito para enviar o texto automaticamente para a Inbox do Omnia!</p>
+          <div className="p-4 rounded border flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+            <a 
+              href="javascript:(function(){const sel=window.getSelection().toString();const text=sel?sel:document.body.innerText;const title=document.title;const url=window.location.href;const target='https://omnia-unio.vercel.app/?clipperTitle='+encodeURIComponent(title)+'&clipperUrl='+encodeURIComponent(url)+'&clipperText='+encodeURIComponent(text.substring(0,3000));window.open(target,'_blank');})();"
+              className="px-4 py-2 font-bold text-white rounded-full shadow cursor-grab active:cursor-grabbing"
+              style={{ backgroundColor: T.brand }}
+              title="Arraste para a barra de favoritos"
+              onClick={e => e.preventDefault()}
+            >
+              Omnia Clipper
+            </a>
+          </div>
+        </section>
+
+        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+          <div className='flex items-center gap-3 mb-4'>
+            <h3 className='text-xl font-bold' style={{ color: T.ink }}><Key size={20} className="inline mr-2 -mt-1" /> Inteligência Artificial</h3>
         </div>
         <p className='mb-4 text-sm' style={{ color: T.inkSoft }}>Insira sua própria chave de API da Groq para ter limite de uso individual, independente dos outros usuários. Deixe em branco para usar a chave padrão do Omnia.</p>
         <a href='https://console.groq.com/keys' target='_blank' rel='noopener noreferrer' className='text-xs underline mb-4 block' style={{ color: T.brand }}>→ Criar chave gratuita em console.groq.com/keys</a>
