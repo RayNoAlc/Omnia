@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -2100,6 +2100,16 @@ export function FocoTab(props) {
 
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
+
+    const [showHealthBreak, setShowHealthBreak] = useState(false);
+    useEffect(() => {
+      if (config?.enableHealthBreak === false) return;
+      if (timer.isRunning && timer.phase === 'work' && timer.remaining % 1200 === 0 && timer.remaining > 0 && timer.remaining < (timer.workSeconds || 999999)) {
+        setShowHealthBreak(true);
+        setTimeout(() => setShowHealthBreak(false), 8000);
+      }
+    }, [timer.remaining, timer.isRunning, timer.phase, config?.enableHealthBreak, timer.duration]);
+
   
   function createRoom() {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -2297,9 +2307,7 @@ export function FocoTab(props) {
 /* ---------------------------------------------------------------------- */
 /* Aba: Secretária (chat)                                                   */
 /* ---------------------------------------------------------------------- */
-export function SecretariaTab({
-  userId, routine, routineBlocks, routineExceptions, commitments, studyBlocks, notes, sessions, setRoutineBlocks, setRoutineExceptions,
-}) {
+export function SecretariaTab({ userId, routine, routineBlocks, routineExceptions, commitments, studyBlocks, notes, sessions, setRoutineBlocks, setRoutineExceptions, config }) {
   const [messages, setMessages] = useState(() => {
     try {
       const saved = sessionStorage.getItem("secretariaMessages");
@@ -2379,8 +2387,13 @@ Min.estudados hoje: ${minHoje}`;
     }
   }
 
-  return (
-    <div className="flex flex-col" style={{ height: "60vh" }}>
+  const [scratch, setScratch] = useState(() => localStorage.getItem("omnia_scratch") || "");
+    useEffect(() => { localStorage.setItem("omnia_scratch", scratch); }, [scratch]);
+
+    return (
+      <div className="flex flex-col lg:flex-row gap-4 h-[75vh]">
+        <div className="flex flex-col flex-1 border rounded-xl p-4 shadow-sm" style={{ backgroundColor: T.surface, borderColor: T.border }}>
+  
       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -2400,9 +2413,24 @@ Min.estudados hoje: ${minHoje}`;
       </div>
       <div className="flex items-center gap-2 pt-3" style={{ borderTop: `1px solid ${T.border}` }}>
         <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Pergunte ou peça uma mudança na rotina..." className="flex-1 rounded-md p-2.5 text-sm outline-none" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink }} />
+        
         <PrimaryButton onClick={send} disabled={loading || !input.trim()}><Send className="w-4 h-4" /></PrimaryButton>
       </div>
     </div>
+    
+    {config?.enableScratchpad !== false && (
+      <div className="flex flex-col w-full lg:w-1/3 border rounded-xl p-4 shadow-sm" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+        <h3 className="font-bold mb-4 flex items-center gap-2" style={{ color: T.ink }}><Edit3 size={18} /> Lousa em Branco</h3>
+        <textarea
+          value={scratch}
+          onChange={(e) => setScratch(e.target.value)}
+          placeholder="Use este espaço para rascunhos rápidos ou anotações enquanto conversa com a IA..."
+          className="flex-1 w-full bg-transparent border-none outline-none resize-none text-sm"
+          style={{ color: T.inkSoft }}
+        />
+      </div>
+    )}
+  </div>
   );
 }
 
@@ -3125,7 +3153,7 @@ export function ConfigTab(props) {
 function ConfigTabInner({ config = {}, updateConfig, userId }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
-  const safeConfig = { enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
+  const safeConfig = { enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
   const handleToggle = (key) => {
     updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
   };
@@ -3180,6 +3208,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
 
         
         
+        
         <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
           <div className='flex items-center gap-3 mb-4'>
             <Settings className='w-6 h-6' style={{ color: T.brand }} />
@@ -3188,6 +3217,22 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
           <p className='mb-6' style={{ color: T.inkSoft }}>Ative ou desative funcionalidades secundárias para manter a interface limpa e objetiva.</p>
   
           <div className='space-y-4'>
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Heart size={20} className="inline mr-2 -mt-1" /> Pausas Ativas</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>A tela escurece e sugere alongamento e hidratação a cada 20 minutos de foco contínuo.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableHealthBreak} onChange={() => handleToggle('enableHealthBreak')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Edit3 size={20} className="inline mr-2 -mt-1" /> Lousa em Branco</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Um bloco de notas simples na aba Secretaria para rascunhos rápidos.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableScratchpad} onChange={() => handleToggle('enableScratchpad')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><BookHeart size={20} className="inline mr-2 -mt-1" /> Diário de Bordo e Humor</div>

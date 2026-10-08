@@ -374,9 +374,7 @@ function AppInner() {
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
           {tab === "secretaria" && (
-            <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions}
-              commitments={commitments} studyBlocks={studyBlocks} notes={notes} sessions={sessions}
-              setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} />
+            <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} commitments={commitments} studyBlocks={studyBlocks} notes={notes} sessions={sessions} setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} config={config} />
           )}
           {tab === "config" && <ConfigTab config={config} updateConfig={updateConfig} userId={userId} />}
             {tab === "rotina" && (
