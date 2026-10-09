@@ -1,30 +1,31 @@
 ﻿const fs = require('fs');
-let app = fs.readFileSync('src/App.jsx', 'utf8');
+let tabs = fs.readFileSync('src/components/Tabs.jsx', 'utf8');
 
-const newListener = `
+// Inject GlobalSearch trigger and other shortcuts
+const shortcutsHtml = `
+  // --- IDEA 43: ATALHOS DE TECLADO ---
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ctrl/Cmd + K or Shift + S for Search
-      if (((e.ctrlKey || e.metaKey) && e.key === 'k') || (e.shiftKey && e.key.toLowerCase() === 's')) {
+      // Ignore if typing in an input
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setShowSearch(true);
-        return;
-      }
-
-      // Ignore shortcuts if user is typing in an input/textarea
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-
-      // Power User Shortcuts (Shift + Key)
-      if (e.shiftKey) {
-        switch(e.key.toLowerCase()) {
-          case 'h': setTab("hoje"); break;
-          case 'f': setTab("foco"); break;
-          case 'b': setTab("biblioteca"); break;
-          case 'a': setTab("agenda"); break;
-          case 'd': setTab("desempenho"); break;
-          case 'i': setTab("inbox"); break;
-          case 'c': setTab("inbox"); break; // C to "Create"
-        }
+      } else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setTab("foco");
+      } else if (e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        setTab("agenda");
+      } else if (e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setTab("biblioteca");
+      } else if (e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setTab("hoje");
+      } else if (e.key === '?') {
+        alert("Atalhos:\\nF: Foco\\nC: Calendário/Agenda\\nB: Biblioteca\\nH: Hoje\\nCtrl+K: Busca Global");
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -32,10 +33,10 @@ const newListener = `
   }, []);
 `;
 
-app = app.replace(
-  /useEffect\(\(\) => \{\s*const handleKeyDown = \(e\) => \{\s*if \(\(e\.ctrlKey \|\| e\.metaKey\) && e\.key === 'k'\) \{\s*e\.preventDefault\(\);\s*setShowSearch\(true\);\s*\}\s*\};\s*window\.addEventListener\('keydown', handleKeyDown\);\s*return \(\) => window\.removeEventListener\('keydown', handleKeyDown\);\s*\}, \[\]\);/,
-  newListener.trim()
+tabs = tabs.replace(
+  /const \[showSearch, setShowSearch\] = React\.useState\(false\);/,
+  '$&\n' + shortcutsHtml
 );
 
-fs.writeFileSync('src/App.jsx', app, 'utf8');
-console.log("Injected Power User Shortcuts!");
+fs.writeFileSync('src/components/Tabs.jsx', tabs, 'utf8');
+console.log("Injected Keyboard Shortcuts!");
