@@ -329,7 +329,7 @@ function AppInner() {
   const hoje = todayISO();
   const overdue = commitments.filter((c) => c.prazo && c.prazo < hoje);
   const blocksHoje = studyBlocks.filter((b) => b.date === hoje);
-  const commitmentsHoje = commitments.filter((c) => c.prazo === hoje);
+  const commitmentsHoje = visibleCommitments.filter((c) => c.prazo === hoje);
   const proximos = commitments.filter((c) => c.prazo && c.prazo > hoje).sort((a, b) => a.prazo.localeCompare(b.prazo)).slice(0, 4);
   const overloadWindow = commitments.filter((c) => c.prazo && c.prazo >= hoje && c.prazo <= addDays(hoje, 7)).sort((a, b) => a.prazo.localeCompare(b.prazo));
   const routineItemsHoje = getEffectiveRoutineItemsForDate(hoje, routine, routineBlocks, routineExceptions);
@@ -346,7 +346,11 @@ function AppInner() {
 
   const avisos = computeAvisos({ hoje, horaAtual: new Date().getHours(), commitments, studyBlocks, metaHoje, minutosEstudadosHoje });
 
-    const visibleTabs = TABS.filter(t => t.id !== "desempenho" || config?.enableGamification);
+    
+  const visibleCommitments = config?.showArchived ? commitments : commitments.filter(c => !(c.assunto||"").toLowerCase().includes('#arquivado') && !(c.disciplina||"").toLowerCase().includes('#arquivado'));
+  const visibleNotes = config?.showArchived ? notes : notes.filter(n => !(n.texto||"").toLowerCase().includes('#arquivado') && !(n.disciplina||"").toLowerCase().includes('#arquivado'));
+
+  const visibleTabs = TABS.filter(t => t.id !== "desempenho" || config?.enableGamification);
     return (
     <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()} isZen={isZen}>
       {!dataLoaded ? (
@@ -356,7 +360,7 @@ function AppInner() {
       ) : (
         <>
           {tab === "hoje" && (
-            <HojeTab overdue={overdue} blocksHoje={blocksHoje} commitmentsHoje={commitmentsHoje} routineItemsHoje={routineItemsHoje} proximos={proximos} overload={overloadWindow} onToggleBlock={handleToggleBlock} onGoInbox={() => setTab("inbox")} onGoAgenda={() => setTab("agenda")} routine={routine} metaHoje={metaHoje} onSetMeta={handleSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} avisos={avisos} config={config} notes={notes} onSaveNote={saveAsNote} />
+            <HojeTab overdue={overdue} blocksHoje={blocksHoje} commitmentsHoje={commitmentsHoje} routineItemsHoje={routineItemsHoje} proximos={proximos} overload={overloadWindow} onToggleBlock={handleToggleBlock} onGoInbox={() => setTab("inbox")} onGoAgenda={() => setTab("agenda")} routine={routine} metaHoje={metaHoje} onSetMeta={handleSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} avisos={avisos} config={config} notes={visibleNotes} onSaveNote={saveAsNote} />
           )}
           {tab === "inbox" && (
             <InboxTab userId={userId} onSubmit={handleInboxSubmit} loading={inboxLoading} error={inboxError}
@@ -364,35 +368,35 @@ function AppInner() {
               onConfirm={confirmPendingReview} onSaveNote={saveAsNote} setMaterials={setMaterials} />
           )}
           {tab === "agenda" && (
-            <AgendaTab userId={userId} commitments={commitments} studyBlocks={studyBlocks}
+            <AgendaTab userId={userId} commitments={visibleCommitments} studyBlocks={studyBlocks}
               onDeleteCommitment={handleDeleteCommitment} onToggleBlock={handleToggleBlock}
               onReplan={handleReplan} onReduzir={handleReduzir}
               routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions}
-              notes={notes} materials={materials} summaries={summaries}
+              notes={visibleNotes} materials={materials} summaries={summaries}
               quizAttempts={quizAttempts} professorAttempts={professorAttempts}
               setNotes={setNotes} setMaterials={setMaterials} setSummaries={setSummaries}
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
           {tab === "desempenho" && (
-            <DesempenhoTab commitments={commitments} sessions={sessions}
+            <DesempenhoTab commitments={visibleCommitments} sessions={sessions}
               quizAttempts={quizAttempts} professorAttempts={professorAttempts} />
           )}
           {tab === "biblioteca" && (
-            <BibliotecaTab userId={userId} setCommitments={setCommitments} onDeleteCommitment={handleDeleteCommitment} notes={notes} commitments={commitments} materials={materials}
+            <BibliotecaTab userId={userId} setCommitments={setCommitments} onDeleteCommitment={handleDeleteCommitment} notes={visibleNotes} commitments={visibleCommitments} materials={materials}
               quizAttempts={quizAttempts} professorAttempts={professorAttempts}
               onDeleteNote={handleDeleteNote} summaries={summaries} setSummaries={setSummaries}
               setNotes={setNotes} setMaterials={setMaterials}
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
           {tab === "foco" && (
-              <FocoTab isZen={isZen} setIsZen={setIsZen} config={config} updateConfig={updateConfig} userId={userId} commitments={commitments} sessions={sessions} metaHoje={metaHoje} timer={focusTimer}
-              notes={notes} materials={materials} summaries={summaries}
+              <FocoTab isZen={isZen} setIsZen={setIsZen} config={config} updateConfig={updateConfig} userId={userId} commitments={visibleCommitments} sessions={sessions} metaHoje={metaHoje} timer={focusTimer}
+              notes={visibleNotes} materials={materials} summaries={summaries}
               quizAttempts={quizAttempts} professorAttempts={professorAttempts}
               setNotes={setNotes} setMaterials={setMaterials} setSummaries={setSummaries}
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
           {tab === "secretaria" && (
-            <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} commitments={commitments} studyBlocks={studyBlocks} notes={notes} sessions={sessions} setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} config={config} />
+            <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} commitments={visibleCommitments} studyBlocks={studyBlocks} notes={visibleNotes} sessions={sessions} setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} config={config} />
           )}
           {tab === "config" && <ConfigTab config={config} updateConfig={updateConfig} userId={userId} />}
             {tab === "rotina" && (
@@ -402,7 +406,7 @@ function AppInner() {
           )}
         </>
       )}
-      {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} setTab={setTab} commitments={commitments} notes={notes} materials={materials} />}
+      {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} />}
     </AppLayout>
   );
 }
