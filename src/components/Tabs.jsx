@@ -1625,7 +1625,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
                     } else {
                       const bpm = parseInt(document.getElementById('pacerBpm').value) || 60;
                       const ms = (60 / bpm) * 1000;
-                      if(!window.pacerAudioCtx) window.pacerAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); const audioCtx = window.pacerAudioCtx;
+                      if(!window.pacerAudioCtx) window.pacerAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); const audioCtx = window.pacerAudioCtx; if (audioCtx.state === 'suspended') audioCtx.resume();
                       window.readingPacerInterval = setInterval(() => {
                         const osc = audioCtx.createOscillator();
                         osc.type = "sine";
@@ -1991,7 +1991,7 @@ function CompromissoWorkspaceContent({
                     } else {
                       const bpm = parseInt(document.getElementById('pacerBpm').value) || 60;
                       const ms = (60 / bpm) * 1000;
-                      if(!window.pacerAudioCtx) window.pacerAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); const audioCtx = window.pacerAudioCtx;
+                      if(!window.pacerAudioCtx) window.pacerAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); const audioCtx = window.pacerAudioCtx; if (audioCtx.state === 'suspended') audioCtx.resume();
                       window.readingPacerInterval = setInterval(() => {
                         const osc = audioCtx.createOscillator();
                         osc.type = "sine";
@@ -2651,7 +2651,7 @@ export function FocoTab(props) {
                         <input type="text" placeholder="Link Playlist Spotify..." className="flex-1 text-sm p-2 rounded-md outline-none" style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }} onKeyDown={(e) => {
                           if(e.key === 'Enter') {
                             const url = e.target.value;
-                            const match = url.match(/(?:playlist|album|track|show|episode)\/([a-zA-Z0-9]+)/);
+                            const match = url.match(/(playlist|album|track|show|episode)\/([a-zA-Z0-9]+)/);
                             if (match) {
                               props.updateConfig({ ...props.config, spotifyUrl: `${match[1]}/${match[2]}` });
                             } else {
