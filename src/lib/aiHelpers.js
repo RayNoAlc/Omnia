@@ -23,7 +23,7 @@ export async function classifyInboxText(text, disciplinasConhecidas) {
     let combinedSummary = "";
     const maxChunks = Math.min(chunks.length, 6);
     for (let i = 0; i < maxChunks; i++) {
-      const sysSum = 'Você é um sumarizador especialista de Odontologia. Extraia os principais fatos, conceitos, datas, prazos e compromissos deste trecho do material. Mantenha as datas e disciplinas exatas intactas. Responda apenas com o resumo.';
+      const sysSum = 'Você é um sumarizador especialista acadêmico/universitário. Extraia os principais fatos, conceitos, datas, prazos e compromissos deste trecho do material. Mantenha as datas e disciplinas exatas intactas. Responda apenas com o resumo.';
       const chunkRes = await callAI(sysSum, chunks[i]);
       combinedSummary += chunkRes + '\n\n';
     }
@@ -34,7 +34,7 @@ export async function classifyInboxText(text, disciplinasConhecidas) {
     processableText = combinedSummary;
   }
 
-  const sys = `Você é o motor de classificação de um assistente de vida universitário para estudantes de Odontologia.
+  const sys = `Você é o motor de classificação de um assistente de vida universitário para estudantes acadêmico/universitário.
 Hoje é ${todayISO()} (formato AAAA-MM-DD).
 Disciplinas já conhecidas do usuário: ${disciplinasConhecidas.join(", ") || "nenhuma ainda"}.
 Analise o texto enviado e responda APENAS com um objeto JSON válido, sem markdown e sem texto antes ou depois, no formato exato:
@@ -52,12 +52,12 @@ Converta prazos relativos em data absoluta. Se não conseguir determinar um camp
 }
 
 export async function aiGenerateSummary(disciplina, sourceTexts) {
-  const sys = `Você é um assistente de estudos de Odontologia. Gere um resumo em português do Brasil, claro e direto, sobre a disciplina "${disciplina}", usando como base o material fornecido pelo usuário. Estruture em tópicos curtos com marcadores. Responda apenas com o resumo, sem introduções do tipo "aqui está".`;
+  const sys = `Você é um assistente de estudos acadêmico/universitário. Gere um resumo em português do Brasil, claro e direto, sobre a disciplina "${disciplina}", usando como base o material fornecido pelo usuário. Estruture em tópicos curtos com marcadores. Responda apenas com o resumo, sem introduções do tipo "aqui está".`;
   const texto = truncarMaterial(sourceTexts);
   const user =
     texto && texto.trim()
       ? texto
-      : `(Nenhuma anotação registrada ainda para ${disciplina}. Gere um resumo genérico dos tópicos centrais mais prováveis dessa disciplina em um curso de Odontologia, deixando claro no início que é um ponto de partida a ser editado pelo aluno.)`;
+      : `(Nenhuma anotação registrada ainda para ${disciplina}. Gere um resumo genérico dos tópicos centrais mais prováveis dessa disciplina em um curso acadêmico/universitário, deixando claro no início que é um ponto de partida a ser editado pelo aluno.)`;
   return await callAI(sys, user);
 }
 
@@ -92,16 +92,16 @@ export async function aiGenerateQuiz(disciplina, sourceTexts, tipo = "multipla")
 
   let sys;
   if (tipo === "vf") {
-    sys = `Você é um gerador de questões de Verdadeiro/Falso para Odontologia. Com base no material sobre "${disciplina}", crie exatamente 5 afirmações em português do Brasil, misturando verdadeiras e falsas (não deixe todas com o mesmo valor). Responda APENAS com um array JSON, sem markdown, no formato exato:
+    sys = `Você é um gerador de questões de Verdadeiro/Falso acadêmico. Com base no material sobre "${disciplina}", crie exatamente 5 afirmações em português do Brasil, misturando verdadeiras e falsas (não deixe todas com o mesmo valor). Responda APENAS com um array JSON, sem markdown, no formato exato:
 [{"afirmacao": string, "correta": boolean, "explicacao": string curta}]`;
   } else if (tipo === "discursiva") {
-    sys = `Você é um gerador de questões discursivas para Odontologia. Com base no material sobre "${disciplina}", crie exatamente 4 perguntas abertas em português do Brasil que exigem uma resposta redigida. Responda APENAS com um array JSON, sem markdown, no formato exato:
+    sys = `Você é um gerador de questões discursivas acadêmico. Com base no material sobre "${disciplina}", crie exatamente 4 perguntas abertas em português do Brasil que exigem uma resposta redigida. Responda APENAS com um array JSON, sem markdown, no formato exato:
 [{"pergunta": string, "respostaModelo": string com uma resposta modelo completa e bem explicada}]`;
   } else if (tipo === "flashcard") {
-    sys = `Você é um gerador de flashcards de estudo para Odontologia. Com base no material sobre "${disciplina}", crie exatamente 8 flashcards em português do Brasil (frente = termo ou pergunta curta, verso = definição ou resposta curta e direta). Responda APENAS com um array JSON, sem markdown, no formato exato:
+    sys = `Você é um gerador de flashcards de estudo acadêmico. Com base no material sobre "${disciplina}", crie exatamente 8 flashcards em português do Brasil (frente = termo ou pergunta curta, verso = definição ou resposta curta e direta). Responda APENAS com um array JSON, sem markdown, no formato exato:
 [{"frente": string, "verso": string}]`;
   } else {
-    sys = `Você é um gerador de questões de estudo para Odontologia. Com base no material fornecido sobre "${disciplina}", crie exatamente 5 questões de múltipla escolha em português do Brasil. Responda APENAS com um array JSON, sem markdown e sem texto antes ou depois, no formato exato:
+    sys = `Você é um gerador de questões de estudo acadêmico. Com base no material fornecido sobre "${disciplina}", crie exatamente 5 questões de múltipla escolha em português do Brasil. Responda APENAS com um array JSON, sem markdown e sem texto antes ou depois, no formato exato:
 [{"pergunta": string, "opcoes": [string, string, string, string], "respostaCorreta": number (índice de 0 a 3), "explicacao": string curta}]
 As opções erradas devem ser plausíveis, não óbvias. Baseie-se no material fornecido; se ele for insuficiente, use conhecimento geral da área e diga isso na explicação.`;
   }
@@ -112,7 +112,7 @@ As opções erradas devem ser plausíveis, não óbvias. Baseie-se no material f
 
 export async function aiEvaluateProfessor(disciplina, sourceTexts, userAnswer) {
   const texto = truncarMaterial(sourceTexts);
-  const sys = `Você está no "Modo Professor" de um assistente de estudos de Odontologia, avaliando a explicação de um aluno sobre "${disciplina}".
+  const sys = `Você está no "Modo Professor" de um assistente de estudos acadêmico/universitário, avaliando a explicação de um aluno sobre "${disciplina}".
 Material de referência do aluno (pode estar vazio): ${
     texto && texto.trim() ? texto : "(nenhum material de referência registrado — avalie com base em conhecimento geral da área)"
   }

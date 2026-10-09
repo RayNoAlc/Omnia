@@ -157,7 +157,7 @@ const getRoutineIcon = (type) => {
 
 
   function DailyHabits({ T }) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO();
     const [habits, setHabits] = useState(() => {
       try {
         const saved = localStorage.getItem("omnia_habits_" + today);
@@ -4116,7 +4116,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `backup_omnia_${new Date().toISOString().slice(0,10)}.md`;
+                a.download = `backup_omnia_${todayISO()}.md`;
                 a.click();
               }}>Baixar .md</GhostButton>
             </div>

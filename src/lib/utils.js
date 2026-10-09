@@ -164,11 +164,14 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
 }
 export function addDays(iso, n) {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + n);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 10);
 }
 export function formatDateBR(iso) {
