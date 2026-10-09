@@ -7,8 +7,8 @@ import Auth from "./components/Auth";
 import {
   Header, TabNav, HojeTab, InboxTab, AgendaTab, DesempenhoTab,
   BibliotecaTab, FocoTab, SecretariaTab, RotinaTab, ConfigTab,
+  GlobalSearchModal,
 } from "./components/Tabs";
-import { T } from "./components/ui";
 import confetti from "canvas-confetti";
 import {
   fetchRoutine, createDefaultRoutine, updateRoutine,
@@ -25,7 +25,6 @@ import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsFo
 import { useFocusTimer } from "./lib/useFocusTimer";
 import { AppLayout } from "./layouts/AppLayout";
 import { TABS, applyTheme } from "./components/ui";
-import { GlobalSearchModal } from "./components/Tabs.jsx";
 
 
 class GlobalErrorBoundary extends React.Component {
