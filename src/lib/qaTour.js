@@ -78,6 +78,9 @@
   await moveAndClick("text=Kanban", "Alternou para Kanban");
   await wait(1500);
   await moveAndClick("text=Lista", "Voltou para Lista");
+  await moveAndClick("text=Google Cal", "Visualizou Bloqueio de Tempo (Calendário)");
+  await wait(2000);
+  await moveAndClick("text=Lista", "Voltou para Lista");
 
   // 3. Aba Biblioteca
   notify("Verificando Biblioteca e Árvore de Conhecimento...");
@@ -110,6 +113,10 @@
   await moveAndClick("text=Config", "Clicou Aba Configurações");
   await wait(1500);
   await moveAndClick("text=Modo Hacker", "Ativou Tema Hacker");
+  await wait(1000);
+  await moveAndClick("text=Modo Férias", "Ativou Modo Férias (Burnout)");
+  await wait(1500);
+  await moveAndClick("text=Modo Férias", "Desativou Modo Férias");
   await wait(2000);
   await moveAndClick("text=Omnia Dark", "Voltou Tema Original");
 

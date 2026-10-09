@@ -1,0 +1,20 @@
+﻿const fs = require('fs');
+let tabs = fs.readFileSync('src/components/Tabs.jsx', 'utf8');
+
+const vacationHtml = `
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>🌴 Modo Férias (Burnout)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Pausa streaks, zera metas diárias e remove a pressão para você descansar sem culpa.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.vacationMode} onChange={() => handleToggle('vacationMode')} className='w-6 h-6 accent-blue-500' />
+            </label>
+`;
+
+tabs = tabs.replace(
+  /<div className='font-bold' style=\{\{ color: T\.ink \}\}>Resetar Banco de Dados<\/div>/,
+  vacationHtml + '\n            <div className="font-bold" style={{ color: T.ink }}>Resetar Banco de Dados</div>'
+);
+
+fs.writeFileSync('src/components/Tabs.jsx', tabs, 'utf8');
+console.log("Injected Vacation Mode!");

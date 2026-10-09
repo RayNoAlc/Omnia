@@ -155,7 +155,12 @@ const getRoutineIcon = (type) => {
   }
 };
 
-function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudadosHoje }) {
+function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudadosHoje, config }) {
+  const isVacation = config?.vacationMode;
+  if (isVacation) {
+    return <Card style={{ borderColor: T.brand, backgroundColor: T.brand + '22' }}><div className='flex flex-col items-center justify-center p-4 text-center'><h3 className='font-bold text-lg mb-2' style={{ color: T.brand }}>🌴 Modo Férias Ativado</h3><p className='text-sm' style={{ color: T.inkSoft }}>Seus streaks estão congelados. Sem metas de estudo para hoje. Descanse!</p></div></Card>;
+  }
+
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(metaHoje ? metaHoje / 60 : 2);
   const plano = planoRecomendadoHoje(blocksHoje, routine);
@@ -361,7 +366,7 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
             )}
           </Card>
           
-          <MetaHojeCard blocksHoje={blocksHoje} routine={routine} metaHoje={metaHoje} onSetMeta={onSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} />
+          <MetaHojeCard blocksHoje={blocksHoje} routine={routine} metaHoje={metaHoje} onSetMeta={onSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} config={config} />
         </div>
 
         {/* COLUNA DIREITA: Checklist e Prazos */}
@@ -763,10 +768,52 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
           <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <button onClick={() => setViewMode("lista")} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === "lista" ? "bg-white dark:bg-gray-700 shadow" : "opacity-50"}`} style={{ color: viewMode === "lista" ? T.brand : T.ink }}>Lista</button>
             <button onClick={() => setViewMode("kanban")} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === "kanban" ? "bg-white dark:bg-gray-700 shadow" : "opacity-50"}`} style={{ color: viewMode === "kanban" ? T.brand : T.ink }}>Kanban</button>
+            <button onClick={() => setViewMode("calendario")} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === "calendario" ? "bg-white dark:bg-gray-700 shadow" : "opacity-50"}`} style={{ color: viewMode === "calendario" ? T.brand : T.ink }}>Google Cal</button>
           </div>
         </div>
 
-        {viewMode === "kanban" ? (
+        
+        {viewMode === "calendario" ? (
+          <div className="w-full overflow-x-auto pb-4">
+            <div className="min-w-[700px] grid grid-cols-7 gap-2">
+              {Array.from({ length: 7 }, (_, i) => {
+                const d = addDays(hoje, i);
+                const dayBlocks = studyBlocks.filter(b => !b.concluido && b.date === d);
+                const dayComms = commitments.filter(c => !c.concluido && c.prazo === d);
+                return (
+                  <div key={d} className="flex flex-col gap-2">
+                    <div className="text-center p-2 rounded-t-xl font-bold text-xs" style={{ backgroundColor: i === 0 ? T.brand : T.surfaceAlt, color: i === 0 ? T.brandInk : T.inkSoft }}>
+                      {i === 0 ? "Hoje" : d.slice(8,10) + "/" + d.slice(5,7)}
+                    </div>
+                    {["manha", "tarde", "noite"].map(per => {
+                      const blocks = dayBlocks.filter(b => b.periodo === per);
+                      return (
+                        <div key={per} className="flex flex-col gap-1 p-2 min-h-[80px] rounded-lg text-xs" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                          <span className="text-[10px] font-bold uppercase opacity-50 mb-1" style={{ color: T.ink }}>{per}</span>
+                          {blocks.map(b => (
+                            <div key={b.id} className="p-1 rounded cursor-pointer hover:opacity-80" style={{ backgroundColor: T.brand + '33', color: T.brand, borderLeft: `3px solid ${T.brand}` }} onClick={() => setOpenCommitment(commitments.find(c => c.id === b.commitment_id))}>
+                              {b.assunto}
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })}
+                    <div className="flex flex-col gap-1 p-2 rounded-lg text-xs mt-1" style={{ border: `1px dashed ${T.importante}66` }}>
+                      <span className="text-[10px] font-bold uppercase mb-1" style={{ color: T.importante }}>Vence hoje</span>
+                      {dayComms.length === 0 && <span className="text-[10px] opacity-40" style={{ color: T.inkSoft }}>Nada</span>}
+                      {dayComms.map(c => (
+                        <div key={c.id} className="p-1 rounded cursor-pointer truncate" style={{ backgroundColor: T.importante + '22', color: T.importante }} onClick={() => setOpenCommitment(c)}>
+                          🔥 {c.assunto}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : viewMode === "kanban" ? (
+
           <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4 items-start">
             {["A Fazer", "Atrasados", "Concluídos"].map(col => {
               let items = [];
@@ -2462,6 +2509,8 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   let position = "0%";
   let status = "Dormindo...";
   if (timerOn) { position = "50%"; status = "Focando!"; }
+  else if (config?.vacationMode) { position = "0%"; status = "De férias 🌴"; }
+  else if (config?.vacationMode) { position = "0%"; status = "De Férias 🌴"; }
   else if (streak > 5) { position = "100%"; status = "Mestre da Rotina"; }
   else if (streak > 0) { position = "100%"; status = "Animado"; }
   else { position = "0%"; status = "Esperando você estudar..."; }
@@ -2539,6 +2588,12 @@ export function FocoTab(props) {
 
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
+  const [showBreathing, setShowBreathing] = useState(false);
+  useEffect(() => {
+    const handler = () => setShowBreathing(true);
+    window.addEventListener("openBreathing", handler);
+    return () => window.removeEventListener("openBreathing", handler);
+  }, []);
 
     useEffect(() => {
       const handleFsChange = () => {
@@ -2780,12 +2835,20 @@ export function FocoTab(props) {
         <Card>
           <div className="flex flex-col gap-3">
             <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase="idle" />
-            <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
+            
+              <div className="border-t pt-3 mt-1 w-full max-w-sm mx-auto" style={{ borderColor: T.border }}>
+                <GhostButton className="w-full text-xs flex justify-center py-2" onClick={() => window.dispatchEvent(new Event('openBreathing'))}>
+                  <Wind className="w-4 h-4 mr-2" /> Técnica de Respiração (Ansiedade)
+                </GhostButton>
+              </div>
+
+              <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowRoom(!showRoom)}>
                 <SectionLabel><Globe size={18} className="inline mr-2 -mt-0.5" /> Modo Multiplayer</SectionLabel>
                 <span className="text-xs" style={{ color: T.brand }}>{showRoom ? "Esconder" : "Mostrar"}</span>
               </div>
-              {showRoom && (
+              {showBreathing && <BreathingModal onClose={() => setShowBreathing(false)} T={props.T || T} />}
+      {showRoom && (
                 <div className="mt-3 flex flex-col gap-2">
                   <PrimaryButton onClick={createRoom} className="w-full text-xs">Criar Sala de Estudos</PrimaryButton>
                   <div className="flex gap-2">
@@ -3570,6 +3633,9 @@ function QAAutomatedSystem({ userId }) {
       <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Inicia um robô invisível que clica na tela e faz um tour por todas as abas.</div>
     </div>
     <PrimaryButton onClick={() => runQATour()}>Rodar Tour</PrimaryButton>
+
+            
+
   </div>
 
 
@@ -3760,7 +3826,13 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
           <div className='space-y-4'>
 
             
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+            
+            
+            
+
+
+
+<label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><ShieldAlert size={20} className="inline mr-2 -mt-1" /> Alerta Anti-Distração</div>
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Receba uma notificação dura se você mudar de aba enquanto o cronômetro de Foco estiver rodando.</div>
@@ -3775,6 +3847,10 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
               </div>
               <input type='checkbox' checked={safeConfig.showArchived} onChange={() => handleToggle('showArchived')} className='w-6 h-6 accent-blue-500' />
             </label>
+
+
+            
+
 
 
             <div className='flex items-center justify-between p-4 rounded-xl border' style={{ borderColor: T.border, backgroundColor: T.bg }}>
@@ -3792,7 +3868,11 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
               }}>Baixar .md</GhostButton>
             </div>
 
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+            
+            
+
+
+<label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><BarChart size={20} className="inline mr-2 -mt-1" /> Dashboard de Análises</div>
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Gráficos semanais e horários de pico na aba Desempenho.</div>
@@ -3842,7 +3922,17 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
 
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
-                <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
+                <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.brand + '22' }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>🌴 Modo Férias (Burnout)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Pausa streaks e zera metas para você descansar sem culpa.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.vacationMode} onChange={() => handleToggle('vacationMode')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+              <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+                <div>
+                  <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba Desempenho, XP, Nível e Streak.</div>
               </div>
               <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
@@ -3855,6 +3945,10 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
               </div>
               <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
             </label>
+
+
+            
+
   
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
