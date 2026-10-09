@@ -1454,6 +1454,29 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
   const [resumoLoading, setResumoLoading] = useState(false);
   const [resumoDraft, setResumoDraft] = useState("");
   const [salvandoResumo, setSalvandoResumo] = useState(false);
+
+  const downloadPdf = () => {
+    try {
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Resumo: " + (disc || (commitment && commitment.assunto) || "Omnia"), 14, 22);
+      doc.setFontSize(12);
+      const lines = doc.splitTextToSize(resumoDraft, 180);
+      let y = 32;
+      lines.forEach(line => {
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, 14, y);
+        y += 7;
+      });
+      doc.save(`Resumo_${disc || (commitment && commitment.assunto) || "Omnia"}.pdf`);
+    } catch(e) {
+      alert("Erro ao exportar PDF.");
+    }
+  };
+
   const [resumoSalvo, setResumoSalvo] = useState(false);
   const [erroSalvarResumo, setErroSalvarResumo] = useState(null);
   const [profLoading, setProfLoading] = useState(false);
@@ -1591,6 +1614,8 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
                   {salvandoResumo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
                 </PrimaryButton>
                 <GhostButton onClick={() => setPanel(null)}>Fechar</GhostButton>
+                  <button onClick={downloadPdf} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105 ml-auto" style={{ color: T.brand, border: `1px solid ${T.brand}` }} title="Exportar para PDF"><Download className="w-4 h-4 inline" /> Baixar PDF</button>
+                  <button onClick={downloadPdf} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105 ml-auto" style={{ color: T.brand, border: `1px solid ${T.brand}` }} title="Exportar para PDF"><Download className="w-4 h-4 inline" /> Baixar PDF</button>
                   <button onClick={() => saveResumo(true)} disabled={salvandoResumo} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105" style={{ color: T.brand, border: `1px solid ${T.brand}` }}>⏳ Salvar e Agendar Revisões (1, 3, 7 d)</button>
                   <button onClick={() => saveResumo(true)} disabled={salvandoResumo} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105" style={{ color: T.brand, border: `1px solid ${T.brand}` }}>⏳ Salvar e Agendar Revisões (1, 3, 7 d)</button>
                 {resumoSalvo && <span className="text-xs" style={{ color: T.brand }}>Salvo âœ“</span>}
@@ -1668,6 +1693,29 @@ function CompromissoWorkspaceContent({
   const [resumoLoading, setResumoLoading] = useState(false);
   const [resumoDraft, setResumoDraft] = useState("");
   const [salvandoResumo, setSalvandoResumo] = useState(false);
+
+  const downloadPdf = () => {
+    try {
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("Resumo: " + (disc || (commitment && commitment.assunto) || "Omnia"), 14, 22);
+      doc.setFontSize(12);
+      const lines = doc.splitTextToSize(resumoDraft, 180);
+      let y = 32;
+      lines.forEach(line => {
+        if (y > 280) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.text(line, 14, y);
+        y += 7;
+      });
+      doc.save(`Resumo_${disc || (commitment && commitment.assunto) || "Omnia"}.pdf`);
+    } catch(e) {
+      alert("Erro ao exportar PDF.");
+    }
+  };
+
   const [resumoSalvo, setResumoSalvo] = useState(false);
   const [erroSalvarResumo, setErroSalvarResumo] = useState(null);
   const [profLoading, setProfLoading] = useState(false);
