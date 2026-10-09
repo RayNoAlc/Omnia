@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  Archive, Lock, Volume2, Square, BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  Layers, Archive, Lock, Volume2, Square, BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
   CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
 } from 'lucide-react';
@@ -21,7 +21,7 @@ import {
   PriorityDot, TypeTag, Card, SectionLabel, EmptyState, PrimaryButton, GhostButton,
 } from "./ui";
 import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre } from "../lib/utils";
-import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus } from "../lib/aiHelpers";
+import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
 import { callVision, callAudioTranscription, callAIWithTools } from "../lib/ai";
 import { ROUTINE_TOOLS, executeRoutineTool } from "../lib/routineTools";
 import { PRESETS } from "../lib/useFocusTimer";
@@ -1233,6 +1233,58 @@ const TIPOS_QUIZ = [
   { tipo: "flashcard", label: "Flashcard" },
 ];
 
+
+function FlashcardsPanel({ disciplina, sourceTexts, onClose }) {
+  const [loading, setLoading] = useState(false);
+  const [cards, setCards] = useState(null);
+  const [flippedIndex, setFlippedIndex] = useState({});
+
+  async function generate() {
+    setLoading(true);
+    try {
+      const parsed = await aiGenerateFlashcards(disciplina, sourceTexts);
+      if (parsed && parsed.length > 0) setCards(parsed);
+    } catch(e) {
+      alert("Erro ao gerar flashcards.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const toggleFlip = (i) => setFlippedIndex(prev => ({...prev, [i]: !prev[i]}));
+
+  return (
+    <Card style={{ borderColor: T.brand }} className="mb-3">
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="font-bold text-sm" style={{ color: T.ink }}>Flashcards de {disciplina}</h3>
+        <GhostButton onClick={onClose} className="px-2 py-1 text-xs">Fechar</GhostButton>
+      </div>
+      {!cards ? (
+        <div className="text-center py-6">
+          <p className="text-sm mb-4" style={{ color: T.inkSoft }}>Gere cartões de memorização (Frente e Verso) baseados nas anotações deste tópico usando Inteligência Artificial.</p>
+          <PrimaryButton onClick={generate} disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />} Gerar Flashcards
+          </PrimaryButton>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {cards.map((c, i) => (
+            <div 
+              key={i} 
+              onClick={() => toggleFlip(i)}
+              className="cursor-pointer min-h-[120px] rounded-xl flex items-center justify-center p-4 text-center transition-all duration-300 transform"
+              style={{ backgroundColor: flippedIndex[i] ? T.surfaceAlt : T.surface, border: `2px solid ${flippedIndex[i] ? T.brand : T.border}`, color: T.ink }}
+            >
+              <span className="text-sm font-medium">{flippedIndex[i] ? c.verso : c.frente}</span>
+            </div>
+          ))}
+          <div className="col-span-full mt-2 text-center text-xs opacity-50">Clique nos cartões para virá-los</div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function QuizPanel({ disciplina, sourceTexts, userId, commitmentId, setQuizAttempts, onClose }) {
   const [tipoQuiz, setTipoQuiz] = useState("multipla");
   const [loading, setLoading] = useState(false);
@@ -1500,6 +1552,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
           <button onClick={openResumo} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Resumo</button>
           <button onClick={() => setPanel("quiz")} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Quiz</button>
           <button onClick={openProfessor} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Modo Professor</button>
+            <button onClick={() => setPanel("flashcards")} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Flashcards</button>
             <button onClick={() => handleSyllabus(disc, sourceTexts)} disabled={syllabusLoading} className="text-xs px-2 py-1 rounded flex items-center gap-1 transition-transform hover:scale-105" style={{ color: "#ffffff", backgroundColor: T.brand, border: `1px solid ${T.brand}` }}>{syllabusLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Analisar Syllabus</button>
         </div>
       </div>
@@ -1548,7 +1601,15 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
         </Card>
       )}
 
-      {panel === "quiz" && (
+      {panel === "flashcards" && (
+          <FlashcardsPanel disciplina={disc} sourceTexts={sourceTexts} onClose={() => setPanel(null)} />
+        )}
+
+        {panel === "flashcards" && (
+          <FlashcardsPanel disciplina={commitment.disciplina} sourceTexts={sourceTexts} onClose={() => setPanel(null)} />
+        )}
+
+          {panel === "quiz" && (
         <QuizPanel disciplina={disc} sourceTexts={sourceTexts} userId={userId} commitmentId={null} setQuizAttempts={setQuizAttempts} onClose={() => setPanel(null)} />
       )}
 
