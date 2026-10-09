@@ -18,6 +18,31 @@ export const PRESETS = [
  * frequência dos timers em abas em segundo plano.
  */
 export function useFocusTimer({ userId, commitments, setSessions }) {
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && running && phase === "work") {
+        setInterruptions(prev => prev + 1);
+        const config = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+        if (config.enableAntiDistraction !== false) {
+          if (Notification.permission === "granted") {
+            new Notification("Atenção!", { body: "Você saiu da aba durante o foco! Foco é foco.", icon: "/favicon.ico" });
+          }
+          const audio = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+          audio.play().catch(()=>{});
+        }
+      }
+    };
+    window.addEventListener("visibilitychange", handleVisibility);
+    return () => window.removeEventListener("visibilitychange", handleVisibility);
+  }, [running, phase]);
+
+  useEffect(() => {
+    if (Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   const [selectedId, setSelectedId] = useState("livre");
   const [presetIdx, setPresetIdx] = useState(0);
   const [customMin, setCustomMin] = useState(30);
