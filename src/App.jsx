@@ -68,6 +68,47 @@ function AppInner() {
   const [tab, setTab] = useState("hoje");
   const [isZen, setIsZen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // --- ATALHOS DE TECLADO ---
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchQuery("");
+        setShowSearch(true);
+      } else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setTab("foco");
+      } else if (e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        setTab("agenda");
+      } else if (e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        setTab("biblioteca");
+      } else if (e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setTab("hoje");
+      } else if (e.key === '?') {
+        alert("Atalhos:\nF: Foco\nC: Calendário/Agenda\nB: Biblioteca\nH: Hoje\nCtrl+K: Busca Global");
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // --- OMNIA SEARCH BACKLINKS ---
+  useEffect(() => {
+    const handleOmniaSearch = (e) => {
+      if (typeof e.detail === "string") setSearchQuery(e.detail);
+      setShowSearch(true);
+    };
+    window.addEventListener('omnia-search', handleOmniaSearch);
+    return () => window.removeEventListener('omnia-search', handleOmniaSearch);
+  }, []);
+
   const [initialInboxText, setInitialInboxText] = useState("");
   
   useEffect(() => {
@@ -414,7 +455,7 @@ function AppInner() {
           )}
         </>
       )}
-      {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} />}
+      {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} initialQuery={searchQuery} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} />}
     </AppLayout>
   );
 }
