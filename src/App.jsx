@@ -363,7 +363,7 @@ function AppInner() {
             <HojeTab overdue={overdue} blocksHoje={blocksHoje} commitmentsHoje={commitmentsHoje} routineItemsHoje={routineItemsHoje} proximos={proximos} overload={overloadWindow} onToggleBlock={handleToggleBlock} onGoInbox={() => setTab("inbox")} onGoAgenda={() => setTab("agenda")} routine={routine} metaHoje={metaHoje} onSetMeta={handleSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} avisos={avisos} config={config} notes={visibleNotes} onSaveNote={saveAsNote} />
           )}
           {tab === "inbox" && (
-            <InboxTab userId={userId} onSubmit={handleInboxSubmit} loading={inboxLoading} error={inboxError}
+            <InboxTab userId={userId} initialInboxText={initialInboxText} setInitialInboxText={setInitialInboxText} onSubmit={handleInboxSubmit} loading={inboxLoading} error={inboxError}
               pendingReview={pendingReview} setPendingReview={setPendingReview}
               onConfirm={confirmPendingReview} onSaveNote={saveAsNote} setMaterials={setMaterials} />
           )}

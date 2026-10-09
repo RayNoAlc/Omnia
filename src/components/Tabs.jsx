@@ -405,8 +405,9 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
 /* ---------------------------------------------------------------------- */
 /* Aba: Inbox                                                               */
 /* ---------------------------------------------------------------------- */
-export function InboxTab({ userId, onSubmit, loading, error, pendingReview, setPendingReview, onConfirm, onSaveNote, setMaterials }) {
-  const [text, setText] = useState("");
+export function InboxTab({ userId, onSubmit, loading, error, pendingReview, setPendingReview, onConfirm, onSaveNote, setMaterials, initialInboxText, setInitialInboxText }) {
+  const [text, setText] = useState(initialInboxText || "");
+  useEffect(() => { if (initialInboxText) { setText(initialInboxText); if (setInitialInboxText) setInitialInboxText(""); } }, [initialInboxText, setInitialInboxText]);
   const [pendingFile, setPendingFile] = useState(null); // { file, tipoArquivo }
   const [extracting, setExtracting] = useState(null); // "pdf" | "imagem" | "audio" | null
   const [fileError, setFileError] = useState(null);
