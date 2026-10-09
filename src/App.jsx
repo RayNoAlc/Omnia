@@ -110,6 +110,13 @@ function AppInner() {
   }, []);
 
   const [initialInboxText, setInitialInboxText] = useState("");
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

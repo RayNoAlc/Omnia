@@ -121,8 +121,25 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
   const workSeconds = useCustom ? customMin * 60 : PRESETS[presetIdx].work;
   const restSeconds = useCustom ? 5 * 60 : PRESETS[presetIdx].rest;
 
+  
   const handlePhaseEnd = useCallback(async () => {
+    // Play a gentle ding sound
+    try {
+      const audio = new Audio("https://cdn.freesound.org/previews/320/320655_5260872-lq.mp3");
+      audio.volume = 0.6;
+      audio.play();
+    } catch(e) {}
+    
+    // Send OS notification
+    if (Notification.permission === "granted") {
+      new Notification(phase === "work" ? "Foco Concluído!" : "Pausa Concluída!", {
+        body: phase === "work" ? "Hora de descansar." : "De volta ao foco!",
+        icon: "/favicon.ico"
+      });
+    }
+
     if (phase === "work") {
+
       const minutosSessao = Math.round(workSeconds / 60);
       try {
         const saved = await dbAddSession(userId, {
