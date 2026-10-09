@@ -1610,7 +1610,36 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
             <div className="flex items-center gap-2 text-sm" style={{ color: T.inkSoft }}><Loader2 className="w-4 h-4 animate-spin" /> Gerando resumo...</div>
           ) : (
             <>
-              <textarea value={resumoDraft} onChange={(e) => { setResumoDraft(e.target.value); setResumoSalvo(false); }} rows={8} className="w-full rounded-md p-3 text-sm" style={inputStyle} />
+              
+                {/* Speed Reading Pacer (Idea 3) */}
+                <div className="flex items-center gap-2 mb-3 p-2 rounded-lg border" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+                  <Activity className="w-4 h-4" style={{ color: T.brand }} />
+                  <span className="text-xs font-bold" style={{ color: T.ink }}>Metrônomo de Leitura:</span>
+                  <input type="number" id="pacerBpm" defaultValue={60} min={30} max={300} className="w-16 text-xs p-1 rounded" style={{ backgroundColor: T.bg, color: T.ink, border: `1px solid ${T.border}` }} />
+                  <span className="text-xs" style={{ color: T.inkSoft }}>BPM</span>
+                  <GhostButton className="text-xs px-2 py-1 ml-auto" onClick={() => {
+                    if (window.readingPacerInterval) {
+                      clearInterval(window.readingPacerInterval);
+                      window.readingPacerInterval = null;
+                      alert("Metrônomo parado.");
+                    } else {
+                      const bpm = parseInt(document.getElementById('pacerBpm').value) || 60;
+                      const ms = (60 / bpm) * 1000;
+                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                      window.readingPacerInterval = setInterval(() => {
+                        const osc = audioCtx.createOscillator();
+                        osc.type = "sine";
+                        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                        osc.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.05);
+                      }, ms);
+                      alert(`Metrônomo iniciado a ${bpm} BPM! Leia uma linha por bipe. Feche a aba ou clique de novo para parar.`);
+                    }
+                  }}>▶️ Tocar / Parar</GhostButton>
+                </div>
+
+                <textarea value={resumoDraft} onChange={(e) => { setResumoDraft(e.target.value); setResumoSalvo(false); }} rows={8} className="w-full rounded-md p-3 text-sm" style={inputStyle} />
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <PrimaryButton onClick={() => saveResumo(false)} disabled={salvandoResumo}>
                   {salvandoResumo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
@@ -1947,7 +1976,36 @@ function CompromissoWorkspaceContent({
               <div className="flex items-center gap-2 text-sm" style={{ color: T.inkSoft }}><Loader2 className="w-4 h-4 animate-spin" /> Gerando resumo...</div>
             ) : (
               <>
-                <textarea value={resumoDraft} onChange={(e) => { setResumoDraft(e.target.value); setResumoSalvo(false); }} rows={7} className="w-full rounded-md p-3 text-sm" style={inputStyle} />
+                
+                {/* Speed Reading Pacer (Idea 3) */}
+                <div className="flex items-center gap-2 mb-3 p-2 rounded-lg border" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+                  <Activity className="w-4 h-4" style={{ color: T.brand }} />
+                  <span className="text-xs font-bold" style={{ color: T.ink }}>Metrônomo de Leitura:</span>
+                  <input type="number" id="pacerBpm" defaultValue={60} min={30} max={300} className="w-16 text-xs p-1 rounded" style={{ backgroundColor: T.bg, color: T.ink, border: `1px solid ${T.border}` }} />
+                  <span className="text-xs" style={{ color: T.inkSoft }}>BPM</span>
+                  <GhostButton className="text-xs px-2 py-1 ml-auto" onClick={() => {
+                    if (window.readingPacerInterval) {
+                      clearInterval(window.readingPacerInterval);
+                      window.readingPacerInterval = null;
+                      alert("Metrônomo parado.");
+                    } else {
+                      const bpm = parseInt(document.getElementById('pacerBpm').value) || 60;
+                      const ms = (60 / bpm) * 1000;
+                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                      window.readingPacerInterval = setInterval(() => {
+                        const osc = audioCtx.createOscillator();
+                        osc.type = "sine";
+                        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                        osc.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.05);
+                      }, ms);
+                      alert(`Metrônomo iniciado a ${bpm} BPM! Leia uma linha por bipe. Feche a aba ou clique de novo para parar.`);
+                    }
+                  }}>▶️ Tocar / Parar</GhostButton>
+                </div>
+
+                  <textarea value={resumoDraft} onChange={(e) => { setResumoDraft(e.target.value); setResumoSalvo(false); }} rows={7} className="w-full rounded-md p-3 text-sm" style={inputStyle} />
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <PrimaryButton onClick={() => saveResumo(false)} disabled={salvandoResumo}>
                     {salvandoResumo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
@@ -3610,7 +3668,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId }) {
           {Object.keys(THEMES).map(t => (
             <button key={t} onClick={() => applyTheme(t)} className='flex items-center justify-between p-4 rounded-xl border hover:opacity-80 transition-opacity'
               style={{ backgroundColor: THEMES[t].bg, borderColor: THEMES[t].border }}>
-              <span className='font-bold capitalize' style={{ color: THEMES[t].ink }}>{t === 'dark' ? 'Omnia Dark' : t === 'light' ? 'Omnia Light' : t === 'cyberpunk' ? 'Cyberpunk Neon' : 'Lo-Fi Café'}</span>
+              <span className='font-bold capitalize' style={{ color: THEMES[t].ink }}>{t === 'dark' ? 'Omnia Dark' : t === 'light' ? 'Omnia Light' : t === 'cyberpunk' ? 'Cyberpunk Neon' : t === 'hacker' ? 'Modo Hacker (Matrix)' : 'Lo-Fi Café'}</span>
               <div className='flex gap-2'>
                 <div className='w-5 h-5 rounded-full shadow-sm' style={{ backgroundColor: THEMES[t].brand }}></div>
                 <div className='w-5 h-5 rounded-full shadow-sm' style={{ backgroundColor: THEMES[t].surface }}></div>

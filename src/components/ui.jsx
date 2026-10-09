@@ -1,6 +1,21 @@
 import { Settings, Home, Inbox as InboxIcon, Calendar, BookOpen, Headphones, MessageCircle, User, BarChart3 } from "lucide-react";
 
 export const THEMES = {
+
+  hacker: {
+    bg: "#000000",
+    surface: "#0a0a0a",
+    surfaceAlt: "#111111",
+    border: "#003300",
+    ink: "#00ff00",
+    inkSoft: "#008800",
+    brand: "#00ff00",
+    brandInk: "#000000",
+    critico: "#ff0000",
+    importante: "#ffff00",
+    normal: "#00ff00"
+  },
+
   dark: {
     bg: '#0B1120', surface: '#141C2F', surfaceAlt: '#1E293B', ink: '#F1F5F9', inkSoft: '#94A3B8',
     border: 'rgba(255,255,255,0.08)', brand: '#3B82F6', brandDark: '#2563EB', critico: '#EF4444', importante: '#F59E0B',
@@ -50,6 +65,7 @@ export const TINT = {
 
 
 export const TIPO_LABELS = {
+  fichamento: "Fichamento",
   prova: "Prova",
   trabalho: "Trabalho",
   aula: "Aula",
