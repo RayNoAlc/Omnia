@@ -1625,7 +1625,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
                     } else {
                       const bpm = parseInt(document.getElementById('pacerBpm').value) || 60;
                       const ms = (60 / bpm) * 1000;
-                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                      if(!window.pacerAudioCtx) window.pacerAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); const audioCtx = window.pacerAudioCtx;
                       window.readingPacerInterval = setInterval(() => {
                         const osc = audioCtx.createOscillator();
                         osc.type = "sine";
@@ -1991,7 +1991,7 @@ function CompromissoWorkspaceContent({
                     } else {
                       const bpm = parseInt(document.getElementById('pacerBpm').value) || 60;
                       const ms = (60 / bpm) * 1000;
-                      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                      if(!window.pacerAudioCtx) window.pacerAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); const audioCtx = window.pacerAudioCtx;
                       window.readingPacerInterval = setInterval(() => {
                         const osc = audioCtx.createOscillator();
                         osc.type = "sine";
@@ -2407,94 +2407,128 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
 /* Aba: Foco                                                                */
 /* ---------------------------------------------------------------------- */
 
-function FocusPet({ timerOn, streak, petName, onNameChange, config, phase, remaining }) {
+
+function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig, phase, remaining }) {
   const [editing, setEditing] = useState(false);
   const [tempName, setTempName] = useState(petName || "Coruja Omnia");
+  const [showStore, setShowStore] = useState(false);
 
-    const [bubble, setBubble] = useState(null);
-    useEffect(() => {
-      if (config?.enableSincereOwl === false) return;
-      const phrases = {
-        idle: ["Pronto para começar?", "Um pomodoro por dia...", "A procrastinação é sua inimiga!"],
-        work: ["Foco total!", "Não olhe para o celular...", "Continue assim!"],
-        rest: ["Respire fundo...", "Beba uma água!", "Estique as pernas um pouquinho."]
-      };
-      
-      const interval = setInterval(() => {
-        if (Math.random() > 0.3) {
-          const arr = phrases[phase] || phrases.idle;
-          setBubble(arr[Math.floor(Math.random() * arr.length)]);
-          setTimeout(() => setBubble(null), 8000);
-        }
-      }, 30000); // Check every 30 seconds
-      return () => clearInterval(interval);
-    }, [phase, config?.enableSincereOwl]);
+  const HATS = [
+    { id: 'none', icon: '', price: 0, name: 'Sem Chapéu' },
+    { id: 'cap', icon: '🧢', price: 100, name: 'Boné' },
+    { id: 'crown', icon: '👑', price: 500, name: 'Coroa' },
+    { id: 'grad', icon: '🎓', price: 300, name: 'Formatura' },
+    { id: 'tophat', icon: '🎩', price: 200, name: 'Cartola' },
+    { id: 'cowboy', icon: '🤠', price: 250, name: 'Cowboy' },
+    { id: 'party', icon: '🥳', price: 50, name: 'Festa' },
+  ];
 
+  const coins = config?.coins || 0;
+  const ownedHats = config?.ownedHats || ['none'];
+  const currentHatId = config?.petHat || 'none';
+  const currentHat = HATS.find(h => h.id === currentHatId)?.icon || '';
+
+  const buyHat = (hat) => {
+    if (ownedHats.includes(hat.id)) {
+      updateConfig({ ...config, petHat: hat.id });
+    } else if (coins >= hat.price) {
+      if(confirm(`Comprar ${hat.name} por ${hat.price} moedas?`)) {
+        updateConfig({ ...config, coins: coins - hat.price, ownedHats: [...ownedHats, hat.id], petHat: hat.id });
+      }
+    } else {
+      alert("Você não tem moedas suficientes! Complete mais blocos de foco.");
+    }
+  };
+
+  const [bubble, setBubble] = useState(null);
+  useEffect(() => {
+    if (config?.enableSincereOwl === false) return;
+    const phrases = {
+      idle: ["Pronto para começar?", "Um pomodoro por dia...", "A procrastinação é sua inimiga!"],
+      work: ["Foco total!", "Não olhe para o celular...", "Continue assim!"],
+      rest: ["Respire fundo...", "Beba uma água!", "Estique as pernas um pouquinho."]
+    };
+    const interval = setInterval(() => {
+      if (Math.random() > 0.3) {
+        const arr = phrases[phase] || phrases.idle;
+        setBubble(arr[Math.floor(Math.random() * arr.length)]);
+        setTimeout(() => setBubble(null), 8000);
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [phase, config?.enableSincereOwl]);
 
   let position = "0%";
   let status = "Dormindo...";
-  
   if (timerOn) { position = "50%"; status = "Focando!"; }
   else if (streak > 5) { position = "100%"; status = "Mestre da Rotina"; }
   else if (streak > 0) { position = "100%"; status = "Animado"; }
   else { position = "0%"; status = "Esperando você estudar..."; }
 
-  let animClass = "animate-pet-breathe";
-  if (timerOn) animClass = "animate-pet-focus";
-  else if (streak > 0) animClass = "animate-pet-cool";
-
-  const handleSave = () => {
-    setEditing(false);
-    if (onNameChange) onNameChange(tempName);
-  };
-
   return (
-    <div className="flex flex-col items-center justify-center p-4 relative">
-      {bubble && (
-          <div className="absolute -top-10 bg-white border shadow-md text-xs px-3 py-1 rounded-2xl animate-fade-in z-10" style={{ color: '#000', borderColor: T.border, whiteSpace: 'nowrap' }}>
-            {bubble}
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white border-b border-r transform rotate-45" style={{ borderColor: T.border }}></div>
+    <div className="flex flex-col items-center gap-2 relative mt-4">
+      {showStore && (
+        <div className="absolute bottom-full mb-4 bg-white dark:bg-gray-800 border p-4 rounded-xl shadow-xl w-64 z-50">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="font-bold text-sm">Loja da Coruja</h4>
+            <div className="text-sm font-mono text-yellow-500 font-bold">🪙 {coins}</div>
           </div>
-        )}
-        <div 
-          style={{
-            width: 80, height: 80,
-          backgroundImage: "url('/pet_sprites.png')",
-          backgroundSize: "300% auto",
-          backgroundPosition: `${position} 50%`,
-          marginBottom: 8,
-          transition: "background-position 0.4s steps(1)",
-          imageRendering: "pixelated"
-        }}
-        className={animClass}
-      />
-      
-      {editing ? (
-        <div className="flex items-center gap-2 mt-1">
-          <input 
-            autoFocus
-            value={tempName}
-            onChange={e => setTempName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSave()}
-            onBlur={handleSave}
-            className="text-sm font-bold text-center rounded px-2 py-1 outline-none"
-            style={{ backgroundColor: T.surfaceAlt, color: T.ink, width: '120px' }}
-          />
-        </div>
-      ) : (
-        <div 
-          className="text-sm font-bold cursor-pointer hover:opacity-80 transition-opacity" 
-          style={{ color: T.ink }}
-          onClick={() => setEditing(true)}
-          title="Clique para renomear"
-        >
-          {petName || "Coruja Omnia"} <Pencil size={14} className="inline ml-1 opacity-50"/>
+          <div className="grid grid-cols-3 gap-2">
+            {HATS.map(hat => {
+              const owned = ownedHats.includes(hat.id);
+              const selected = currentHatId === hat.id;
+              return (
+                <button key={hat.id} onClick={() => buyHat(hat)} className={`p-2 text-center rounded border transition-all ${selected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                  <div className="text-2xl mb-1">{hat.icon || '🦉'}</div>
+                  <div className="text-[10px] truncate">{owned ? 'Usar' : `🪙 ${hat.price}`}</div>
+                </button>
+              );
+            })}
+          </div>
+          <button onClick={() => setShowStore(false)} className="mt-3 w-full text-xs text-center text-gray-500">Fechar</button>
         </div>
       )}
-      <div className="text-xs mt-1" style={{ color: T.inkSoft }}>{status}</div>
+
+      {bubble && (
+        <div className="absolute bottom-[80px] bg-white dark:bg-gray-800 border shadow-lg rounded-xl px-3 py-2 text-sm z-10 animate-bounce">
+          {bubble}
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white dark:border-t-gray-800"></div>
+        </div>
+      )}
+
+      <div className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }} onClick={() => setShowStore(!showStore)}>
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
+          <span className="text-white text-xs font-bold">🪙 Loja</span>
+        </div>
+        {currentHat && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 text-4xl z-10 select-none pointer-events-none drop-shadow-md">{currentHat}</div>}
+        <div className="flex w-[300%] h-full transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${position})` }}>
+          <div className="w-1/3 h-full flex items-center justify-center text-5xl">😴</div>
+          <div className="w-1/3 h-full flex items-center justify-center text-5xl animate-bounce">📖</div>
+          <div className="w-1/3 h-full flex items-center justify-center text-5xl">🦉</div>
+        </div>
+      </div>
+      <div className="text-center">
+        {editing ? (
+          <input
+            autoFocus
+            className="text-xs font-bold text-center bg-transparent border-b outline-none"
+            style={{ color: T.ink, borderColor: T.border }}
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+            onBlur={() => { setEditing(false); onNameChange(tempName); }}
+            onKeyDown={(e) => { if(e.key==='Enter') e.target.blur(); }}
+          />
+        ) : (
+          <div className="text-xs font-bold cursor-pointer hover:underline" style={{ color: T.ink }} onClick={() => setEditing(true)}>
+            {tempName}
+          </div>
+        )}
+        <div className="text-[10px]" style={{ color: T.inkSoft }}>{status}</div>
+      </div>
     </div>
   );
 }
+
 
 export function FocoTab(props) {
     const { isZen, setIsZen } = props;
@@ -2603,7 +2637,7 @@ export function FocoTab(props) {
             <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar sessão</GhostButton>
               <GhostButton onClick={toggleZen} style={{ color: isZen ? T.brand : T.inkSoft }}><Maximize className="w-4 h-4" /> {isZen ? "Sair do Zen" : "Modo Zen"}</GhostButton>
           </div>
-            <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} />
+            <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase={phase} />
             
               {props.config?.enableLofi !== false && (
               <div className="flex flex-col items-center justify-center gap-4 mt-6 w-full max-w-sm mx-auto">
@@ -2744,7 +2778,7 @@ export function FocoTab(props) {
 
         <Card>
           <div className="flex flex-col gap-3">
-            <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} />
+            <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase="idle" />
             <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowRoom(!showRoom)}>
                 <SectionLabel><Globe size={18} className="inline mr-2 -mt-0.5" /> Modo Multiplayer</SectionLabel>
