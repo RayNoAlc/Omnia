@@ -1,0 +1,134 @@
+﻿const fs = require('fs');
+let tabs = fs.readFileSync('src/components/Tabs.jsx', 'utf8');
+
+const regex = /<section className='p-6 rounded-2xl shadow-sm border' style=\{\{ backgroundColor: T\.surface, borderColor: T\.border \}\}>\s*<div className='flex items-center gap-3 mb-4'>\s*<Activity className='w-6 h-6' style=\{\{ color: T\.brand \}\} \/>\s*<h3 className='text-xl font-bold' style=\{\{ color: T\.ink \}\}>Módulos e Gamificação<\/h3>\s*<\/div>[\s\S]*?<\/section>/;
+
+// I'll just write a script to completely rebuild the whole "Módulos e Gamificação" section!
+const replacement = `
+        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+          <div className='flex items-center gap-3 mb-4'>
+            <Activity className='w-6 h-6' style={{ color: T.brand }} />
+            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos e Gamificação</h3>
+          </div>
+          <p className='mb-6' style={{ color: T.inkSoft }}>Ative ou desative partes do Omnia para simplificar sua experiência.</p>
+          
+          <div className='grid grid-cols-1 gap-4'>
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><BarChart size={20} className="inline mr-2 -mt-1" /> Dashboard de Análises</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Gráficos semanais e horários de pico na aba Desempenho.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableAnalytics} onChange={() => handleToggle('enableAnalytics')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Heart size={20} className="inline mr-2 -mt-1" /> Pausas Ativas</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>A tela escurece e sugere alongamento e hidratação a cada 20 minutos de foco.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableHealthBreak} onChange={() => handleToggle('enableHealthBreak')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Edit3 size={20} className="inline mr-2 -mt-1" /> Lousa em Branco</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Um bloco de notas simples na aba Secretaria para rascunhos rápidos.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableScratchpad} onChange={() => handleToggle('enableScratchpad')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><BookHeart size={20} className="inline mr-2 -mt-1" /> Diário de Bordo e Humor</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Card na aba Hoje para registrar seu humor e pensamentos.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableJournal} onChange={() => handleToggle('enableJournal')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><MessageCircle size={20} className="inline mr-2 -mt-1" /> Coruja Sincera</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Balões de fala com dicas e avisos sobre o seu foco e progresso.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableSincereOwl} onChange={() => handleToggle('enableSincereOwl')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><PartyPopper size={20} className="inline mr-2 -mt-1" /> Animações de Conclusão</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Disparar confetes ao marcar tarefas como concluídas.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableConfetti} onChange={() => handleToggle('enableConfetti')} className='w-6 h-6 accent-blue-500' />
+            </label>
+            
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.brand + '22' }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>🌴 Modo Férias (Burnout)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Pausa streaks e zera metas para você descansar sem culpa.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.vacationMode} onChange={() => handleToggle('vacationMode')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba Desempenho, XP, Nível e Streak.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Headphones size={20} className="inline mr-2 -mt-1" /> Modo Imersivo Lo-Fi</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Player de música ambiente integrado na aba Foco.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Calendar size={20} className="inline mr-2 -mt-1" /> Sincronizar Calendário (Google/Apple)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para exportar arquivos .ics da Rotina.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableCalendar} onChange={() => handleToggle('enableCalendar')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><FileText size={20} className="inline mr-2 -mt-1" /> Gerar PDF da Rotina</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para baixar a Tabela de Horários em PDF.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enablePdf} onChange={() => handleToggle('enablePdf')} className='w-6 h-6 accent-blue-500' />
+            </label>
+          </div>
+        </section>`;
+
+const fullContent = tabs;
+const startMatch = fullContent.indexOf("<h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos e Gamificação</h3>");
+
+if (startMatch > -1) {
+  // Back up to the <section> opening
+  const sectionStart = fullContent.lastIndexOf("<section", startMatch);
+  
+  // Find the closing </section>
+  let sectionEnd = fullContent.indexOf("</section>", startMatch);
+  
+  if (sectionEnd > -1) {
+    // There are actually multiple sections. We just replace this block completely!
+    const pre = fullContent.slice(0, sectionStart);
+    // Find the next section to make sure we don't delete too much
+    const nextSectionStart = fullContent.indexOf("<section", sectionEnd);
+    
+    // We just replace from sectionStart to nextSectionStart (or sectionEnd + 10)
+    const post = fullContent.slice(nextSectionStart > -1 ? nextSectionStart : sectionEnd + 10);
+    
+    tabs = pre + replacement + "\n\n" + post;
+    fs.writeFileSync('src/components/Tabs.jsx', tabs, 'utf8');
+    console.log("Completely rebuilt Modulos e Gamificacao section!");
+  } else {
+    console.log("Could not find section end");
+  }
+} else {
+  console.log("Could not find Modulos title");
+}
+
