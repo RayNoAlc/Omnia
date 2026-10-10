@@ -53,16 +53,28 @@ export const applyTheme = (themeName) => {
 
 export const resolveFontFamily = (val) => {
   if (!val) return "'Inter', sans-serif";
-  const str = String(val).toLowerCase();
-  if (str.includes("georgia") || str.includes("serif") || str === "serif") {
-    return "'Merriweather', Georgia, serif";
-  }
-  if (str.includes("mono") || str.includes("terminal") || str === "monospace") {
-    return "'JetBrains Mono', monospace";
-  }
+  const str = String(val).toLowerCase().trim();
+
+  // 1. Comic / Cursive / Relaxada (testar primeiro porque "Comic Sans" contém "sans")
   if (str.includes("comic") || str.includes("cursive") || str === "casual" || str.includes("relaxada")) {
     return "'Comic Neue', 'Comic Sans MS', cursive, sans-serif";
   }
+
+  // 2. Terminal / Monospace
+  if (str.includes("mono") || str.includes("terminal") || str.includes("jetbrains") || str.includes("code")) {
+    return "'JetBrains Mono', monospace";
+  }
+
+  // 3. Serifada / Livro / Merriweather / Georgia (atenção: não pode conter "sans", pois "sans-serif" contém "serif")
+  if (str.includes("georgia") || str.includes("merriweather") || (str.includes("serif") && !str.includes("sans"))) {
+    return "'Merriweather', Georgia, serif";
+  }
+
+  // 4. Padrão / Sans-serif / Inter
+  if (str.includes("inter") || str.includes("sans") || str === "padrao" || str === "padrão" || str === "default") {
+    return "'Inter', sans-serif";
+  }
+
   return "'Inter', sans-serif";
 };
 
@@ -75,13 +87,21 @@ export const applyFont = (fontVal) => {
       document.body.style.fontFamily = family;
     }
   }
+  if (typeof localStorage !== 'undefined' && fontVal) {
+    localStorage.setItem('omnia-font', fontVal);
+  }
 };
 
 // Auto-apply saved font on module evaluation
 if (typeof window !== 'undefined') {
   try {
-    const saved = JSON.parse(localStorage.getItem('omnia_config') || '{}');
-    applyFont(saved.fontFamily);
+    const savedDirect = localStorage.getItem('omnia-font');
+    if (savedDirect) {
+      applyFont(savedDirect);
+    } else {
+      const saved = JSON.parse(localStorage.getItem('omnia_config') || '{}');
+      applyFont(saved.fontFamily || 'Inter, sans-serif');
+    }
   } catch (e) {
     applyFont('Inter, sans-serif');
   }
