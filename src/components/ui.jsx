@@ -1,4 +1,5 @@
 import { Settings, Home, Inbox as InboxIcon, Calendar, BookOpen, Headphones, MessageCircle, User, BarChart3 } from "lucide-react";
+import { sfx } from "../lib/soundEffects";
 
 export const THEMES = {
 
@@ -180,25 +181,35 @@ export function EmptyState({ text }) {
   );
 }
 
-export function PrimaryButton({ children, onClick, disabled, className = "" }) {
+export function PrimaryButton({ children, onClick, disabled, className = "", style = {}, ...props }) {
+  const handleClick = (e) => {
+    sfx.click();
+    if (onClick) onClick(e);
+  };
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       disabled={disabled}
       className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-opacity disabled:opacity-50 ${className}`}
-      style={{ backgroundColor: T.brand, color: T.brandInk }}
+      style={{ backgroundColor: T.brand, color: T.brandInk, ...style }}
+      {...props}
     >
       {children}
     </button>
   );
 }
 
-export function GhostButton({ children, onClick, className = "" }) {
+export function GhostButton({ children, onClick, className = "", style = {}, ...props }) {
+  const handleClick = (e) => {
+    sfx.click();
+    if (onClick) onClick(e);
+  };
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium ${className}`}
-      style={{ color: T.inkSoft, border: `1px solid ${T.border}`, backgroundColor: "transparent" }}
+      style={{ color: T.inkSoft, border: `1px solid ${T.border}`, backgroundColor: "transparent", ...style }}
+      {...props}
     >
       {children}
     </button>

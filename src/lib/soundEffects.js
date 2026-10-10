@@ -1,10 +1,17 @@
 // Web Audio API procedural sound synthesizer for Omnia
 // Provides delightful, zero-latency micro-sound effects across the entire app.
+import { reactiveBgm } from "./reactiveBgm";
 
 class SoundEffectsManager {
   constructor() {
     this.ctx = null;
     this.volume = 0.55;
+    this.lastPlayTime = 0;
+    this._globalClickAttached = false;
+
+    if (typeof window !== "undefined") {
+      this.attachGlobalClickAudio();
+    }
   }
 
   getAudioContext() {
@@ -30,10 +37,51 @@ class SoundEffectsManager {
     return true;
   }
 
+  markPlayed() {
+    this.lastPlayTime = Date.now();
+  }
+
+  attachGlobalClickAudio() {
+    if (typeof window === "undefined" || this._globalClickAttached) return;
+    this._globalClickAttached = true;
+
+    // Listens to any interactive click in the app to prevent silent/unsatisfying clicks
+    window.addEventListener(
+      "click",
+      (e) => {
+        if (!this.isEnabled()) return;
+        const target = e.target;
+        if (!target || typeof target.closest !== "function") return;
+
+        const interactive = target.closest(
+          "button, [role='button'], input[type='checkbox'], input[type='radio'], a, summary, [data-sound-click]"
+        );
+        if (!interactive) return;
+
+        // Skip disabled elements
+        if (
+          interactive.disabled ||
+          interactive.getAttribute("aria-disabled") === "true" ||
+          interactive.classList.contains("disabled")
+        ) {
+          return;
+        }
+
+        // If an explicit sound was played in the last 70ms (e.g. sfx.complete, sfx.pop), skip generic click
+        if (Date.now() - this.lastPlayTime < 70) return;
+
+        this.click();
+      },
+      { capture: false, passive: true }
+    );
+  }
+
   // 1. Task complete / Checkbox: Rewarding bell chime
   complete() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
+      reactiveBgm.pulseAction("complete");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -67,7 +115,9 @@ class SoundEffectsManager {
   // 2. Coin / Reward (Wardrobe purchase, streak, points)
   coin() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
+      reactiveBgm.pulseAction("complete");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -94,6 +144,7 @@ class SoundEffectsManager {
   // 3. Pop (Bubbly UI select, dressing the owl, habit toggle)
   pop() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
@@ -121,6 +172,7 @@ class SoundEffectsManager {
   // 4. Click / Tap (Subtle tactile navigation)
   click() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
@@ -130,24 +182,110 @@ class SoundEffectsManager {
       const gain = ctx.createGain();
 
       osc.type = "triangle";
-      osc.frequency.setValueAtTime(650, now);
-      osc.frequency.exponentialRampToValueAtTime(250, now + 0.02);
+      osc.frequency.setValueAtTime(700, now);
+      osc.frequency.exponentialRampToValueAtTime(260, now + 0.025);
 
-      gain.gain.setValueAtTime(0.1 * this.volume, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+      gain.gain.setValueAtTime(0.14 * this.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
 
       osc.connect(gain);
       gain.connect(ctx.destination);
 
       osc.start(now);
-      osc.stop(now + 0.03);
+      osc.stop(now + 0.035);
     } catch(e) {}
   }
 
-  // 5. Timer Start (Focus begin)
+  // 5. Tab switch (Warm, acoustic navigation tick)
+  tab() {
+    if (!this.isEnabled()) return;
+    this.markPlayed();
+    try {
+      reactiveBgm.pulseAction("tab");
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(320, now + 0.04);
+
+      gain.gain.setValueAtTime(0.12 * this.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.045);
+    } catch(e) {}
+  }
+
+  // 6. Switch / Toggle (Cute tactile tick)
+  toggle(on = true) {
+    if (!this.isEnabled()) return;
+    this.markPlayed();
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "triangle";
+      const startFreq = on ? 420 : 620;
+      const endFreq = on ? 620 : 420;
+      osc.frequency.setValueAtTime(startFreq, now);
+      osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.04);
+
+      gain.gain.setValueAtTime(0.15 * this.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } catch(e) {}
+  }
+
+  // 7. Trash / Delete (Soft crumple thud)
+  trash() {
+    if (!this.isEnabled()) return;
+    this.markPlayed();
+    try {
+      const ctx = this.getAudioContext();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.07);
+
+      gain.gain.setValueAtTime(0.16 * this.volume, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } catch(e) {}
+  }
+
+  // 8. Timer Start (Focus begin)
   timerStart() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
+      reactiveBgm.pulseAction("complete");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -174,9 +312,10 @@ class SoundEffectsManager {
     } catch(e) {}
   }
 
-  // 6. Timer Pause
+  // 9. Timer Pause
   timerPause() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
       const ctx = this.getAudioContext();
       if (!ctx) return;
@@ -204,10 +343,12 @@ class SoundEffectsManager {
     } catch(e) {}
   }
 
-  // 7. Timer Finish / Zen chime (Meditation singing bowl chord)
+  // 10. Timer Finish / Zen chime (Meditation singing bowl chord)
   timerFinish() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
+      reactiveBgm.pulseAction("complete");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -233,10 +374,12 @@ class SoundEffectsManager {
     } catch(e) {}
   }
 
-  // 8. Level Up / Triumphant Achievement Fanfare
+  // 11. Level Up / Triumphant Achievement Fanfare
   levelUp() {
     if (!this.isEnabled()) return;
+    this.markPlayed();
     try {
+      reactiveBgm.pulseAction("complete");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;

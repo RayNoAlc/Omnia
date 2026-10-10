@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { LogOut, Menu, Palette, X, Download } from 'lucide-react';
 import { TINT, applyTheme, THEMES, T } from '../components/ui';
 import { sfx } from '../lib/soundEffects';
+import { ReactiveBgmWidget } from '../components/ReactiveBgmWidget';
+import { reactiveBgm } from '../lib/reactiveBgm';
 
 export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -48,7 +50,8 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, child
               <button
                 key={tab.id}
                 onClick={() => {
-                  sfx.click();
+                  sfx.tab();
+                  reactiveBgm.setTab(tab.id);
                   onTabChange(tab.id);
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive ? 'shadow-sm' : 'hover:bg-opacity-50'}`}
@@ -63,14 +66,15 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, child
             );
           })}
         </nav>
-        <div className='p-4 border-t' style={{ borderColor: T.border }}>
+        <div className='p-3 border-t' style={{ borderColor: T.border }}>
+          <ReactiveBgmWidget currentTab={activeTab} className="mb-2" />
           {deferredPrompt && (
-            <button onClick={handleInstallPwa} className='w-full flex items-center gap-2 px-3 py-2 mb-2 text-sm font-bold rounded-lg hover:opacity-80 transition-opacity' style={{ backgroundColor: T.brand, color: '#fff' }}>
-              <Download className='w-4 h-4' /> Instalar App
+            <button onClick={handleInstallPwa} className='w-full flex items-center justify-center gap-2 px-3 py-2 mb-2 text-xs font-bold rounded-lg hover:opacity-80 transition-opacity' style={{ backgroundColor: T.brand, color: '#fff' }}>
+              <Download className='w-3.5 h-3.5' /> Instalar App
             </button>
           )}
-                    <button onClick={onLogout} className='w-full flex items-center gap-2 px-3 py-2 mt-2 text-sm font-medium rounded-lg hover:bg-opacity-50 transition-colors' style={{ color: T.critico }}>
-            <LogOut className='w-4 h-4' /> Sair
+          <button onClick={onLogout} className='w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg hover:bg-opacity-50 transition-colors' style={{ color: T.critico }}>
+            <LogOut className='w-3.5 h-3.5' /> Sair
           </button>
         </div>
       </aside>
@@ -112,7 +116,8 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, child
                 <button
                   key={tab.id}
                   onClick={() => {
-                    sfx.click();
+                    sfx.tab();
+                    reactiveBgm.setTab(tab.id);
                     onTabChange(tab.id);
                     setMobileOpen(false);
                   }}
@@ -128,9 +133,10 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, child
               );
             })}
           </nav>
-          <div className='p-6 border-t' style={{ borderColor: T.border }}>
-                        <button onClick={onLogout} className='w-full flex items-center justify-center gap-2 px-4 py-3 text-base font-bold rounded-xl' style={{ backgroundColor: TINT.critico, color: T.critico }}>
-              <LogOut className='w-5 h-5' /> Sair
+          <div className='p-4 border-t' style={{ borderColor: T.border }}>
+            <ReactiveBgmWidget currentTab={activeTab} className="mb-3" />
+            <button onClick={onLogout} className='w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl' style={{ backgroundColor: TINT.critico, color: T.critico }}>
+              <LogOut className='w-4 h-4' /> Sair
             </button>
           </div>
         </div>

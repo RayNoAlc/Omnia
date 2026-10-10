@@ -10,7 +10,7 @@ import {
   Settings, Palette, Wind, Heart,
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
-  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users
+  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users, Music
 } from 'lucide-react';
 
 import html2canvas from 'html2canvas';
@@ -25,6 +25,7 @@ import {
 } from "./ui";
 import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre, OMNIA_SECRET_DEV_COMMAND, isSecretDevCommand, executeGodModeCheat } from "../lib/utils";
 import { sfx } from "../lib/soundEffects";
+import { reactiveBgm } from "../lib/reactiveBgm";
 import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
 import { callVision, callAudioTranscription, callAIWithTools, callAI } from "../lib/ai";
 import { runQATour } from "../lib/qaTour";
@@ -3947,6 +3948,11 @@ export function FocoTab(props) {
     }
   }, [soundVolume, lofiSrc]);
 
+  useEffect(() => {
+    reactiveBgm.duck(Boolean(lofiSrc));
+    return () => reactiveBgm.duck(false);
+  }, [lofiSrc]);
+
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [showBreathing, setShowBreathing] = useState(false);
@@ -5547,6 +5553,10 @@ export function ConfigTab(props) {
 function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes, summaries }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
+  const [bgmState, setBgmState] = useState(() => reactiveBgm.getState());
+  useEffect(() => {
+    return reactiveBgm.subscribe((s) => setBgmState({ ...s }));
+  }, []);
   const safeConfig = { enableAnalytics: true, enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, enableSfx: true, ...(config || {}) };
   const handleToggle = (key) => {
     updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
@@ -5760,13 +5770,118 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
               <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
             </label>
 
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Volume2 size={20} className="inline mr-2 -mt-1" /> Efeitos Sonoros (SFX)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feedbacks sonoros ao concluir tarefas, clicar no timer e interagir com o app.</div>
+            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <label className='flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity'>
+                <div>
+                  <div className='font-bold' style={{ color: T.ink }}><Volume2 size={20} className="inline mr-2 -mt-1 text-blue-400" /> Efeitos Sonoros dos Botões (SFX)</div>
+                  <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feedbacks táteis e auditivos em cliques de botões, tarefas, timers e navegação.</div>
+                </div>
+                <input type='checkbox' checked={safeConfig.enableSfx !== false} onChange={() => { handleToggle('enableSfx'); sfx.click(); }} className='w-6 h-6 accent-blue-500' />
+              </label>
+
+              {safeConfig.enableSfx !== false && (
+                <div className='pt-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-xs' style={{ borderColor: T.border }}>
+                  <span style={{ color: T.inkSoft }}>Testar clique dos botões:</span>
+                  <div className='flex flex-wrap gap-1.5'>
+                    <button type="button" onClick={() => sfx.click()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Clique Padrão
+                    </button>
+                    <button type="button" onClick={() => sfx.pop()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Pop Suave
+                    </button>
+                    <button type="button" onClick={() => sfx.complete()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Sino Conclusão
+                    </button>
+                    <button type="button" onClick={() => sfx.coin()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Moeda Recompensa
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: bgmState.isPlaying ? T.brand : T.border, backgroundColor: bgmState.isPlaying ? (TINT.brand || T.bg) : T.bg }}>
+              <div className='flex items-center justify-between'>
+                <div>
+                  <div className='font-bold flex items-center gap-2' style={{ color: T.ink }}>
+                    <Music size={20} className={bgmState.isPlaying ? "text-emerald-400 animate-pulse" : "text-emerald-500"} />
+                    <span>Música de Fundo Reativa (BGM)</span>
+                    {bgmState.isPlaying && (
+                      <span className='text-[10px] uppercase font-bold px-2 py-0.5 rounded-full' style={{ backgroundColor: T.brand, color: T.brandInk }}>
+                        Ao Vivo: {bgmState.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                    Trilha sonora procedural infinita e relaxante gerada via Web Audio API. Adapta tom, acordes e textura à aba aberta e ações.
+                  </div>
+                </div>
+                <input
+                  type='checkbox'
+                  checked={bgmState.isPlaying}
+                  onChange={() => {
+                    sfx.toggle(!bgmState.isPlaying);
+                    reactiveBgm.toggle();
+                  }}
+                  className='w-6 h-6 accent-blue-500 cursor-pointer'
+                />
               </div>
-              <input type='checkbox' checked={safeConfig.enableSfx !== false} onChange={() => { handleToggle('enableSfx'); sfx.click(); }} className='w-6 h-6 accent-blue-500' />
-            </label>
+
+              {bgmState.isPlaying && (
+                <div className='pt-3 border-t flex flex-col gap-3' style={{ borderColor: T.border }}>
+                  <div className='flex items-center justify-between text-xs'>
+                    <span className="flex items-center gap-1.5" style={{ color: T.inkSoft }}>
+                      <Volume2 size={14} /> Volume da Música Ambiente
+                    </span>
+                    <span className='font-mono font-bold' style={{ color: T.brand }}>{Math.round(bgmState.volume * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.02"
+                    value={bgmState.volume}
+                    onChange={(e) => reactiveBgm.setVolume(parseFloat(e.target.value))}
+                    className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
+                  />
+
+                  <div className='pt-1 text-xs'>
+                    <div className='mb-2 font-medium' style={{ color: T.inkSoft }}>Ambiente Sonoro:</div>
+                    <div className='flex flex-wrap gap-1.5'>
+                      {[
+                        { id: 'auto', label: 'Automático (Reativo por aba)' },
+                        { id: 'foco', label: 'Foco Profundo (Ondas Theta)' },
+                        { id: 'hoje', label: 'Serenidade Matinal' },
+                        { id: 'biblioteca', label: 'Santuário de Estudos' },
+                        { id: 'secretaria', label: 'Assistente Cósmica' },
+                        { id: 'desempenho', label: 'Vitória Dourada' }
+                      ].map(preset => {
+                        const isPresetActive = (bgmState.presetOverride || 'auto') === preset.id;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => {
+                              sfx.pop();
+                              reactiveBgm.setPreset(preset.id);
+                            }}
+                            className='px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all active:scale-95'
+                            style={{
+                              backgroundColor: isPresetActive ? T.brand : T.surfaceAlt,
+                              color: isPresetActive ? T.brandInk : T.ink,
+                              borderColor: isPresetActive ? T.brand : T.border
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
 
 
             

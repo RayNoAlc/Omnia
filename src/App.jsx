@@ -24,6 +24,7 @@ import { classifyInboxText } from "./lib/aiHelpers";
 import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos, executeGodModeCheat, isSecretDevCommand, OMNIA_SECRET_DEV_COMMAND } from "./lib/utils";
 import { useFocusTimer } from "./lib/useFocusTimer";
 import { sfx } from "./lib/soundEffects";
+import { reactiveBgm } from "./lib/reactiveBgm";
 import { AppLayout } from "./layouts/AppLayout";
 import { T, TABS, applyTheme, applyFont } from "./components/ui";
 
@@ -79,6 +80,10 @@ function AppInner() {
   const [isZen, setIsZen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    reactiveBgm.setTab(tab);
+  }, [tab]);
 
   // --- ATALHOS DE TECLADO ---
   useEffect(() => {
