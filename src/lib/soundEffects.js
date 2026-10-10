@@ -174,6 +174,7 @@ class SoundEffectsManager {
     if (!this.isEnabled()) return;
     this.markPlayed();
     try {
+      reactiveBgm.pulseAction("click");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -285,7 +286,7 @@ class SoundEffectsManager {
     if (!this.isEnabled()) return;
     this.markPlayed();
     try {
-      reactiveBgm.pulseAction("complete");
+      reactiveBgm.pulseAction("timer_start");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
@@ -317,6 +318,7 @@ class SoundEffectsManager {
     if (!this.isEnabled()) return;
     this.markPlayed();
     try {
+      reactiveBgm.pulseAction("timer_pause");
       const ctx = this.getAudioContext();
       if (!ctx) return;
       const now = ctx.currentTime;
