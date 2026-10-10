@@ -1560,7 +1560,7 @@ function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = []
   }
 
   // Mascote da coruja com skin ativa
-  const currentSkinId = config?.equippedSkin || "none";
+  const currentSkinId = config?.petSkin || config?.equippedSkin || "none";
   const mascotSrc = currentSkinId === "none" ? "/owl_happy.png" : `/owl_${currentSkinId}_happy.png`;
 
   const handleOpen = () => {
@@ -3385,37 +3385,40 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   const [tempName, setTempName] = useState(petName || "Coruja Omnia");
   const [showStore, setShowStore] = useState(false);
 
-  const DENTAL_SKINS = [
-    { id: 'none', name: 'Coruja Natural', desc: 'Visual clássico da mascote', price: 0, preview: '/owl_happy.png' },
-    { id: 'jaleco', name: 'Jaleco Clínico', desc: 'Jaleco odontológico com estetoscópio', price: 150, preview: '/owl_jaleco_happy.png' },
-    { id: 'mascara', name: 'Touca & Máscara', desc: 'EPI cirúrgico de biossegurança', price: 200, preview: '/owl_mascara_happy.png' },
-    { id: 'espelho', name: 'Espelho Clínico', desc: 'Instrumento de exame bucal na asa', price: 250, preview: '/owl_espelho_happy.png' },
-    { id: 'lupa', name: 'Lupas Cirúrgicas', desc: 'Lupas de ampliação e LED frontal', price: 350, preview: '/owl_lupa_happy.png' },
-    { id: 'dente', name: 'Molar de Ouro', desc: 'Troféu molar esculpido em ouro', price: 400, preview: '/owl_dente_happy.png' },
-    { id: 'completo', name: 'Cirurgiã-Dentista', desc: 'Paramentação odontológica completa', price: 500, preview: '/owl_completo_happy.png' },
+  const OWL_SKINS = [
+    { id: 'none', name: 'Coruja Clássica', desc: 'Plumagem natural branca e creme', price: 0, preview: '/owl_happy.png' },
+    { id: 'noturna', name: 'Coruja da Meia-Noite', desc: 'Penas em azul marinho e grafite estrelado', price: 120, preview: '/owl_noturna_happy.png' },
+    { id: 'neve', name: 'Coruja das Neves', desc: 'Penas alvas e gélidas com reflexos polares', price: 180, preview: '/owl_neve_happy.png' },
+    { id: 'dourada', name: 'Coruja Solar', desc: 'Plumagem mística em tons de âmbar e ouro', price: 240, preview: '/owl_dourada_happy.png' },
+    { id: 'sakura', name: 'Coruja Sakura', desc: 'Plumagem suave em degradê rosa pastel', price: 300, preview: '/owl_sakura_happy.png' },
+    { id: 'ametista', name: 'Coruja Cósmica', desc: 'Plumagem etérea em tons de violeta e lavanda', price: 380, preview: '/owl_ametista_happy.png' },
+    { id: 'esmeralda', name: 'Coruja da Floresta', desc: 'Penas em tons de menta fresca e esmeralda', price: 450, preview: '/owl_esmeralda_happy.png' },
+    { id: 'rubi', name: 'Coruja Fênix', desc: 'Plumagem vibrante em tons ardentes de rubi', price: 550, preview: '/owl_rubi_happy.png' },
   ];
 
   const coins = config?.coins || 0;
-  const ownedSkins = config?.ownedSkins || (config?.ownedHats ? ['none', ...config.ownedHats.filter(h => DENTAL_SKINS.some(s => s.id === h))] : ['none']);
-  const currentSkinId = config?.petSkin || (DENTAL_SKINS.some(s => s.id === config?.petHat) ? config?.petHat : 'none');
+  const rawOwned = config?.ownedSkins || [];
+  const ownedSkins = ['none', ...rawOwned.filter(id => OWL_SKINS.some(s => s.id === id && s.id !== 'none'))];
+  const currentSkinId = OWL_SKINS.some(s => s.id === config?.petSkin) ? config.petSkin : 'none';
 
   const buySkin = (skin) => {
     if (ownedSkins.includes(skin.id)) {
       sfx.pop();
-      updateConfig({ ...config, petSkin: skin.id, petHat: skin.id });
+      updateConfig({ ...config, petSkin: skin.id, petHat: skin.id, equippedSkin: skin.id });
     } else if (coins >= skin.price) {
-      if (confirm(`Comprar ${skin.name} por ${skin.price} moedas de estudo?`)) {
+      if (confirm(`Desbloquear plumagem ${skin.name} por ${skin.price} moedas de estudo?`)) {
         sfx.coin();
         updateConfig({
           ...config,
           coins: coins - skin.price,
-          ownedSkins: [...ownedSkins, skin.id],
+          ownedSkins: Array.from(new Set([...ownedSkins, skin.id])),
           petSkin: skin.id,
           petHat: skin.id,
+          equippedSkin: skin.id,
         });
       }
     } else {
-      alert("Você não tem moedas suficientes! Complete blocos de foco para acumular moedas.");
+      alert("Você não tem moedas suficientes! Complete blocos de foco para acumular moedas de estudo.");
     }
   };
 
@@ -3473,8 +3476,8 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         <div className="absolute bottom-full mb-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl w-80 max-w-[90vw] z-50">
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100 dark:border-gray-700">
             <div className="flex items-center gap-2">
-              <ShoppingBag size={16} className="text-blue-500" />
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Guarda-Roupa da Coruja</h4>
+              <Palette size={16} className="text-blue-500" />
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Cores da Coruja</h4>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-bold text-amber-500 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
@@ -3487,7 +3490,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
           </div>
 
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {DENTAL_SKINS.map((skin) => {
+            {OWL_SKINS.map((skin) => {
               const owned = ownedSkins.includes(skin.id);
               const selected = currentSkinId === skin.id;
               return (
@@ -3506,6 +3509,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
                         alt={skin.name}
                         className="w-10 h-10 object-contain select-none"
                         style={{ imageRendering: 'pixelated' }}
+                        onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
                       />
                     </div>
                     <div>
@@ -3529,7 +3533,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
                         onClick={() => buySkin(skin)}
                         className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors"
                       >
-                        Vestir
+                        Usar
                       </button>
                     ) : (
                       <button
@@ -3568,10 +3572,10 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group shadow-sm flex items-center justify-center p-1"
         style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}
         onClick={() => setShowStore(!showStore)}
-        title="Clique para abrir o guarda-roupa da coruja"
+        title="Clique para escolher a cor da coruja"
       >
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
-          <span className="text-white text-xs font-bold flex items-center gap-1"><ShoppingBag size={12} /> Roupas</span>
+          <span className="text-white text-xs font-bold flex items-center gap-1"><Palette size={12} /> Cores</span>
         </div>
         <img
           key={currentSrc}
@@ -3579,6 +3583,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
           alt={status}
           className={`w-20 h-20 object-contain select-none filter drop-shadow-md ${animClass}`}
           style={{ imageRendering: 'pixelated' }}
+          onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
         />
       </div>
       <div className="text-center">
