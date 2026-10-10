@@ -1113,7 +1113,7 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts, notes, commitme
   };
 
   const classes = [
-    { id: 'coruja', name: <span className="flex items-center gap-2">O Coruja <Bird size={16} /></span>, desc: '+50% XP em sessões à noite (após 19h).' },
+    { id: 'coruja', name: <span className="flex items-center gap-2">O Coruja <img src="/owl_happy.png" className="w-4 h-4 inline object-contain" style={{ imageRendering: 'pixelated' }} alt="Coruja" /></span>, desc: '+50% XP em sessões à noite (após 19h).' },
     { id: 'maratonista', name: <span className="flex items-center gap-2">O Maratonista <Activity size={16} /></span>, desc: '+50% XP em sessões de Foco de 2h+.' },
     { id: 'estrategista', name: <span className="flex items-center gap-2">O Estrategista <Target size={16} /></span>, desc: '+20% XP em Quizzes e Modo Professor.' }
   ];
@@ -2684,7 +2684,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
               const selected = currentHatId === hat.id;
               return (
                 <button key={hat.id} onClick={() => buyHat(hat)} className={`p-2 text-center rounded border transition-all ${selected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                  <div className="text-2xl mb-1">{hat.icon || '🦉'}</div>
+                  <div className="text-2xl mb-1">{hat.icon || <img src="/owl_happy.png" className="w-6 h-6 mx-auto object-contain" style={{ imageRendering: 'pixelated' }} alt="Padrão" />}</div>
                   <div className="text-[10px] truncate">{owned ? 'Usar' : `🪙 ${hat.price}`}</div>
                 </button>
               );
@@ -2707,9 +2707,15 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         </div>
         {currentHat && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 text-4xl z-10 select-none pointer-events-none drop-shadow-md">{currentHat}</div>}
         <div className="flex w-[300%] h-full transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${position})` }}>
-          <div className="w-1/3 h-full flex items-center justify-center text-5xl">😴</div>
-          <div className="w-1/3 h-full flex items-center justify-center text-5xl animate-bounce">📖</div>
-          <div className="w-1/3 h-full flex items-center justify-center text-5xl">🦉</div>
+          <div className="w-1/3 h-full flex items-center justify-center p-1">
+            <img src="/owl_sleep.png" alt="Coruja descansando" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
+          </div>
+          <div className="w-1/3 h-full flex items-center justify-center p-1">
+            <img src="/owl_focus.png" alt="Coruja focando" className="w-20 h-20 object-contain select-none animate-pulse filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
+          </div>
+          <div className="w-1/3 h-full flex items-center justify-center p-1">
+            <img src="/owl_happy.png" alt="Coruja animada" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
+          </div>
         </div>
       </div>
       <div className="text-center">
@@ -4267,7 +4273,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
 
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
-                <div className='font-bold' style={{ color: T.ink }}><MessageCircle size={20} className="inline mr-2 -mt-1" /> Coruja Sincera</div>
+                <div className='font-bold' style={{ color: T.ink }}><img src="/owl_happy.png" className="w-5 h-5 inline mr-2 -mt-1 object-contain" style={{ imageRendering: 'pixelated' }} alt="Coruja" /> Coruja Sincera</div>
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Balões de fala com dicas e avisos sobre o seu foco e progresso.</div>
               </div>
               <input type='checkbox' checked={safeConfig.enableSincereOwl} onChange={() => handleToggle('enableSincereOwl')} className='w-6 h-6 accent-blue-500' />
