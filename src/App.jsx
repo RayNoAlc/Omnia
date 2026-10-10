@@ -337,8 +337,6 @@ function AppInner() {
   async function handleReduzir(commitment) {
     await deletePendingBlocksForCommitment(commitment.id);
     const hoje = todayISO();
-  const visibleCommitments = config?.showArchived ? commitments : commitments.filter(c => !(c.assunto||"").toLowerCase().includes('#arquivado') && !(c.disciplina||"").toLowerCase().includes('#arquivado'));
-  const visibleNotes = config?.showArchived ? notes : notes.filter(n => !(n.texto||"").toLowerCase().includes('#arquivado') && !(n.disciplina||"").toLowerCase().includes('#arquivado'));
     const revisaoDate = addDays(commitment.prazo, -1) > hoje ? addDays(commitment.prazo, -1) : hoje;
     let saved = [];
     if (revisaoDate < commitment.prazo) {
@@ -384,6 +382,8 @@ function AppInner() {
   if (!session) return <Auth />;
 
   const hoje = todayISO();
+  const visibleCommitments = config?.showArchived ? commitments : commitments.filter(c => !(c.assunto||"").toLowerCase().includes('#arquivado') && !(c.disciplina||"").toLowerCase().includes('#arquivado'));
+  const visibleNotes = config?.showArchived ? notes : notes.filter(n => !(n.texto||"").toLowerCase().includes('#arquivado') && !(n.disciplina||"").toLowerCase().includes('#arquivado'));
   const overdue = commitments.filter((c) => c.prazo && c.prazo < hoje);
   const blocksHoje = studyBlocks.filter((b) => b.date === hoje);
   const commitmentsHoje = visibleCommitments.filter((c) => c.prazo === hoje);
