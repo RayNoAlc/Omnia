@@ -10,7 +10,7 @@ import {
   Settings, Palette, Wind, Heart,
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
-  Laugh, Footprints, Zap, Glasses
+  Laugh, Footprints, Zap, Glasses, Copy, Share2
 } from 'lucide-react';
 
 import jsPDF from 'jspdf';
@@ -1479,30 +1479,331 @@ function Badges({ sessions }) {
   );
 }
 
-function OmniaWrapped({ sessions }) {
+function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = [], commitments = [], config = {} }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   if (!sessions || sessions.length === 0) return null;
-  
-  const totalMinutos = sessions.reduce((a,s) => a + s.minutos, 0);
+
+  const totalMinutos = sessions.reduce((acc, s) => acc + (Number(s.minutos) || 0), 0);
+  const totalSessoes = sessions.length;
+  const mediaMinutos = totalSessoes > 0 ? Math.round(totalMinutos / totalSessoes) : 0;
+
+  // Formatação inteligente do tempo para nunca exibir 0h seco
+  let tempoStr = "";
+  if (totalMinutos < 60) {
+    tempoStr = totalMinutos > 0 ? `${totalMinutos} min` : "0 min";
+  } else {
+    const h = Math.floor(totalMinutos / 60);
+    const m = totalMinutos % 60;
+    tempoStr = m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+
+  // Top Disciplina
   const discMap = {};
-  sessions.forEach(s => { discMap[s.disciplina] = (discMap[s.disciplina] || 0) + s.minutos; });
-  const topDisc = Object.keys(discMap).sort((a,b) => discMap[b] - discMap[a])[0];
+  sessions.forEach((s) => {
+    const d = s.disciplina || "Geral";
+    discMap[d] = (discMap[d] || 0) + (Number(s.minutos) || 0);
+  });
+  const topDisc = Object.keys(discMap).sort((a, b) => discMap[b] - discMap[a])[0] || "Livre";
+  const topDiscMin = discMap[topDisc] || 0;
+  const pctTop = totalMinutos > 0 ? Math.round((topDiscMin / totalMinutos) * 100) : 100;
+
+  // Turno de ouro mais produtivo
+  const periodCount = { "Manhã": 0, "Tarde": 0, "Noite": 0, "Madrugada": 0 };
+  sessions.forEach((s) => {
+    if (s.date) {
+      const h = new Date(s.date).getHours();
+      if (h >= 6 && h < 12) periodCount["Manhã"]++;
+      else if (h >= 12 && h < 18) periodCount["Tarde"]++;
+      else if (h >= 18 && h < 24) periodCount["Noite"]++;
+      else periodCount["Madrugada"]++;
+    }
+  });
+  const topPeriodo = Object.keys(periodCount).sort((a, b) => periodCount[b] - periodCount[a])[0] || "Tarde";
+
+  // Streak / Ofensiva
+  const streak = Math.max(
+    parseInt(localStorage.getItem("omnia_streak_days") || "0") || 0,
+    Number(config?.streak) || 0
+  );
+
+  // Perfil acadêmico baseado nos hábitos reais
+  let perfilTitulo = "Estrategista Metódico";
+  let perfilDesc = "Constância equilibrada entre blocos de foco, pausas e energia.";
+  let PerfilIcon = Target;
+
+  if (mediaMinutos >= 45) {
+    perfilTitulo = "Maratonista de Imersão";
+    perfilDesc = "Foco sustentado com facilidade para mergulhar em temas complexos.";
+    PerfilIcon = Activity;
+  } else if (topPeriodo === "Noite" || topPeriodo === "Madrugada") {
+    perfilTitulo = "Coruja Noturna";
+    perfilDesc = "Pico de produtividade no silêncio e na tranquilidade noturna.";
+    PerfilIcon = Moon;
+  } else if ((quizAttempts?.length || 0) >= 3 || (professorAttempts?.length || 0) >= 1) {
+    perfilTitulo = "Praticante Ativo";
+    perfilDesc = "Domínio de autoexplicação e recuperação ativa para reter conteúdos.";
+    PerfilIcon = Brain;
+  } else if (streak >= 3) {
+    perfilTitulo = "Guardião da Constância";
+    perfilDesc = "Hábito inabalável com ofensiva diária mantida com disciplina.";
+    PerfilIcon = Flame;
+  }
+
+  // Mascote da coruja com skin ativa
+  const currentSkinId = config?.equippedSkin || "none";
+  const mascotSrc = currentSkinId === "none" ? "/owl_happy.png" : `/owl_${currentSkinId}_happy.png`;
+
+  const handleOpen = () => {
+    setOpen(true);
+    if (window.confetti) {
+      window.confetti({ particleCount: 65, spread: 75, origin: { y: 0.6 } });
+    }
+  };
+
+  const handleCopy = () => {
+    const text = `[OMNIA WRAPPED - Retrospectiva Acadêmica]
+Tempo Total Focado: ${tempoStr}
+Sessões Concluídas: ${totalSessoes} (média ~${mediaMinutos} min/sessão)
+Disciplina Mais Estudada: ${topDisc} (${pctTop}% do foco)
+Perfil de Estudo: ${perfilTitulo}
+Ofensiva: ${streak > 0 ? `${streak} dias consecutivos` : 'Ativo'}
+Plataforma: Omnia`;
+
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
 
   return (
     <>
-      <PrimaryButton onClick={() => setOpen(true)} className="w-full mt-6 py-4 text-lg animate-pulse" style={{ background: 'linear-gradient(45deg, #FF007A, #7928CA)', color: 'white', border: 'none' }}>
-        <span className="flex items-center gap-2 justify-center"><Sparkles size={16}/> Ver Meu Omnia Wrapped</span>
-      </PrimaryButton>
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setOpen(false)}>
-          <div className="rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl scale-in-center" style={{ background: 'linear-gradient(135deg, #111, #333)', color: '#fff', border: '2px solid #555' }} onClick={e => e.stopPropagation()}>
-            <h2 className="text-4xl font-black mb-6 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">Omnia Wrapped</h2>
-            <div className="space-y-6 text-xl">
-              <p>Você estudou <br/><span className="text-5xl font-black text-pink-400">{Math.round(totalMinutos/60)}h</span></p>
-              <p>Sua disciplina favorita foi <br/><span className="text-3xl font-bold text-violet-400">{topDisc}</span></p>
-              <p>Você fez <span className="font-bold text-yellow-400">{sessions.length}</span> sessões!</p>
+      {/* Banner de Abertura Adaptativo ao Tema */}
+      <div
+        className="p-4 sm:p-5 rounded-2xl border transition-all hover:shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+      >
+        <div className="flex items-center gap-3.5">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border"
+            style={{ backgroundColor: TINT.brand, color: T.brand, borderColor: T.border }}
+          >
+            <Sparkles size={22} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base tracking-tight" style={{ color: T.ink }}>
+                Omnia Wrapped
+              </h3>
+              <span
+                className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border"
+                style={{ backgroundColor: TINT.brand, color: T.brand, borderColor: T.border }}
+              >
+                Retrospectiva
+              </span>
             </div>
-            <button onClick={() => setOpen(false)} className="mt-8 px-6 py-2 rounded-full font-bold bg-white text-black hover:bg-gray-200">Incrível</button>
+            <p className="text-xs mt-0.5" style={{ color: T.inkSoft }}>
+              Descubra seus recordes de foco, disciplina favorita e seu perfil de estudante.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleOpen}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-sm hover:opacity-95"
+          style={{ backgroundColor: T.brand, color: T.brandInk }}
+        >
+          <Sparkles size={16} /> Ver Meu Wrapped
+        </button>
+      </div>
+
+      {/* Modal Adaptativo ao Tema */}
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-md"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-3xl p-5 sm:p-7 shadow-2xl border flex flex-col max-h-[92vh] overflow-hidden"
+            style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Efeitos de iluminação ambiente que usam as cores do tema */}
+            <div
+              className="absolute -top-24 -right-24 w-60 h-60 rounded-full blur-3xl pointer-events-none opacity-20"
+              style={{ backgroundColor: T.brand }}
+            />
+            <div
+              className="absolute -bottom-24 -left-24 w-60 h-60 rounded-full blur-3xl pointer-events-none opacity-15"
+              style={{ backgroundColor: T.purple }}
+            />
+
+            {/* Cabeçalho do Modal */}
+            <div className="flex items-start justify-between gap-4 mb-5 shrink-0 relative z-10">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full border flex items-center gap-1"
+                    style={{ backgroundColor: TINT.brand, color: T.brand, borderColor: T.border }}
+                  >
+                    <Sparkles size={11} /> Retrospectiva Acadêmica
+                  </span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight" style={{ color: T.ink }}>
+                  Omnia Wrapped
+                </h2>
+                <p className="text-xs sm:text-sm" style={{ color: T.inkSoft }}>
+                  Sua jornada de evolução e foco em números
+                </p>
+              </div>
+
+              <button
+                onClick={() => setOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors border shrink-0"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.inkSoft }}
+                title="Fechar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Conteúdo com Scroll Suave */}
+            <div className="overflow-y-auto space-y-3.5 pr-1 relative z-10 flex-1">
+              {/* Card Destaque: Tempo Total */}
+              <div
+                className="p-4 sm:p-5 rounded-2xl border text-center relative overflow-hidden"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+              >
+                <div
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-2 border"
+                  style={{ backgroundColor: TINT.brand, color: T.brand, borderColor: T.border }}
+                >
+                  <Clock size={13} /> Tempo Total Dedicado
+                </div>
+                <div className="text-4xl sm:text-5xl font-black tracking-tight my-1" style={{ color: T.brand }}>
+                  {tempoStr}
+                </div>
+                <div className="text-xs font-medium" style={{ color: T.inkSoft }}>
+                  Distribuídos em <span className="font-bold" style={{ color: T.ink }}>{totalSessoes} sessões</span> de foco (média de ~{mediaMinutos} min)
+                </div>
+              </div>
+
+              {/* Grid 2 Colunas: Disciplina + Ofensiva/Consistência */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Disciplina Favorita */}
+                <div
+                  className="p-4 rounded-2xl border flex flex-col justify-between"
+                  style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center border"
+                      style={{ backgroundColor: TINT.purple, color: T.purple, borderColor: T.border }}
+                    >
+                      <BookOpen size={14} />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: T.inkSoft }}>
+                      Disciplina Favorita
+                    </span>
+                  </div>
+                  <div className="my-1">
+                    <div className="text-lg font-black truncate" style={{ color: T.ink }} title={topDisc}>
+                      {topDisc}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: T.inkSoft }}>
+                      <span className="font-bold" style={{ color: T.purple }}>{pctTop}%</span> do seu tempo focado ({topDiscMin} min)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ofensiva / Constância */}
+                <div
+                  className="p-4 rounded-2xl border flex flex-col justify-between"
+                  style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center border"
+                      style={{ backgroundColor: TINT.importante, color: T.importante, borderColor: T.border }}
+                    >
+                      <Flame size={14} />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: T.inkSoft }}>
+                      Ritmo & Ofensiva
+                    </span>
+                  </div>
+                  <div className="my-1">
+                    <div className="text-lg font-black" style={{ color: streak > 0 ? T.importante : T.ink }}>
+                      {streak > 0 ? `${streak} Dias Seguidos` : `${totalSessoes} Sessões`}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: T.inkSoft }}>
+                      Turno mais produtivo: <span className="font-semibold" style={{ color: T.ink }}>{topPeriodo}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card de Perfil com Mascote da Coruja */}
+              <div
+                className="p-4 rounded-2xl border flex items-center gap-4"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+              >
+                {/* Mascote Sprite */}
+                <div
+                  className="w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center p-1 shadow-sm"
+                  style={{ backgroundColor: T.surface, borderColor: T.border }}
+                >
+                  <img
+                    src={mascotSrc}
+                    alt="Mascote Coruja"
+                    className="w-14 h-14 object-contain"
+                    style={{ imageRendering: "pixelated" }}
+                    onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
+                  />
+                </div>
+
+                {/* Descrição do Perfil */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <PerfilIcon size={14} style={{ color: T.brand }} />
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: T.brand }}>
+                      {perfilTitulo}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed" style={{ color: T.inkSoft }}>
+                    {perfilDesc}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé com Ações Adaptativas */}
+            <div className="mt-4 pt-3 border-t flex flex-col sm:flex-row items-center gap-2.5 shrink-0 relative z-10" style={{ borderColor: T.border }}>
+              <button
+                onClick={handleCopy}
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-colors hover:opacity-90"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+              >
+                {copied ? (
+                  <>
+                    <Check size={15} className="text-emerald-500" />
+                    <span>Copiado com Sucesso!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={15} style={{ color: T.inkSoft }} />
+                    <span>Copiar Resumo</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setOpen(false)}
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-sm hover:opacity-95"
+                style={{ backgroundColor: T.brand, color: T.brandInk }}
+              >
+                <Sparkles size={15} /> Incrível
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1712,7 +2013,7 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
       
         {/* GAMIFICATION MODULE */}
         <Arquetipos sessions={sessions} quizAttempts={quizAttempts} professorAttempts={professorAttempts} notes={notes} commitments={commitments} />
-        <OmniaWrapped sessions={sessions} />
+        <OmniaWrapped sessions={sessions} quizAttempts={quizAttempts} professorAttempts={professorAttempts} commitments={commitments} config={config} />
         <Badges sessions={sessions} />
         <Heatmap sessions={sessions} />
         
