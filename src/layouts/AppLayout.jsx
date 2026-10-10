@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Menu, Palette, X, Download } from 'lucide-react';
 import { TINT, applyTheme, THEMES, T } from '../components/ui';
+import { sfx } from '../lib/soundEffects';
 
 export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -46,7 +47,10 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, child
             return (
               <button
                 key={tab.id}
-                onClick={() => onTabChange(tab.id)}
+                onClick={() => {
+                  sfx.click();
+                  onTabChange(tab.id);
+                }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${isActive ? 'shadow-sm' : 'hover:bg-opacity-50'}`}
                 style={{
                   backgroundColor: isActive ? TINT.brand : 'transparent',
@@ -108,6 +112,7 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, child
                 <button
                   key={tab.id}
                   onClick={() => {
+                    sfx.click();
                     onTabChange(tab.id);
                     setMobileOpen(false);
                   }}

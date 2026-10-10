@@ -1,3 +1,5 @@
+import { sfx } from "./soundEffects";
+
 /** Lê um arquivo (imagem ou áudio) e devolve { base64, mimeType } */
 export function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -351,6 +353,7 @@ export function executeGodModeCheat(config, updateConfig) {
   }
 
   if (typeof window !== "undefined") {
+    sfx.levelUp();
     window.dispatchEvent(new Event("storage"));
     window.dispatchEvent(new CustomEvent("omnia-config-update", { detail: updatedCfg }));
     if (window.confetti) {

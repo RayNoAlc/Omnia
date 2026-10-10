@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { todayISO } from "./utils";
 import { addSession as dbAddSession } from "./db";
 import { supabase } from "./supabaseClient";
+import { sfx } from "./soundEffects";
 
 export const PRESETS = [
   { label: "25 / 5", work: 25 * 60, rest: 5 * 60 },
@@ -125,12 +126,8 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
 
   
   const handlePhaseEnd = useCallback(async () => {
-    // Play a gentle ding sound
-    try {
-      const audio = new Audio("https://cdn.freesound.org/previews/320/320655_5260872-lq.mp3");
-      audio.volume = 0.6;
-      audio.play();
-    } catch(e) {}
+    // Tocar sino de conclusão harmônico e relaxante
+    sfx.timerFinish();
     
     // Send OS notification
     if (Notification.permission === "granted") {
@@ -188,6 +185,7 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
   }, [running, endsAt, handlePhaseEnd]);
 
   function iniciar() {
+    sfx.timerStart();
     setPhase("work");
     const e = Date.now() + workSeconds * 1000;
     setEndsAt(e);
@@ -195,17 +193,20 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
     broadcast({ phase: "work", endsAt: e, running: true });
   }
   function pausar() {
+    sfx.timerPause();
     setPausedRemaining(Math.max(0, Math.round((endsAt - Date.now()) / 1000)));
     setRunning(false);
     setEndsAt(null);
   }
   function continuar() {
+    sfx.timerStart();
     const e = Date.now() + pausedRemaining * 1000;
     setEndsAt(e);
     setRunning(true);
     broadcast({ endsAt: e, running: true });
   }
   function reiniciarCiclo() {
+    sfx.click();
     const base = phase === "rest" ? restSeconds : workSeconds;
     setRunning(false);
     setEndsAt(null);
@@ -214,6 +215,7 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
     setInterruptions(0);
   }
   function encerrar() {
+    sfx.click();
     setRunning(false);
     setPhase("idle");
     setEndsAt(null);

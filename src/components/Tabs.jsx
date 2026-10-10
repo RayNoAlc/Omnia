@@ -23,6 +23,7 @@ import {
   PriorityDot, TypeTag, Card, SectionLabel, EmptyState, PrimaryButton, GhostButton,
 } from "./ui";
 import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre, OMNIA_SECRET_DEV_COMMAND, isSecretDevCommand, executeGodModeCheat } from "../lib/utils";
+import { sfx } from "../lib/soundEffects";
 import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
 import { callVision, callAudioTranscription, callAIWithTools, callAI } from "../lib/ai";
 import { runQATour } from "../lib/qaTour";
@@ -279,8 +280,13 @@ const getRoutineIcon = (type) => {
     const toggleHabit = (id) => {
       const isNowDone = !completedMap[id];
       setCompletedMap((prev) => ({ ...prev, [id]: isNowDone }));
-      if (isNowDone && window.confetti) {
-        window.confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
+      if (isNowDone) {
+        sfx.complete();
+        if (window.confetti) {
+          window.confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
+        }
+      } else {
+        sfx.pop();
       }
     };
 
@@ -291,12 +297,14 @@ const getRoutineIcon = (type) => {
         alert("Este hábito já está na sua lista!");
         return;
       }
+      sfx.pop();
       const newId = "h_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
       setDefinitions((prev) => [...prev, { id: newId, label: trimmed, iconKey }]);
       setNewText("");
     };
 
     const removeHabit = (id) => {
+      sfx.click();
       setDefinitions((prev) => prev.filter((d) => d.id !== id));
       setCompletedMap((prev) => {
         const copy = { ...prev };
@@ -1557,12 +1565,14 @@ function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = []
 
   const handleOpen = () => {
     setOpen(true);
+    sfx.levelUp();
     if (window.confetti) {
       window.confetti({ particleCount: 65, spread: 75, origin: { y: 0.6 } });
     }
   };
 
   const handleCopy = () => {
+    sfx.click();
     const text = `[OMNIA WRAPPED - Retrospectiva Acadêmica]
 Tempo Total Focado: ${tempoStr}
 Sessões Concluídas: ${totalSessoes} (média ~${mediaMinutos} min/sessão)
@@ -3391,9 +3401,11 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
 
   const buySkin = (skin) => {
     if (ownedSkins.includes(skin.id)) {
+      sfx.pop();
       updateConfig({ ...config, petSkin: skin.id, petHat: skin.id });
     } else if (coins >= skin.price) {
       if (confirm(`Comprar ${skin.name} por ${skin.price} moedas de estudo?`)) {
+        sfx.coin();
         updateConfig({
           ...config,
           coins: coins - skin.price,
@@ -5067,7 +5079,7 @@ export function ConfigTab(props) {
 function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes, summaries }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
-  const safeConfig = { enableAnalytics: true, enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };
+  const safeConfig = { enableAnalytics: true, enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, enableSfx: true, ...(config || {}) };
   const handleToggle = (key) => {
     updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
   };
@@ -5251,6 +5263,14 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Player de música ambiente integrado na aba Foco.</div>
               </div>
               <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Volume2 size={20} className="inline mr-2 -mt-1" /> Efeitos Sonoros (SFX)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feedbacks sonoros ao concluir tarefas, clicar no timer e interagir com o app.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableSfx !== false} onChange={() => { handleToggle('enableSfx'); sfx.click(); }} className='w-6 h-6 accent-blue-500' />
             </label>
 
 

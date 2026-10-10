@@ -23,6 +23,7 @@ import {
 import { classifyInboxText } from "./lib/aiHelpers";
 import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos, executeGodModeCheat, isSecretDevCommand, OMNIA_SECRET_DEV_COMMAND } from "./lib/utils";
 import { useFocusTimer } from "./lib/useFocusTimer";
+import { sfx } from "./lib/soundEffects";
 import { AppLayout } from "./layouts/AppLayout";
 import { T, TABS, applyTheme } from "./components/ui";
 
@@ -341,14 +342,19 @@ function AppInner() {
   async function handleToggleBlock(id) {
     const block = studyBlocks.find((b) => b.id === id);
     if (!block) return;
-    if (!block.done && config?.enableConfetti !== false) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
-        zIndex: 9999
-      });
+    if (!block.done) {
+      sfx.complete();
+      if (config?.enableConfetti !== false) {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
+          zIndex: 9999
+        });
+      }
+    } else {
+      sfx.pop();
     }
     await toggleBlockDone(id, !block.done);
     setStudyBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, done: !b.done } : b)));
