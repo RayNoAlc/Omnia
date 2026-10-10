@@ -19,7 +19,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
 import * as ics from 'ics';
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import {
   T, TINT, THEMES, applyTheme, applyFont, resolveFontFamily, TIPO_LABELS, PRIORIDADE_META, PERIODO_LABELS, TABS,
   PriorityDot, TypeTag, Card, SectionLabel, EmptyState, PrimaryButton, GhostButton,
@@ -4166,14 +4166,163 @@ function BreathingModal({ onClose, T }) {
   );
 }
 
+export function parseMusicUrl(inputUrl) {
+  if (!inputUrl || typeof inputUrl !== 'string') return null;
+  const raw = inputUrl.trim();
+
+  // Se o usuário colou o código <iframe> de incorporação completo
+  if (raw.includes('<iframe') && raw.includes('src=')) {
+    const srcMatch = raw.match(/src=["']([^"']+)["']/i);
+    if (srcMatch) {
+      return parseMusicUrl(srcMatch[1]);
+    }
+  }
+
+  // 1. Spotify (Playlists, Álbuns, Faixas, Artistas, Podcasts)
+  const spotifyMatch = raw.match(/(playlist|album|track|show|episode|artist)\/([a-zA-Z0-9]+)/i);
+  if (raw.includes('spotify.com') || raw.startsWith('spotify:') || spotifyMatch) {
+    if (spotifyMatch) {
+      const type = spotifyMatch[1].toLowerCase();
+      const id = spotifyMatch[2];
+      return {
+        type: 'spotify',
+        label: 'Spotify',
+        embedUrl: `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`,
+        key: `spotify:${type}/${id}`,
+      };
+    }
+  }
+
+  // 2. YouTube Music & YouTube (Playlists, Músicas, Vídeos)
+  if (raw.includes('music.youtube.com') || raw.includes('youtube.com') || raw.includes('youtu.be')) {
+    try {
+      const isYtMusic = raw.includes('music.youtube.com');
+      const label = isYtMusic ? 'YouTube Music' : 'YouTube';
+
+      const shortMatch = raw.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+      let videoId = shortMatch ? shortMatch[1] : null;
+
+      const vMatch = raw.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
+      if (vMatch) videoId = vMatch[1];
+
+      const embedMatch = raw.match(/\/embed\/([a-zA-Z0-9_-]{11})/i);
+      if (embedMatch) videoId = embedMatch[1];
+
+      const listMatch = raw.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
+      const listId = listMatch ? listMatch[1] : null;
+
+      if (listId && !videoId) {
+        return {
+          type: 'youtube',
+          label,
+          embedUrl: `https://www.youtube-nocookie.com/embed/videoseries?list=${listId}`,
+          key: `yt:list:${listId}`,
+        };
+      }
+
+      if (videoId && listId) {
+        return {
+          type: 'youtube',
+          label,
+          embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?list=${listId}`,
+          key: `yt:${videoId}:${listId}`,
+        };
+      }
+
+      if (videoId) {
+        return {
+          type: 'youtube',
+          label,
+          embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
+          key: `yt:${videoId}`,
+        };
+      }
+    } catch (e) {
+      console.warn('Erro ao processar link do YouTube:', e);
+    }
+  }
+
+  return null;
+}
+
 export function FocoTab(props) {
-    const { isZen, setIsZen } = props;
+  const { isZen, setIsZen } = props;
   const { config, updateConfig } = props;
   const { commitments, sessions, metaHoje, timer, userId, notes, materials, summaries, quizAttempts, professorAttempts, setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts } = props;
   const [lofiSrc, setLofiSrc] = useState(null);
   const [lofiOn, setLofiOn] = useState(false);
   const [soundVolume, setSoundVolume] = useState(0.7);
   const audioRef = useRef(null);
+
+  const [musicInput, setMusicInput] = useState("");
+  const [musicError, setMusicError] = useState(null);
+
+  const activeMusic = useMemo(() => {
+    if (props.config?.musicUrl) {
+      const isSpotify = props.config.musicType === 'spotify' || props.config.musicUrl.includes('spotify.com');
+      return {
+        type: isSpotify ? 'spotify' : 'youtube',
+        label: props.config.musicLabel || (isSpotify ? 'Spotify' : 'YouTube Music'),
+        embedUrl: props.config.musicUrl,
+      };
+    }
+    if (props.config?.spotifyUrl) {
+      return {
+        type: 'spotify',
+        label: 'Spotify',
+        embedUrl: `https://open.spotify.com/embed/${props.config.spotifyUrl}?utm_source=generator&theme=0`,
+      };
+    }
+    return null;
+  }, [props.config?.musicUrl, props.config?.musicType, props.config?.musicLabel, props.config?.spotifyUrl]);
+
+  const handleAddMusic = (rawUrl) => {
+    const val = (rawUrl !== undefined ? rawUrl : musicInput || "").trim();
+    if (!val) return;
+    const parsed = parseMusicUrl(val);
+    if (!parsed) {
+      setMusicError("Link inválido. Cole um link do Spotify ou YouTube Music (playlist ou música).");
+      return;
+    }
+    setMusicError(null);
+    setMusicInput("");
+    sfx.complete();
+
+    const nextConfig = {
+      ...props.config,
+      musicUrl: parsed.embedUrl,
+      musicType: parsed.type,
+      musicLabel: parsed.label,
+      spotifyUrl: parsed.type === "spotify"
+        ? parsed.embedUrl.replace("https://open.spotify.com/embed/", "").replace("?utm_source=generator&theme=0", "")
+        : null
+    };
+
+    try {
+      const fresh = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      localStorage.setItem("omnia_config", JSON.stringify({ ...fresh, ...nextConfig }));
+      window.dispatchEvent(new Event("storage"));
+    } catch {}
+    if (props.updateConfig) props.updateConfig(nextConfig);
+  };
+
+  const handleRemoveMusic = () => {
+    sfx.click();
+    setMusicError(null);
+    const nextConfig = {
+      ...props.config,
+      musicUrl: null,
+      musicType: null,
+      musicLabel: null,
+      spotifyUrl: null,
+    };
+    try {
+      const fresh = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      localStorage.setItem("omnia_config", JSON.stringify({ ...fresh, ...nextConfig }));
+      window.dispatchEvent(new Event("storage"));
+    } catch {}
+    if (props.updateConfig) props.updateConfig(nextConfig);
+  };
 
   useEffect(() => {
     if (audioRef.current) {
@@ -4182,9 +4331,9 @@ export function FocoTab(props) {
   }, [soundVolume, lofiSrc]);
 
   useEffect(() => {
-    reactiveBgm.duck(Boolean(lofiSrc));
+    reactiveBgm.duck(Boolean(lofiSrc || activeMusic || lofiOn));
     return () => reactiveBgm.duck(false);
-  }, [lofiSrc]);
+  }, [lofiSrc, activeMusic, lofiOn]);
 
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
@@ -4461,33 +4610,129 @@ export function FocoTab(props) {
                     </div>
                   )}
                 
-                {/* Spotify Integrado (Idea 15) */}
+                {/* Player de Música Integrado: Spotify & YouTube Music */}
                 <div className="w-full">
-                  {!props.config?.spotifyUrl ? (
+                  {!activeMusic ? (
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        <input type="text" placeholder="Link Playlist Spotify..." className="flex-1 text-sm p-2 rounded-md outline-none" style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }} onKeyDown={(e) => {
-                          if(e.key === 'Enter') {
-                            const url = e.target.value;
-                            const match = url.match(/(playlist|album|track|show|episode)\/([a-zA-Z0-9]+)/);
-                            if (match) {
-                              props.updateConfig({ ...props.config, spotifyUrl: `${match[1]}/${match[2]}` });
-                            } else {
-                              alert("Link inválido. Cole um link do Spotify (playlist, track, etc).");
-                            }
-                          }
-                        }} />
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            placeholder="Link do Spotify ou YouTube Music..."
+                            value={musicInput}
+                            onChange={(e) => {
+                              setMusicInput(e.target.value);
+                              if (musicError) setMusicError(null);
+                            }}
+                            className="w-full text-xs sm:text-sm p-2 sm:p-2.5 rounded-lg outline-none transition-all"
+                            style={{
+                              backgroundColor: T.surfaceAlt,
+                              color: T.ink,
+                              border: `1px solid ${musicError ? '#ef4444' : T.border}`,
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddMusic(e.target.value);
+                              }
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleAddMusic()}
+                          disabled={!musicInput.trim()}
+                          className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all ${
+                            musicInput.trim()
+                              ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-sm active:scale-95'
+                              : 'bg-slate-200 dark:bg-gray-800 text-slate-400 dark:text-gray-500 cursor-not-allowed opacity-60'
+                          }`}
+                          title="Carregar player de música"
+                        >
+                          <Music size={13} />
+                          <span>Tocar</span>
+                        </button>
                       </div>
-                      <div className="flex gap-2">
-                        <GhostButton className="flex-1 text-xs" onClick={() => setLofiOn(!lofiOn)} style={{ color: lofiOn ? T.brand : T.inkSoft }}>
-                          <Headphones className="w-4 h-4 mr-1" /> {lofiOn ? 'Rádio Lo-Fi Ligada' : 'Ligar Rádio Lo-Fi'}
+
+                      {musicError && (
+                        <div className="text-[11px] text-rose-500 dark:text-rose-400 px-1 font-medium">
+                          {musicError}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-[11px] px-1" style={{ color: T.inkSoft }}>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                            Spotify
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+                            YouTube Music
+                          </span>
+                        </div>
+                        <GhostButton
+                          className="text-xs py-1 px-2.5"
+                          onClick={() => setLofiOn(!lofiOn)}
+                          style={{ color: lofiOn ? T.brand : T.inkSoft }}
+                        >
+                          <Headphones className="w-3.5 h-3.5 mr-1" />
+                          {lofiOn ? 'Rádio Lo-Fi Ativa' : 'Ligar Rádio Lo-Fi'}
                         </GhostButton>
                       </div>
                     </div>
                   ) : (
-                    <div className="relative group w-full">
-                      <iframe style={{ borderRadius: '12px' }} src={`https://open.spotify.com/embed/${props.config.spotifyUrl}?utm_source=generator&theme=0`} width="100%" height="152" frameBorder="0" allowFullScreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-                      <button onClick={() => props.updateConfig({ ...props.config, spotifyUrl: null })} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10" title="Remover Playlist"><X className="w-3 h-3" /></button>
+                    <div className="relative group w-full flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between px-1 text-xs font-medium" style={{ color: T.inkSoft }}>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`w-2 h-2 rounded-full ${
+                              activeMusic.type === 'spotify' ? 'bg-emerald-500' : 'bg-red-500'
+                            } animate-pulse`}
+                          />
+                          <span className="font-semibold" style={{ color: T.ink }}>
+                            {activeMusic.label}
+                          </span>
+                          <span className="text-[10px] opacity-70">conectado</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveMusic}
+                          className="text-[11px] text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 cursor-pointer"
+                          title="Trocar ou remover playlist"
+                        >
+                          <X size={12} /> Trocar playlist
+                        </button>
+                      </div>
+
+                      <div className="relative rounded-xl overflow-hidden border shadow-sm" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+                        {activeMusic.type === 'spotify' ? (
+                          <iframe
+                            style={{ borderRadius: '12px' }}
+                            src={activeMusic.embedUrl}
+                            width="100%"
+                            height="152"
+                            frameBorder="0"
+                            allowFullScreen=""
+                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                            loading="lazy"
+                            title="Spotify Player"
+                          />
+                        ) : (
+                          <iframe
+                            style={{ borderRadius: '12px' }}
+                            src={activeMusic.embedUrl}
+                            width="100%"
+                            height="180"
+                            frameBorder="0"
+                            allowFullScreen=""
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            loading="lazy"
+                            title="YouTube Music Player"
+                          />
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
