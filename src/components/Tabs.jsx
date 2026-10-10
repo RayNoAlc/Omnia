@@ -1561,7 +1561,7 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts, notes, commitme
   };
 
   const classes = [
-    { id: 'coruja', name: <span className="flex items-center gap-2">O Coruja <img src="/owl_happy.png" className="w-4 h-4 inline object-contain" style={{ imageRendering: 'pixelated' }} alt="Coruja" /></span>, desc: '+50% XP em sessões à noite (após 19h).' },
+    { id: 'coruja', name: <span className="flex items-center gap-2">O Coruja <Bird size={16} /></span>, desc: '+50% XP em sessões à noite (após 19h).' },
     { id: 'maratonista', name: <span className="flex items-center gap-2">O Maratonista <Activity size={16} /></span>, desc: '+50% XP em sessões de Foco de 2h+.' },
     { id: 'estrategista', name: <span className="flex items-center gap-2">O Estrategista <Target size={16} /></span>, desc: '+20% XP em Quizzes e Modo Professor.' }
   ];
@@ -4818,7 +4818,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
 
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
-                <div className='font-bold' style={{ color: T.ink }}><img src="/owl_happy.png" className="w-5 h-5 inline mr-2 -mt-1 object-contain" style={{ imageRendering: 'pixelated' }} alt="Coruja" /> Coruja Sincera</div>
+                <div className='font-bold' style={{ color: T.ink }}><Bird size={20} className="inline mr-2 -mt-1" /> Coruja Sincera</div>
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Balões de fala com dicas e avisos sobre o seu foco e progresso.</div>
               </div>
               <input type='checkbox' checked={safeConfig.enableSincereOwl} onChange={() => handleToggle('enableSincereOwl')} className='w-6 h-6 accent-blue-500' />
