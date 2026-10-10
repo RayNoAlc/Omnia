@@ -2664,30 +2664,35 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   const [tempName, setTempName] = useState(petName || "Coruja Omnia");
   const [showStore, setShowStore] = useState(false);
 
-  const HATS = [
-    { id: 'none', icon: null, price: 0, name: 'Sem Acessório' },
-    { id: 'crown', icon: <Crown size={22} className="text-yellow-400" />, price: 500, name: 'Coroa' },
-    { id: 'grad', icon: <GraduationCap size={22} className="text-blue-400" />, price: 300, name: 'Formatura' },
-    { id: 'glasses', icon: <Glasses size={22} className="text-slate-300" />, price: 150, name: 'Óculos de Foco' },
-    { id: 'award', icon: <Award size={22} className="text-amber-400" />, price: 200, name: 'Medalha' },
-    { id: 'zap', icon: <Zap size={22} className="text-yellow-400" />, price: 250, name: 'Raio de Foco' },
-    { id: 'party', icon: <Sparkles size={22} className="text-pink-400" />, price: 100, name: 'Brilho Festivo' },
+  const DENTAL_SKINS = [
+    { id: 'none', name: 'Coruja Natural', desc: 'Visual clássico da mascote', price: 0, preview: '/owl_happy.png' },
+    { id: 'jaleco', name: 'Jaleco Clínico', desc: 'Jaleco odontológico com estetoscópio', price: 150, preview: '/owl_jaleco_happy.png' },
+    { id: 'mascara', name: 'Touca & Máscara', desc: 'EPI cirúrgico de biossegurança', price: 200, preview: '/owl_mascara_happy.png' },
+    { id: 'espelho', name: 'Espelho Clínico', desc: 'Instrumento de exame bucal na asa', price: 250, preview: '/owl_espelho_happy.png' },
+    { id: 'lupa', name: 'Lupas Cirúrgicas', desc: 'Lupas de ampliação e LED frontal', price: 350, preview: '/owl_lupa_happy.png' },
+    { id: 'dente', name: 'Molar de Ouro', desc: 'Troféu molar esculpido em ouro', price: 400, preview: '/owl_dente_happy.png' },
+    { id: 'completo', name: 'Cirurgiã-Dentista', desc: 'Paramentação odontológica completa', price: 500, preview: '/owl_completo_happy.png' },
   ];
 
   const coins = config?.coins || 0;
-  const ownedHats = config?.ownedHats || ['none'];
-  const currentHatId = config?.petHat || 'none';
-  const currentHat = HATS.find(h => h.id === currentHatId)?.icon || null;
+  const ownedSkins = config?.ownedSkins || (config?.ownedHats ? ['none', ...config.ownedHats.filter(h => DENTAL_SKINS.some(s => s.id === h))] : ['none']);
+  const currentSkinId = config?.petSkin || (DENTAL_SKINS.some(s => s.id === config?.petHat) ? config?.petHat : 'none');
 
-  const buyHat = (hat) => {
-    if (ownedHats.includes(hat.id)) {
-      updateConfig({ ...config, petHat: hat.id });
-    } else if (coins >= hat.price) {
-      if(confirm(`Comprar ${hat.name} por ${hat.price} moedas?`)) {
-        updateConfig({ ...config, coins: coins - hat.price, ownedHats: [...ownedHats, hat.id], petHat: hat.id });
+  const buySkin = (skin) => {
+    if (ownedSkins.includes(skin.id)) {
+      updateConfig({ ...config, petSkin: skin.id, petHat: skin.id });
+    } else if (coins >= skin.price) {
+      if (confirm(`Comprar ${skin.name} por ${skin.price} moedas de estudo?`)) {
+        updateConfig({
+          ...config,
+          coins: coins - skin.price,
+          ownedSkins: [...ownedSkins, skin.id],
+          petSkin: skin.id,
+          petHat: skin.id,
+        });
       }
     } else {
-      alert("Você não tem moedas suficientes! Complete mais blocos de foco.");
+      alert("Você não tem moedas suficientes! Complete blocos de foco para acumular moedas.");
     }
   };
 
@@ -2717,27 +2722,97 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   else if (streak > 0) { position = "100%"; status = "Animado"; }
   else { position = "0%"; status = "Esperando você estudar..."; }
 
+  const sleepSrc = currentSkinId === 'none' ? '/owl_sleep.png' : `/owl_${currentSkinId}_sleep.png`;
+  const focusSrc = currentSkinId === 'none' ? '/owl_focus.png' : `/owl_${currentSkinId}_focus.png`;
+  const happySrc = currentSkinId === 'none' ? '/owl_happy.png' : `/owl_${currentSkinId}_happy.png`;
+
   return (
     <div className="flex flex-col items-center gap-2 relative mt-4">
       {showStore && (
-        <div className="absolute bottom-full mb-4 bg-white dark:bg-gray-800 border p-4 rounded-xl shadow-xl w-64 z-50">
-          <div className="flex justify-between items-center mb-2">
-            <h4 className="font-bold text-sm">Loja da Coruja</h4>
-            <div className="text-sm font-mono text-yellow-500 font-bold flex items-center gap-1"><Coins size={14} /> {coins}</div>
+        <div className="absolute bottom-full mb-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl w-80 max-w-[90vw] z-50">
+          <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              <ShoppingBag size={16} className="text-blue-500" />
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Guarda-Roupa da Coruja</h4>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-bold text-amber-500 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
+                <Coins size={13} /> {coins}
+              </span>
+              <button onClick={() => setShowStore(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5" title="Fechar">
+                <X size={16} />
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            {HATS.map(hat => {
-              const owned = ownedHats.includes(hat.id);
-              const selected = currentHatId === hat.id;
+
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+            {DENTAL_SKINS.map((skin) => {
+              const owned = ownedSkins.includes(skin.id);
+              const selected = currentSkinId === skin.id;
               return (
-                <button key={hat.id} onClick={() => buyHat(hat)} className={`p-2 text-center rounded border transition-all ${selected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                  <div className="text-2xl mb-1 flex items-center justify-center h-8">{hat.icon || <img src="/owl_happy.png" className="w-6 h-6 mx-auto object-contain" style={{ imageRendering: 'pixelated' }} alt="Padrão" />}</div>
-                  <div className="text-[10px] truncate flex items-center justify-center gap-0.5">{owned ? 'Usar' : <><Coins size={10} /> {hat.price}</>}</div>
-                </button>
+                <div
+                  key={skin.id}
+                  className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
+                    selected
+                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500'
+                      : 'border-slate-200 dark:border-gray-700/80 hover:bg-slate-50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <img
+                        src={skin.preview}
+                        alt={skin.name}
+                        className="w-10 h-10 object-contain select-none"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        {skin.name}
+                        {selected && <Check size={12} className="text-blue-500" />}
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                        {skin.desc}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    {selected ? (
+                      <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-md bg-blue-100/60 dark:bg-blue-900/40">
+                        Em uso
+                      </span>
+                    ) : owned ? (
+                      <button
+                        onClick={() => buySkin(skin)}
+                        className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors"
+                      >
+                        Vestir
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => buySkin(skin)}
+                        className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
+                          coins >= skin.price
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+                            : 'bg-slate-200 dark:bg-gray-700 text-slate-400 dark:text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <Coins size={11} /> {skin.price}
+                      </button>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
-          <button onClick={() => setShowStore(false)} className="mt-3 w-full text-xs text-center text-gray-500">Fechar</button>
+
+          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-gray-700 text-center">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
+              <Sparkles size={11} /> Conclua blocos de foco para ganhar moedas de estudo
+            </span>
+          </div>
         </div>
       )}
 
@@ -2748,20 +2823,24 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         </div>
       )}
 
-      <div className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }} onClick={() => setShowStore(!showStore)}>
+      <div
+        className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group shadow-sm"
+        style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}
+        onClick={() => setShowStore(!showStore)}
+        title="Clique para abrir o guarda-roupa da coruja"
+      >
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
-          <span className="text-white text-xs font-bold flex items-center gap-1"><ShoppingBag size={12} /> Loja</span>
+          <span className="text-white text-xs font-bold flex items-center gap-1"><ShoppingBag size={12} /> Roupas</span>
         </div>
-        {currentHat && <div className="absolute top-1 left-1/2 -translate-x-1/2 text-2xl z-10 select-none pointer-events-none drop-shadow-md">{currentHat}</div>}
         <div className="flex w-[300%] h-full transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${position})` }}>
           <div className="w-1/3 h-full flex items-center justify-center p-1">
-            <img src="/owl_sleep.png" alt="Coruja descansando" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
+            <img src={sleepSrc} alt="Coruja descansando" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
           </div>
           <div className="w-1/3 h-full flex items-center justify-center p-1">
-            <img src="/owl_focus.png" alt="Coruja focando" className="w-20 h-20 object-contain select-none animate-pulse filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
+            <img src={focusSrc} alt="Coruja focando" className="w-20 h-20 object-contain select-none animate-pulse filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
           </div>
           <div className="w-1/3 h-full flex items-center justify-center p-1">
-            <img src="/owl_happy.png" alt="Coruja animada" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
+            <img src={happySrc} alt="Coruja animada" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
           </div>
         </div>
       </div>
