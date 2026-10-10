@@ -21,7 +21,7 @@ import {
   fetchStudyGoals, upsertStudyGoal,
 } from "./lib/db";
 import { classifyInboxText } from "./lib/aiHelpers";
-import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos } from "./lib/utils";
+import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos, executeGodModeCheat, isSecretDevCommand, OMNIA_SECRET_DEV_COMMAND } from "./lib/utils";
 import { useFocusTimer } from "./lib/useFocusTimer";
 import { AppLayout } from "./layouts/AppLayout";
 import { T, TABS, applyTheme } from "./components/ui";
@@ -90,13 +90,22 @@ function AppInner() {
       } else if (e.key.toLowerCase() === 'h') {
         e.preventDefault();
         setTab("hoje");
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.altKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        const code = prompt("Digite o comando complexo de desenvolvedor:");
+        if (code && isSecretDevCommand(code)) {
+          executeGodModeCheat(config, updateConfig);
+          alert("⚡ MODO DESENVOLVEDOR ATIVADO (GOD MODE)!\n+ 99.999 Moedas de Estudo concedidas!\n+ 100.000 XP (Nível Máximo) concedido!\n+ 99 Dias de Streak ativados!");
+        } else if (code) {
+          alert("Comando inválido.");
+        }
       } else if (e.key === '?') {
-        alert("Atalhos:\nF: Foco\nC: Calendário/Agenda\nB: Biblioteca\nH: Hoje\nCtrl+K: Busca Global");
+        alert("Atalhos:\nF: Foco\nC: Calendário/Agenda\nB: Biblioteca\nH: Hoje\nCtrl+K: Busca Global\nCtrl+Alt+Shift+D: Comando Dev Secreto");
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [config]);
 
   // --- OMNIA SEARCH BACKLINKS ---
   useEffect(() => {
@@ -122,7 +131,12 @@ function AppInner() {
     const clipperText = params.get('clipperText');
     const clipperTitle = params.get('clipperTitle');
     const clipperUrl = params.get('clipperUrl');
+    const cheatParam = params.get('cheat') || params.get('dev');
     
+    if (cheatParam && (isSecretDevCommand(cheatParam) || cheatParam === 'godmode' || cheatParam === 'max')) {
+      executeGodModeCheat(config, updateConfig);
+    }
+
     if (clipperText || clipperUrl) {
       const compiled = `[${clipperTitle || 'Sem Título'}](${clipperUrl || ''})\n\n${clipperText || ''}`;
       setInitialInboxText(compiled);
@@ -131,9 +145,22 @@ function AppInner() {
       // Clean URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [config]);
 
   const updateConfig = (newCfg) => { setConfig(newCfg); localStorage.setItem("omnia_config", JSON.stringify(newCfg)); };
+
+  useEffect(() => {
+    window.__OMNIA_DEV_MAX__ = () => {
+      const res = executeGodModeCheat(config, updateConfig);
+      console.log("%c[OMNIA DEV CHEAT ATIVADO]", "color: #10b981; font-weight: bold; font-size: 14px;", res);
+      return res;
+    };
+    window.omniaCheat = window.__OMNIA_DEV_MAX__;
+    return () => {
+      delete window.__OMNIA_DEV_MAX__;
+      delete window.omniaCheat;
+    };
+  }, [config]);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const [routine, setRoutine] = useState(null);
@@ -450,7 +477,7 @@ function AppInner() {
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
           {tab === "secretaria" && (
-            <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} commitments={visibleCommitments} studyBlocks={studyBlocks} notes={visibleNotes} sessions={sessions} setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} config={config} />
+            <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} commitments={visibleCommitments} studyBlocks={studyBlocks} notes={visibleNotes} sessions={sessions} setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} config={config} updateConfig={updateConfig} />
           )}
           {tab === "config" && <ConfigTab config={config} updateConfig={updateConfig} userId={userId} commitments={commitments} notes={notes} summaries={summaries} />}
             {tab === "rotina" && (

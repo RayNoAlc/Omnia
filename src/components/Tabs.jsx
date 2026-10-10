@@ -22,7 +22,7 @@ import {
   T, TINT, THEMES, applyTheme, TIPO_LABELS, PRIORIDADE_META, PERIODO_LABELS, TABS,
   PriorityDot, TypeTag, Card, SectionLabel, EmptyState, PrimaryButton, GhostButton,
 } from "./ui";
-import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre } from "../lib/utils";
+import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre, OMNIA_SECRET_DEV_COMMAND, isSecretDevCommand, executeGodModeCheat } from "../lib/utils";
 import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
 import { callVision, callAudioTranscription, callAIWithTools, callAI } from "../lib/ai";
 import { runQATour } from "../lib/qaTour";
@@ -1514,10 +1514,11 @@ function OmniaWrapped({ sessions }) {
 function Arquetipos({ sessions, quizAttempts, professorAttempts, notes, commitments }) {
   const [selectedClass, setSelectedClass] = useState(localStorage.getItem('omnia_rpg_class') || null);
   
+  const bonusXp = parseInt(localStorage.getItem('omnia_bonus_xp') || '0') || 0;
   const xpSessions = sessions.reduce((a, s) => a + s.minutos * 10, 0);
   const xpQuiz = quizAttempts.reduce((a, q) => a + q.acertos * 50, 0);
   const xpProf = professorAttempts.reduce((a, p) => a + (p.nota || 0) * 100, 0);
-  const totalXp = xpSessions + xpQuiz + xpProf;
+  const totalXp = xpSessions + xpQuiz + xpProf + bonusXp;
   
     const diasSemanaMap = {"Dom":0, "Seg":0, "Ter":0, "Qua":0, "Qui":0, "Sex":0, "Sáb":0};
     const periodosMap = {"Manhã":0, "Tarde":0, "Noite":0, "Madrugada":0};
@@ -1619,10 +1620,11 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
 
   const overloadWindow = commitments.filter((c) => c.prazo && c.prazo >= hoje && c.prazo <= addDays(hoje, 7)).sort((a, b) => a.prazo.localeCompare(b.prazo));
   const interruptionInsight = computeInterruptionInsight(sessions);
+  const bonusXp = parseInt(localStorage.getItem('omnia_bonus_xp') || '0') || 0;
   const xpSessions = sessions.reduce((a, s) => a + s.minutos * 10, 0);
   const xpQuiz = quizAttempts.reduce((a, q) => a + q.acertos * 50, 0);
   const xpProf = professorAttempts.reduce((a, p) => a + (p.nota || 0) * 100, 0);
-  const totalXp = xpSessions + xpQuiz + xpProf;
+  const totalXp = xpSessions + xpQuiz + xpProf + bonusXp;
   const level = Math.floor(totalXp / 1000) + 1;
   const xpProximoNivel = level * 1000;
   const progressoNivel = ((totalXp % 1000) / 1000) * 100;
@@ -1633,12 +1635,13 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
     ...professorAttempts.map(p => p.date && p.date.slice(0,10)),
   ])).filter(Boolean).sort().reverse();
   
-  let streak = 0;
+  let streak = Math.max(parseInt(localStorage.getItem("omnia_streak_days") || "0"), 0);
+  let calcStreak = 0;
   let d = new Date();
   for (let i = 0; i < 365; i++) {
     const dIso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     if (datasAtividades.includes(dIso)) {
-      streak++;
+      calcStreak++;
     } else if (i === 0) {
       // today no activity yet, streak not broken
     } else {
@@ -1646,6 +1649,7 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
     }
     d.setDate(d.getDate() - 1);
   }
+  if (calcStreak > streak) streak = calcStreak;
 
   return (
           <div className="space-y-5">
@@ -3454,13 +3458,15 @@ export function FocoTab(props) {
   }
 
   const datasAtividades = Array.from(new Set((sessions||[]).map(s => s.date ? s.date.slice(0,10) : ""))).filter(Boolean).sort().reverse();
-  let streak = 0;
+  let streak = Math.max(parseInt(localStorage.getItem("omnia_streak_days") || "0"), 0);
+  let calcStreak = 0;
   let d = new Date();
   for (let i = 0; i < 365; i++) {
     const dIso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-    if (datasAtividades.includes(dIso)) streak++;
+    if (datasAtividades.includes(dIso)) calcStreak++;
     else if (i !== 0) break;
   }
+  if (calcStreak > streak) streak = calcStreak;
   const {
     selectedId, setSelectedId, presetIdx, setPresetIdx, customMin, setCustomMin,
     useCustom, setUseCustom, phase, running, remaining, ciclosConsecutivos, ultimaSessao,
@@ -3705,7 +3711,7 @@ export function FocoTab(props) {
 /* ---------------------------------------------------------------------- */
 /* Aba: Secretária (chat)                                                   */
 /* ---------------------------------------------------------------------- */
-export function SecretariaTab({ userId, routine, routineBlocks, routineExceptions, commitments, studyBlocks, notes, sessions, setRoutineBlocks, setRoutineExceptions, config }) {
+export function SecretariaTab({ userId, routine, routineBlocks, routineExceptions, commitments, studyBlocks, notes, sessions, setRoutineBlocks, setRoutineExceptions, config, updateConfig }) {
   const [messages, setMessages] = useState(() => {
     try {
       const saved = sessionStorage.getItem("secretariaMessages");
@@ -3747,6 +3753,22 @@ Min.estudados hoje: ${minHoje}`;
   async function send() {
     if (!input.trim() || loading) return;
     const question = input.trim();
+
+    // Comando complexo escondido de desenvolvedor para testes rápidos
+    if (isSecretDevCommand(question)) {
+      executeGodModeCheat(config, updateConfig);
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: question },
+        {
+          role: "assistant",
+          text: `⚡ **MODO DESENVOLVEDOR ATIVADO (GOD MODE)** ⚡\n\n\`\`\`text\n[OMNIA DEV CHEAT INJETADO COM SUCESSO]\n💰 Moedas de Estudo:  99.999 liberadas para o Guarda-Roupa!\n⭐ Experiência (XP):  100.000 XP concedidos (Nível Máximo Desbloqueado)!\n🔥 Ofensiva (Streak): 99 Dias consecutivos ativados!\n🦉 Mascote Coruja:    Mestre da Rotina ativado e skins prontas para equipar!\n🎓 Arquétipos:        Todas as classes de estudante desbloqueadas!\n\`\`\`\n*Ambiente 100% liberado para seus testes rápidos.*`
+        }
+      ]);
+      setInput("");
+      return;
+    }
+
     setMessages((prev) => [...prev, { role: "user", text: question }]);
     setInput("");
     setLoading(true);
@@ -4628,6 +4650,14 @@ function QAAutomatedSystem({ userId }) {
         <h3 className='text-xl font-bold' style={{ color: T.importante }}><Wrench size={20} className="inline mr-2 -mt-1" /> Painel do Desenvolvedor (QA)</h3>
         <PrimaryButton onClick={runAllTests} disabled={running}>{running ? "Rodando Testes..." : "Executar Testes QA"}</PrimaryButton>
       </div>
+      <div className='flex items-center justify-between p-4 rounded-xl border mb-4' style={{ borderColor: '#eab308', backgroundColor: 'rgba(234, 179, 8, 0.1)' }}>
+        <div>
+          <div className='font-bold flex items-center gap-2' style={{ color: T.ink }}><Sparkles size={18} className="text-amber-500" /> Cheat Dev: Liberar Moedas e XP Máximo</div>
+          <div className='text-xs mt-0.5' style={{ color: T.inkSoft }}>Concede 99.999 moedas, 100.000 XP (Nível Máximo) e 99 dias de streak.</div>
+          <div className='text-[10px] font-mono text-slate-400 mt-0.5'>Comando de chat/busca: <code className="text-amber-400">{OMNIA_SECRET_DEV_COMMAND}</code></div>
+        </div>
+        <PrimaryButton onClick={() => executeGodModeCheat(null, null)}>Ativar Cheat</PrimaryButton>
+      </div>
       <div className='bg-black p-4 rounded-lg h-64 overflow-y-auto font-mono text-xs shadow-inner'>
         {logs.length === 0 && <span className="text-gray-500">Aguardando execução...</span>}
         {logs.map((l, i) => (
@@ -4958,6 +4988,22 @@ export function GlobalSearchModal({ onClose, commitments, notes, materials, setT
         </div>
         {q && (
           <div className="max-h-[60vh] overflow-y-auto p-2 space-y-4">
+            {isSecretDevCommand(q) && (
+              <div className="p-3 rounded-xl border border-amber-500 bg-amber-500/10 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-sm text-amber-500 flex items-center gap-1.5">
+                    <Sparkles size={16} /> [DEV CHEAT] Ativar God Mode
+                  </div>
+                  <div className="text-xs text-slate-400">Liberar 99.999 Moedas, 100.000 XP (Nível Máximo) e 99 Streaks</div>
+                </div>
+                <button
+                  onClick={() => { executeGodModeCheat(null, null); onClose(); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow"
+                >
+                  Ativar Agora
+                </button>
+              </div>
+            )}
             {resCommitments.length > 0 && (
               <div>
                 <div className="text-xs font-bold px-3 py-1 uppercase" style={{ color: T.brand }}>Compromissos</div>

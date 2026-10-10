@@ -299,3 +299,68 @@ export function computeInterruptionInsight(sessions) {
   }
   return `Você está interrompendo com frequência as sessões de ${pior.dur} min (média de ${pior.media.toFixed(1)} interrupções por sessão). Talvez sessões mais curtas ajudem.`;
 }
+
+export const OMNIA_SECRET_DEV_COMMAND = "omnia:dev:unlock:max:999#godmode";
+
+export function isSecretDevCommand(text) {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim().toLowerCase();
+  return (
+    t === OMNIA_SECRET_DEV_COMMAND.toLowerCase() ||
+    t === "/godmode" ||
+    t === "//godmode" ||
+    t === "/cheat max" ||
+    t === "/dev_max" ||
+    t === "omnia:dev:max" ||
+    t === "omnia999"
+  );
+}
+
+export function executeGodModeCheat(config, updateConfig) {
+  const maxCoins = 99999;
+  const maxBonusXp = 100000;
+  const maxStreak = 99;
+
+  try {
+    localStorage.setItem("omnia_bonus_xp", String(maxBonusXp));
+    localStorage.setItem("omnia_streak_days", String(maxStreak));
+  } catch(e) {}
+
+  let currentCfg = config;
+  if (!currentCfg) {
+    try {
+      currentCfg = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+    } catch (e) {
+      currentCfg = {};
+    }
+  }
+
+  const updatedCfg = {
+    ...currentCfg,
+    coins: maxCoins,
+    bonusXp: maxBonusXp,
+    devUnlocked: true,
+  };
+
+  try {
+    localStorage.setItem("omnia_config", JSON.stringify(updatedCfg));
+  } catch(e) {}
+
+  if (updateConfig) {
+    updateConfig(updatedCfg);
+  }
+
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("storage"));
+    window.dispatchEvent(new CustomEvent("omnia-config-update", { detail: updatedCfg }));
+    if (window.confetti) {
+      window.confetti({ particleCount: 150, spread: 100, origin: { y: 0.5 } });
+    }
+  }
+
+  return {
+    coins: maxCoins,
+    bonusXp: maxBonusXp,
+    streak: maxStreak,
+  };
+}
