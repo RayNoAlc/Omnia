@@ -2734,6 +2734,109 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   );
 }
 
+function BreathingModal({ onClose, T }) {
+  const STAGES = [
+    { label: "Inspire...", instruction: "Puxe o ar suavemente pelo nariz", duration: 4, scale: 1.25, color: T.brand },
+    { label: "Segure o ar...", instruction: "Mantenha o ar nos pulmões com calma", duration: 4, scale: 1.25, color: T.brandDark || T.brand },
+    { label: "Expire...", instruction: "Solte o ar lentamente pela boca", duration: 4, scale: 0.8, color: T.inkSoft },
+    { label: "Segure...", instruction: "Fique sem ar tranquilamente", duration: 4, scale: 0.8, color: T.border }
+  ];
+
+  const [stageIndex, setStageIndex] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(4);
+  const [cycles, setCycles] = useState(0);
+  const [isRunning, setIsRunning] = useState(true);
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev > 1) return prev - 1;
+        setStageIndex((curr) => {
+          const next = (curr + 1) % STAGES.length;
+          if (next === 0) setCycles((c) => c + 1);
+          return next;
+        });
+        return 4;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isRunning, STAGES.length]);
+
+  const current = STAGES[stageIndex];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div
+        className="w-full max-w-md p-6 rounded-2xl flex flex-col items-center text-center shadow-2xl relative border"
+        style={{ backgroundColor: T.surface, borderColor: T.border }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full hover:opacity-70 transition-opacity"
+          style={{ color: T.inkSoft }}
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-2 mb-2">
+          <Wind className="w-5 h-5" style={{ color: T.brand }} />
+          <h3 className="text-lg font-bold" style={{ color: T.ink }}>Respiração Guiada (Box Breathing)</h3>
+        </div>
+
+        <p className="text-xs mb-6 max-w-xs" style={{ color: T.inkSoft }}>
+          Técnica 4-4-4-4 para desacelerar o ritmo cardíaco, reduzir o cortisol e restaurar o foco.
+        </p>
+
+        <div className="relative w-48 h-48 flex items-center justify-center my-4">
+          <div
+            className="absolute rounded-full transition-all duration-1000 ease-in-out border-2"
+            style={{
+              width: `${current.scale * 120}px`,
+              height: `${current.scale * 120}px`,
+              borderColor: current.color,
+              backgroundColor: current.color + "18",
+              boxShadow: `0 0 30px ${current.color}33`,
+            }}
+          />
+          <div className="relative z-10 flex flex-col items-center">
+            <span className="text-4xl font-extrabold font-mono" style={{ color: T.ink }}>
+              {secondsLeft}
+            </span>
+            <span className="text-xs font-semibold mt-1 uppercase tracking-wider" style={{ color: current.color }}>
+              {current.label}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-sm font-medium mb-4 h-6" style={{ color: T.ink }}>
+          {current.instruction}
+        </p>
+
+        <div className="flex items-center gap-4 text-xs font-mono mb-4" style={{ color: T.inkSoft }}>
+          <span>Ciclos completos: <strong style={{ color: T.brand }}>{cycles}</strong></span>
+        </div>
+
+        <div className="flex gap-2 w-full">
+          <button
+            onClick={() => setIsRunning(!isRunning)}
+            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-opacity hover:opacity-90 border"
+            style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+          >
+            {isRunning ? "Pausar" : "Continuar"}
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-opacity hover:opacity-90"
+            style={{ backgroundColor: T.brand, color: T.bg }}
+          >
+            Concluir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function FocoTab(props) {
     const { isZen, setIsZen } = props;
