@@ -2796,7 +2796,11 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
                 <button onClick={() => saveResumo(true)} disabled={salvandoResumo} className="text-xs px-2.5 py-1 rounded transition-transform hover:scale-105 flex items-center gap-1" style={{ color: T.brand, border: `1px solid ${T.brand}` }}>
                   <CalendarClock className="w-3.5 h-3.5" /> Salvar e Agendar Revisões (1, 3, 7 d)
                 </button>
-                {resumoSalvo && <span className="text-xs" style={{ color: T.brand }}>Salvo âœ“</span>}
+                {resumoSalvo && (
+                  <span className="text-xs font-semibold flex items-center gap-1 text-emerald-400">
+                    <Check className="w-3.5 h-3.5 inline" /> Salvo com sucesso!
+                  </span>
+                )}
                 {erroSalvarResumo && <span className="text-xs" style={{ color: T.critico }}>Erro: {erroSalvarResumo}</span>}
               </div>
             </>
@@ -3160,7 +3164,11 @@ function CompromissoWorkspaceContent({
                     {salvandoResumo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
                   </PrimaryButton>
                   <GhostButton onClick={() => setPanel(null)}>Fechar</GhostButton>
-                  {resumoSalvo && <span className="text-xs" style={{ color: T.brand }}>Salvo âœ“</span>}
+                  {resumoSalvo && (
+                    <span className="text-xs font-semibold flex items-center gap-1 text-emerald-400">
+                      <Check className="w-3.5 h-3.5 inline" /> Salvo com sucesso!
+                    </span>
+                  )}
                   {erroSalvarResumo && <span className="text-xs" style={{ color: T.critico }}>Erro: {erroSalvarResumo}</span>}
                 </div>
               </>
