@@ -1532,16 +1532,29 @@ function Badges({ sessions }) {
   );
 }
 
-export const OWL_SKINS = [
-  { id: 'none', name: 'Coruja Clássica', desc: 'Plumagem natural branca e creme', price: 0, preview: '/owl_happy.png' },
-  { id: 'noturna', name: 'Coruja da Meia-Noite', desc: 'Penas em azul marinho e grafite estrelado', price: 120, preview: '/owl_noturna_happy.png' },
-  { id: 'neve', name: 'Coruja das Neves', desc: 'Penas alvas e gélidas com reflexos polares', price: 180, preview: '/owl_neve_happy.png' },
-  { id: 'dourada', name: 'Coruja Solar', desc: 'Plumagem mística em tons de âmbar e ouro', price: 240, preview: '/owl_dourada_happy.png' },
-  { id: 'sakura', name: 'Coruja Sakura', desc: 'Plumagem suave em degradê rosa pastel', price: 300, preview: '/owl_sakura_happy.png' },
-  { id: 'ametista', name: 'Coruja Cósmica', desc: 'Plumagem etérea em tons de violeta e lavanda', price: 380, preview: '/owl_ametista_happy.png' },
-  { id: 'esmeralda', name: 'Coruja da Floresta', desc: 'Penas em tons de menta fresca e esmeralda', price: 450, preview: '/owl_esmeralda_happy.png' },
-  { id: 'rubi', name: 'Coruja Fênix', desc: 'Plumagem vibrante em tons ardentes de rubi', price: 550, preview: '/owl_rubi_happy.png' },
+export function getPetSprite(petId = 'none', state = 'happy') {
+  if (!petId || petId === 'none' || petId === 'coruja') {
+    return `/owl_${state}.png`;
+  }
+  if (['gato', 'shiba', 'panda', 'raposa', 'coelho'].includes(petId)) {
+    return `/pet_${petId}_${state}.png`;
+  }
+  if (petId.startsWith('pet_')) {
+    return `/${petId}_${state}.png`;
+  }
+  return `/owl_${petId}_${state}.png`;
+}
+
+export const STUDY_PETS = [
+  { id: 'none', name: 'Coruja Omnia', desc: 'Guardiã clássica da rotina e sabedoria acadêmica', title: 'Mestre da Rotina', price: 0, preview: '/owl_happy.png' },
+  { id: 'gato', name: 'Gato Mochi', desc: 'Companheiro zen, aconchegante e leitor voraz', title: 'Guardião da Calma', price: 120, preview: '/pet_gato_happy.png' },
+  { id: 'shiba', name: 'Shiba Bento', desc: 'Leal, animado e sempre pronto para mais um pomodoro', title: 'Foco e Lealdade', price: 200, preview: '/pet_shiba_happy.png' },
+  { id: 'panda', name: 'Panda Bamboo', desc: 'Serenidade pura e foco sem pressa nem ansiedade', title: 'Mestre da Serenidade', price: 320, preview: '/pet_panda_happy.png' },
+  { id: 'raposa', name: 'Raposa Kitsune', desc: 'Astuta, veloz nas matérias difíceis e curiosa', title: 'Sábia e Astuta', price: 450, preview: '/pet_raposa_happy.png' },
+  { id: 'coelho', name: 'Coelho Pipoca', desc: 'Ágil nos prazos, focado e cheio de energia para revisar', title: 'Veloz nos Prazos', price: 550, preview: '/pet_coelho_happy.png' },
 ];
+
+export const OWL_SKINS = STUDY_PETS;
 
 function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = [], commitments = [], config = {} }) {
   const [open, setOpen] = useState(false);
@@ -1626,9 +1639,9 @@ function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = []
     PerfilIcon = Flame;
   }
 
-  // Mascote da coruja com a cor equipada pelo usuário
-  const activeSkin = OWL_SKINS.find((s) => s.id === currentSkinId) || OWL_SKINS[0];
-  const mascotSrc = activeSkin.id === "none" ? "/owl_happy.png" : `/owl_${activeSkin.id}_happy.png`;
+  // Mascote de estudo equipado pelo usuário
+  const activeSkin = STUDY_PETS.find((s) => s.id === currentSkinId) || STUDY_PETS[0];
+  const mascotSrc = getPetSprite(activeSkin.id, 'happy');
 
   const handleOpen = () => {
     try {
@@ -1650,7 +1663,7 @@ Tempo Total Focado: ${tempoStr}
 Sessões Concluídas: ${totalSessoes} (média ~${mediaMinutos} min/sessão)
 Disciplina Mais Estudada: ${topDisc} (${pctTop}% do foco)
 Perfil de Estudo: ${perfilTitulo}
-Plumagem da Coruja: ${activeSkin.name}
+Mascote Companheiro: ${activeSkin.name} (${activeSkin.title || 'Mestre da Rotina'})
 Ofensiva: ${streak > 0 ? `${streak} dias consecutivos` : 'Ativo'}
 Plataforma: Omnia (omnia-unio.vercel.app)`;
 
@@ -3676,28 +3689,57 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
 
 function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig, phase, remaining }) {
   const [editing, setEditing] = useState(false);
-  const [tempName, setTempName] = useState(petName || "Coruja Omnia");
   const [showStore, setShowStore] = useState(false);
   const coins = config?.coins || 0;
   const rawOwned = config?.ownedSkins || [];
-  const ownedSkins = ['none', ...rawOwned.filter(id => OWL_SKINS.some(s => s.id === id && s.id !== 'none'))];
-  const currentSkinId = OWL_SKINS.some(s => s.id === config?.petSkin) ? config.petSkin : 'none';
+  const ownedSkins = ['none', ...rawOwned.filter(id => STUDY_PETS.some(s => s.id === id && s.id !== 'none'))];
+  const currentSkinId = STUDY_PETS.some(s => s.id === config?.petSkin) ? config.petSkin : 'none';
+  const activePet = STUDY_PETS.find(s => s.id === currentSkinId) || STUDY_PETS[0];
 
-  const buySkin = (skin) => {
-    if (ownedSkins.includes(skin.id)) {
+  const [tempName, setTempName] = useState(petName || activePet.name);
+
+  useEffect(() => {
+    if (!petName || STUDY_PETS.some(p => p.name === petName)) {
+      setTempName(activePet.name);
+      if (onNameChange) onNameChange(activePet.name);
+    }
+  }, [currentSkinId]);
+
+  const buySkin = (pet) => {
+    if (ownedSkins.includes(pet.id)) {
       sfx.pop();
-      updateConfig({ ...config, petSkin: skin.id, petHat: skin.id, equippedSkin: skin.id });
-    } else if (coins >= skin.price) {
-      if (confirm(`Desbloquear plumagem ${skin.name} por ${skin.price} moedas de estudo?`)) {
+      const shouldChangeName = !petName || STUDY_PETS.some(p => p.name === petName);
+      updateConfig({
+        ...config,
+        petSkin: pet.id,
+        petHat: pet.id,
+        equippedSkin: pet.id,
+        petName: shouldChangeName ? pet.name : petName,
+      });
+      if (shouldChangeName) {
+        setTempName(pet.name);
+        if (onNameChange) onNameChange(pet.name);
+      }
+    } else if (coins >= pet.price) {
+      if (confirm(`Desbloquear o mascote ${pet.name} por ${pet.price} moedas de estudo?`)) {
         sfx.coin();
+        if (window.confetti) {
+          window.confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
+        }
+        const shouldChangeName = !petName || STUDY_PETS.some(p => p.name === petName);
         updateConfig({
           ...config,
-          coins: coins - skin.price,
-          ownedSkins: Array.from(new Set([...ownedSkins, skin.id])),
-          petSkin: skin.id,
-          petHat: skin.id,
-          equippedSkin: skin.id,
+          coins: coins - pet.price,
+          ownedSkins: Array.from(new Set([...ownedSkins, pet.id])),
+          petSkin: pet.id,
+          petHat: pet.id,
+          equippedSkin: pet.id,
+          petName: shouldChangeName ? pet.name : petName,
         });
+        if (shouldChangeName) {
+          setTempName(pet.name);
+          if (onNameChange) onNameChange(pet.name);
+        }
       }
     } else {
       alert("Você não tem moedas suficientes! Complete blocos de foco para acumular moedas de estudo.");
@@ -3722,9 +3764,9 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
     return () => clearInterval(interval);
   }, [phase, config?.enableSincereOwl]);
 
-  const sleepSrc = currentSkinId === 'none' ? '/owl_sleep.png' : `/owl_${currentSkinId}_sleep.png`;
-  const focusSrc = currentSkinId === 'none' ? '/owl_focus.png' : `/owl_${currentSkinId}_focus.png`;
-  const happySrc = currentSkinId === 'none' ? '/owl_happy.png' : `/owl_${currentSkinId}_happy.png`;
+  const sleepSrc = getPetSprite(currentSkinId, 'sleep');
+  const focusSrc = getPetSprite(currentSkinId, 'focus');
+  const happySrc = getPetSprite(currentSkinId, 'happy');
 
   let currentSrc = sleepSrc;
   let status = "Dormindo...";
@@ -3740,7 +3782,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
     animClass = "animate-pet-breathe";
   } else if (streak > 5) {
     currentSrc = happySrc;
-    status = "Mestre da Rotina";
+    status = activePet.title || "Mestre da Rotina";
     animClass = "animate-pet-cool";
   } else if (streak > 0) {
     currentSrc = happySrc;
@@ -3755,11 +3797,11 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   return (
     <div className="flex flex-col items-center gap-2 relative mt-4">
       {showStore && (
-        <div className="absolute bottom-full mb-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl w-80 max-w-[90vw] z-50">
+        <div className="absolute bottom-full mb-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl w-84 max-w-[92vw] z-50">
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100 dark:border-gray-700">
             <div className="flex items-center gap-2">
-              <Palette size={16} className="text-blue-500" />
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Cores da Coruja</h4>
+              <Sparkles size={16} className="text-amber-500" />
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Mascotes de Estudo</h4>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-bold text-amber-500 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
@@ -3772,12 +3814,12 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
           </div>
 
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {OWL_SKINS.map((skin) => {
-              const owned = ownedSkins.includes(skin.id);
-              const selected = currentSkinId === skin.id;
+            {STUDY_PETS.map((pet) => {
+              const owned = ownedSkins.includes(pet.id);
+              const selected = currentSkinId === pet.id;
               return (
                 <div
-                  key={skin.id}
+                  key={pet.id}
                   className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
                     selected
                       ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500'
@@ -3787,8 +3829,8 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                       <img
-                        src={skin.preview}
-                        alt={skin.name}
+                        src={pet.preview}
+                        alt={pet.name}
                         className="w-10 h-10 object-contain select-none"
                         style={{ imageRendering: 'pixelated' }}
                         onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
@@ -3796,11 +3838,11 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
                     </div>
                     <div>
                       <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        {skin.name}
+                        {pet.name}
                         {selected && <Check size={12} className="text-blue-500" />}
                       </div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {skin.desc}
+                        {pet.desc}
                       </div>
                     </div>
                   </div>
@@ -3812,21 +3854,21 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
                       </span>
                     ) : owned ? (
                       <button
-                        onClick={() => buySkin(skin)}
+                        onClick={() => buySkin(pet)}
                         className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors"
                       >
                         Usar
                       </button>
                     ) : (
                       <button
-                        onClick={() => buySkin(skin)}
+                        onClick={() => buySkin(pet)}
                         className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
-                          coins >= skin.price
+                          coins >= pet.price
                             ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
                             : 'bg-slate-200 dark:bg-gray-700 text-slate-400 dark:text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        <Coins size={11} /> {skin.price}
+                        <Coins size={11} /> {pet.price}
                       </button>
                     )}
                   </div>
@@ -3854,10 +3896,10 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group shadow-sm flex items-center justify-center p-1"
         style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}
         onClick={() => setShowStore(!showStore)}
-        title="Clique para escolher a cor da coruja"
+        title="Clique para escolher seu mascote de estudo"
       >
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
-          <span className="text-white text-xs font-bold flex items-center gap-1"><Palette size={12} /> Cores</span>
+          <span className="text-white text-xs font-bold flex items-center gap-1"><Sparkles size={12} /> Mascotes</span>
         </div>
         <img
           key={currentSrc}
@@ -4207,7 +4249,7 @@ export function FocoTab(props) {
               </div>
               <div className="flex flex-wrap justify-center gap-2">
                 {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
-                  const skinImg = m.skin && m.skin !== 'none' ? `/owl_${m.skin}_happy.png` : '/owl_happy.png';
+                  const skinImg = getPetSprite(m.skin, 'happy');
                   return (
                     <div
                       key={m.joinedAt || idx}
@@ -4521,7 +4563,7 @@ export function FocoTab(props) {
 
                       <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
                         {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
-                          const skinImg = m.skin && m.skin !== 'none' ? `/owl_${m.skin}_happy.png` : '/owl_happy.png';
+                          const skinImg = getPetSprite(m.skin, 'happy');
                           return (
                             <div
                               key={m.joinedAt || idx}
@@ -5244,7 +5286,7 @@ Min.estudados hoje: ${minHoje}`;
         { role: "user", text: question },
         {
           role: "assistant",
-          text: `⚡ **MODO DESENVOLVEDOR ATIVADO (GOD MODE)** ⚡\n\n\`\`\`text\n[OMNIA DEV CHEAT INJETADO COM SUCESSO]\n💰 Moedas de Estudo:  99.999 liberadas para o Guarda-Roupa!\n⭐ Experiência (XP):  100.000 XP concedidos (Nível Máximo Desbloqueado)!\n🔥 Ofensiva (Streak): 99 Dias consecutivos ativados!\n🦉 Mascote Coruja:    Mestre da Rotina ativado e skins prontas para equipar!\n🎓 Arquétipos:        Todas as classes de estudante desbloqueadas!\n\`\`\`\n*Ambiente 100% liberado para seus testes rápidos.*`
+          text: `⚡ **MODO DESENVOLVEDOR ATIVADO (GOD MODE)** ⚡\n\n\`\`\`text\n[OMNIA DEV CHEAT INJETADO COM SUCESSO]\n💰 Moedas de Estudo:  99.999 liberadas para a Loja!\n⭐ Experiência (XP):  100.000 XP concedidos (Nível Máximo Desbloqueado)!\n🔥 Ofensiva (Streak): 99 Dias consecutivos ativados!\n🐾 Mascotes de Foco:  Todos os 6 pets (Coruja, Gato, Shiba, Panda, Raposa, Coelho) liberados!\n🎓 Arquétipos:        Todas as classes de estudante desbloqueadas!\n\`\`\`\n*Ambiente 100% liberado para seus testes rápidos.*`
         }
       ]);
       setInput("");

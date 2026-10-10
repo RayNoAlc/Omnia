@@ -342,6 +342,7 @@ export function executeGodModeCheat(config, updateConfig) {
     coins: maxCoins,
     bonusXp: maxBonusXp,
     devUnlocked: true,
+    ownedSkins: ['none', 'gato', 'shiba', 'panda', 'raposa', 'coelho'],
   };
 
   try {
