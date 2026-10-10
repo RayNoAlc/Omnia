@@ -160,40 +160,173 @@ const getRoutineIcon = (type) => {
 };
 
 
-  function DailyHabits({ T }) {
-    const today = todayISO();
-    const HABIT_ICONS = {
-      agua: Droplets,
-      exercicio: Activity,
-      leitura: BookOpen,
-      luz: Sun
-    };
+  const DEFAULT_HABIT_DEFINITIONS = [
+    { id: "agua", label: "Beber Água (2L)", iconKey: "Droplets" },
+    { id: "exercicio", label: "Atividade Física", iconKey: "Activity" },
+    { id: "leitura", label: "Leitura Lazer", iconKey: "BookOpen" },
+    { id: "luz", label: "Luz do Sol (15m)", iconKey: "Sun" },
+  ];
 
-    const [habits, setHabits] = useState(() => {
+  const OBVIOUS_HABIT_SUGGESTIONS = [
+    { label: "Beber Água (2L)", iconKey: "Droplets" },
+    { label: "Atividade Física", iconKey: "Activity" },
+    { label: "Leitura Lazer", iconKey: "BookOpen" },
+    { label: "Luz do Sol (15m)", iconKey: "Sun" },
+    { label: "Meditação / Mindfulness", iconKey: "Brain" },
+    { label: "Dormir Cedo (8h)", iconKey: "Moon" },
+    { label: "Fio Dental & Higiene", iconKey: "Sparkles" },
+    { label: "Alimentação Saudável", iconKey: "Utensils" },
+    { label: "Revisão do Dia", iconKey: "RotateCcw" },
+    { label: "Alongamento (10m)", iconKey: "Dumbbell" },
+    { label: "Caminhada (5.000 passos)", iconKey: "Footprints" },
+    { label: "Pausa Consciente / Café", iconKey: "Coffee" },
+  ];
+
+  function getHabitIconComponent(label, iconKey) {
+    const map = {
+      Droplets,
+      Activity,
+      BookOpen,
+      Sun,
+      Moon,
+      Brain,
+      Sparkles,
+      Utensils,
+      RotateCcw,
+      Dumbbell,
+      Footprints,
+      Coffee,
+      Target,
+    };
+    if (iconKey && map[iconKey]) return map[iconKey];
+    const l = (label || '').toLowerCase();
+    if (l.includes('água') || l.includes('agua') || l.includes('beber') || l.includes('hidrata')) return Droplets;
+    if (l.includes('exerc') || l.includes('trein') || l.includes('academi') || l.includes('físic') || l.includes('fisic') || l.includes('corr')) return Activity;
+    if (l.includes('livro') || l.includes('ler') || l.includes('leitur') || l.includes('estud')) return BookOpen;
+    if (l.includes('sol') || l.includes('luz') || l.includes('manhã') || l.includes('manha')) return Sun;
+    if (l.includes('dormir') || l.includes('sono') || l.includes('noite') || l.includes('cama')) return Moon;
+    if (l.includes('medit') || l.includes('mente') || l.includes('respir') || l.includes('mindful') || l.includes('foco')) return Brain;
+    if (l.includes('dent') || l.includes('fio') || l.includes('higien') || l.includes('skin') || l.includes('banho') || l.includes('limp')) return Sparkles;
+    if (l.includes('com') || l.includes('aliment') || l.includes('diet') || l.includes('refeiç') || l.includes('refeic') || l.includes('saudáv') || l.includes('saudav')) return Utensils;
+    if (l.includes('caminh') || l.includes('passo')) return Footprints;
+    if (l.includes('along') || l.includes('postur')) return Dumbbell;
+    if (l.includes('café') || l.includes('cafe') || l.includes('pausa')) return Coffee;
+    if (l.includes('revis') || l.includes('revisão') || l.includes('revisao')) return RotateCcw;
+    return Target;
+  }
+
+  function DailyHabits({ T, config, updateConfig }) {
+    const today = todayISO();
+    const [isEditing, setIsEditing] = useState(false);
+    const [newText, setNewText] = useState("");
+    const [editingId, setEditingId] = useState(null);
+    const [editingText, setEditingText] = useState("");
+
+    const [definitions, setDefinitions] = useState(() => {
       try {
-        const saved = localStorage.getItem("omnia_habits_" + today);
-        if (saved) return JSON.parse(saved);
-      } catch(e) {}
-      return [
-        { id: "agua", label: "Beber Água (2L)", done: false },
-        { id: "exercicio", label: "Atividade Física", done: false },
-        { id: "leitura", label: "Leitura Lazer", done: false },
-        { id: "luz", label: "Luz do Sol (15m)", done: false }
-      ];
+        const saved = localStorage.getItem("omnia_habit_definitions");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+        if (config?.userHabitDefinitions && Array.isArray(config.userHabitDefinitions)) {
+          return config.userHabitDefinitions;
+        }
+      } catch (e) {}
+      return DEFAULT_HABIT_DEFINITIONS;
+    });
+
+    const [completedMap, setCompletedMap] = useState(() => {
+      try {
+        const log = localStorage.getItem("omnia_habits_log_" + today);
+        if (log) return JSON.parse(log);
+        const legacy = localStorage.getItem("omnia_habits_" + today);
+        if (legacy) {
+          const parsed = JSON.parse(legacy);
+          if (Array.isArray(parsed)) {
+            const map = {};
+            parsed.forEach((h) => { if (h.done) map[h.id] = true; });
+            return map;
+          }
+        }
+      } catch (e) {}
+      return {};
     });
 
     useEffect(() => {
-      localStorage.setItem("omnia_habits_" + today, JSON.stringify(habits));
-    }, [habits, today]);
+      try {
+        localStorage.setItem("omnia_habit_definitions", JSON.stringify(definitions));
+        if (updateConfig && config) {
+          if (JSON.stringify(config.userHabitDefinitions) !== JSON.stringify(definitions)) {
+            updateConfig({ ...config, userHabitDefinitions: definitions });
+          }
+        }
+      } catch (e) {}
+    }, [definitions]);
+
+    useEffect(() => {
+      try {
+        localStorage.setItem("omnia_habits_log_" + today, JSON.stringify(completedMap));
+        const legacy = definitions.map((d) => ({
+          id: d.id,
+          label: d.label,
+          done: Boolean(completedMap[d.id]),
+        }));
+        localStorage.setItem("omnia_habits_" + today, JSON.stringify(legacy));
+      } catch (e) {}
+    }, [completedMap, definitions, today]);
 
     const toggleHabit = (id) => {
-      setHabits(prev => prev.map(h => h.id === id ? { ...h, done: !h.done } : h));
-      if (!habits.find(h => h.id === id).done && window.confetti) {
+      const isNowDone = !completedMap[id];
+      setCompletedMap((prev) => ({ ...prev, [id]: isNowDone }));
+      if (isNowDone && window.confetti) {
         window.confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
       }
     };
 
-    const progress = Math.round((habits.filter(h => h.done).length / habits.length) * 100);
+    const addHabit = (label, iconKey = null) => {
+      const trimmed = (label || "").trim();
+      if (!trimmed) return;
+      if (definitions.some((d) => d.label.toLowerCase() === trimmed.toLowerCase())) {
+        alert("Este hábito já está na sua lista!");
+        return;
+      }
+      const newId = "h_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      setDefinitions((prev) => [...prev, { id: newId, label: trimmed, iconKey }]);
+      setNewText("");
+    };
+
+    const removeHabit = (id) => {
+      setDefinitions((prev) => prev.filter((d) => d.id !== id));
+      setCompletedMap((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+    };
+
+    const saveEdit = (id) => {
+      const trimmed = editingText.trim();
+      if (trimmed) {
+        setDefinitions((prev) => prev.map((d) => (d.id === id ? { ...d, label: trimmed } : d)));
+      }
+      setEditingId(null);
+      setEditingText("");
+    };
+
+    const resetDefaults = () => {
+      if (confirm("Deseja restaurar os hábitos padrão (Água, Exercício, Leitura, Sol)?")) {
+        setDefinitions(DEFAULT_HABIT_DEFINITIONS);
+      }
+    };
+
+    const totalCount = definitions.length;
+    const doneCount = definitions.filter((d) => completedMap[d.id]).length;
+    const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+    const availableSuggestions = OBVIOUS_HABIT_SUGGESTIONS.filter(
+      (sug) => !definitions.some((d) => d.label.toLowerCase() === sug.label.toLowerCase())
+    );
 
     return (
       <Card style={{ marginTop: '1rem' }}>
@@ -201,23 +334,294 @@ const getRoutineIcon = (type) => {
           <div className="font-bold flex items-center gap-2" style={{ color: T.ink }}>
             <Sprout className="w-4 h-4 text-emerald-500" /> Rastreador de Hábitos
           </div>
-          <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: T.brand + '22', color: T.brand }}>
-            {progress}%
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="text-xs font-bold px-2 py-0.5 rounded-full"
+              style={{ backgroundColor: T.brand + '22', color: T.brand }}
+            >
+              {doneCount}/{totalCount} ({progress}%)
+            </span>
+            <button
+              onClick={() => setIsEditing(!isEditing)}
+              className="text-xs font-semibold px-2 py-0.5 rounded-lg border transition-colors flex items-center gap-1"
+              style={{
+                borderColor: isEditing ? T.brand : T.border,
+                backgroundColor: isEditing ? T.brand + '15' : 'transparent',
+                color: isEditing ? T.brand : T.inkSoft,
+              }}
+              title={isEditing ? "Concluir edição" : "Editar hábitos"}
+            >
+              {isEditing ? (
+                <>
+                  <Check size={12} /> Concluir
+                </>
+              ) : (
+                <>
+                  <Pencil size={12} /> Editar
+                </>
+              )}
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {habits.map(h => {
-            const IconCmp = HABIT_ICONS[h.id] || Check;
-            return (
-              <button key={h.id} onClick={() => toggleHabit(h.id)} className="flex items-center gap-2 p-2 rounded-xl text-left transition-all border" style={{ backgroundColor: h.done ? T.brand + '11' : T.surfaceAlt, borderColor: h.done ? T.brand : T.border }}>
-                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border" style={{ backgroundColor: h.done ? T.brand : 'transparent', borderColor: h.done ? T.brand : T.border }}>
-                  {h.done ? <Check className="w-3 h-3 text-white" /> : <IconCmp className="w-3 h-3" style={{ color: T.inkSoft }} />}
+
+        {/* MODO DE EDIÇÃO: Adicionar, Subtrair e Sugestões */}
+        {isEditing ? (
+          <div className="space-y-4 pt-1">
+            {/* Campo para Adicionar Novo Hábito Personalizado */}
+            <div>
+              <div className="text-[11px] font-semibold mb-1" style={{ color: T.inkSoft }}>
+                Adicionar Hábito Personalizado
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Ex: Meditar 10 min, Fio dental, Alongamento..."
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') addHabit(newText);
+                  }}
+                  className="flex-1 text-xs px-3 py-2 rounded-xl border outline-none transition-all"
+                  style={{
+                    backgroundColor: T.surfaceAlt,
+                    borderColor: T.border,
+                    color: T.ink,
+                  }}
+                />
+                <button
+                  onClick={() => addHabit(newText)}
+                  disabled={!newText.trim()}
+                  className="px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 text-white shadow-sm transition-opacity disabled:opacity-40"
+                  style={{ backgroundColor: T.brand }}
+                >
+                  <Plus size={14} /> Adicionar
+                </button>
+              </div>
+            </div>
+
+            {/* Sugestões Óbvias Prontas (1 clique) */}
+            {availableSuggestions.length > 0 && (
+              <div>
+                <div className="text-[11px] font-semibold mb-1.5 flex items-center gap-1" style={{ color: T.inkSoft }}>
+                  <Sparkles size={12} className="text-amber-500" /> Sugestões Prontas (Clique para adicionar):
                 </div>
-                <span className="text-xs font-medium truncate" style={{ color: h.done ? T.ink : T.inkSoft, textDecoration: h.done ? "line-through" : "none" }}>{h.label}</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableSuggestions.map((sug) => {
+                    const SugIcon = getHabitIconComponent(sug.label, sug.iconKey);
+                    return (
+                      <button
+                        key={sug.label}
+                        onClick={() => addHabit(sug.label, sug.iconKey)}
+                        className="text-[11px] font-medium px-2 py-1 rounded-lg border transition-all flex items-center gap-1.5 hover:scale-[1.02] active:scale-95"
+                        style={{
+                          backgroundColor: T.surfaceAlt,
+                          borderColor: T.border,
+                          color: T.ink,
+                        }}
+                      >
+                        <SugIcon size={12} className="text-emerald-500" />
+                        <span>+ {sug.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Lista Atual de Hábitos com Opção de Editar / Remover */}
+            <div>
+              <div className="text-[11px] font-semibold mb-1.5" style={{ color: T.inkSoft }}>
+                Seus Hábitos ({definitions.length}):
+              </div>
+              {definitions.length === 0 ? (
+                <div className="text-center py-4 text-xs rounded-xl border border-dashed p-3" style={{ color: T.inkSoft, borderColor: T.border }}>
+                  Nenhum hábito configurado. Adicione acima ou use as sugestões.
+                </div>
+              ) : (
+                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  {definitions.map((h) => {
+                    const IconCmp = getHabitIconComponent(h.label, h.iconKey);
+                    const isRowEditing = editingId === h.id;
+                    return (
+                      <div
+                        key={h.id}
+                        className="flex items-center justify-between p-2 rounded-xl border transition-all"
+                        style={{
+                          backgroundColor: T.surfaceAlt,
+                          borderColor: T.border,
+                        }}
+                      >
+                        <div className="flex items-center gap-2 flex-1 mr-2 min-w-0">
+                          <div
+                            className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 border"
+                            style={{
+                              backgroundColor: T.surface,
+                              borderColor: T.border,
+                            }}
+                          >
+                            <IconCmp size={13} style={{ color: T.brand }} />
+                          </div>
+                          {isRowEditing ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveEdit(h.id);
+                                if (e.key === 'Escape') setEditingId(null);
+                              }}
+                              className="text-xs px-2 py-1 rounded border outline-none flex-1"
+                              style={{
+                                backgroundColor: T.surface,
+                                borderColor: T.brand,
+                                color: T.ink,
+                              }}
+                            />
+                          ) : (
+                            <span className="text-xs font-medium truncate" style={{ color: T.ink }}>
+                              {h.label}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          {isRowEditing ? (
+                            <button
+                              onClick={() => saveEdit(h.id)}
+                              className="p-1 rounded text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                              title="Salvar alteração"
+                            >
+                              <Check size={14} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingId(h.id);
+                                setEditingText(h.label);
+                              }}
+                              className="p-1 rounded hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                              title="Renomear hábito"
+                            >
+                              <Pencil size={13} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeHabit(h.id)}
+                            className="p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Remover hábito"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Ações inferiores de edição */}
+            <div className="flex items-center justify-between pt-2 border-t text-[11px]" style={{ borderColor: T.border }}>
+              <button
+                onClick={resetDefaults}
+                className="hover:underline flex items-center gap-1"
+                style={{ color: T.inkSoft }}
+              >
+                <RotateCcw size={11} /> Restaurar hábitos padrão
               </button>
-            );
-          })}
-        </div>
+              <button
+                onClick={() => setIsEditing(false)}
+                className="font-semibold hover:underline flex items-center gap-1"
+                style={{ color: T.brand }}
+              >
+                <Check size={12} /> Finalizar Edição
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* MODO DE VISUALIZAÇÃO: Checklist Diário */
+          <div>
+            {definitions.length === 0 ? (
+              <div className="text-center py-6 px-3 rounded-xl border border-dashed" style={{ borderColor: T.border }}>
+                <p className="text-xs mb-2" style={{ color: T.inkSoft }}>
+                  Você ainda não possui nenhum hábito configurado.
+                </p>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-xl text-white shadow-sm flex items-center gap-1 mx-auto"
+                  style={{ backgroundColor: T.brand }}
+                >
+                  <Plus size={13} /> Adicionar Hábitos
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {definitions.map((h) => {
+                    const isDone = Boolean(completedMap[h.id]);
+                    const IconCmp = getHabitIconComponent(h.label, h.iconKey);
+                    return (
+                      <button
+                        key={h.id}
+                        onClick={() => toggleHabit(h.id)}
+                        className="flex items-center gap-2 p-2 rounded-xl text-left transition-all border group"
+                        style={{
+                          backgroundColor: isDone ? T.brand + '15' : T.surfaceAlt,
+                          borderColor: isDone ? T.brand : T.border,
+                        }}
+                      >
+                        <div
+                          className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border transition-all"
+                          style={{
+                            backgroundColor: isDone ? T.brand : 'transparent',
+                            borderColor: isDone ? T.brand : T.border,
+                          }}
+                        >
+                          {isDone ? (
+                            <Check className="w-3 h-3 text-white" />
+                          ) : (
+                            <IconCmp className="w-3 h-3" style={{ color: T.inkSoft }} />
+                          )}
+                        </div>
+                        <span
+                          className="text-xs font-medium truncate flex-1"
+                          style={{
+                            color: isDone ? T.ink : T.inkSoft,
+                            textDecoration: isDone ? 'line-through' : 'none',
+                          }}
+                        >
+                          {h.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Barra de Progresso e Conclusão */}
+                <div className="mt-3">
+                  <div
+                    className="h-1.5 w-full rounded-full overflow-hidden"
+                    style={{ backgroundColor: T.surfaceAlt }}
+                  >
+                    <div
+                      className="h-full transition-all duration-500 ease-out rounded-full"
+                      style={{
+                        width: `${progress}%`,
+                        backgroundColor: progress === 100 ? '#10b981' : T.brand,
+                      }}
+                    />
+                  </div>
+                  {progress === 100 && totalCount > 0 && (
+                    <div className="flex items-center justify-center gap-1.5 mt-2 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <Sparkles size={12} /> Todos os hábitos de hoje foram concluídos!
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </Card>
     );
   }
@@ -296,7 +700,7 @@ function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudad
   );
 }
 
-export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje, proximos, overload, onToggleBlock, onGoInbox, onGoAgenda, routine, metaHoje, onSetMeta, minutosEstudadosHoje, avisos, config, notes, onSaveNote }) {
+export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje, proximos, overload, onToggleBlock, onGoInbox, onGoAgenda, routine, metaHoje, onSetMeta, minutosEstudadosHoje, avisos, config, updateConfig, notes, onSaveNote }) {
   
   const [mood, setMood] = React.useState(null);
   const [journalText, setJournalText] = React.useState("");
@@ -443,7 +847,7 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
           </Card>
           
           <MetaHojeCard blocksHoje={blocksHoje} routine={routine} metaHoje={metaHoje} onSetMeta={onSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} config={config} />
-            <DailyHabits T={T} />
+            <DailyHabits T={T} config={config} updateConfig={updateConfig} />
           </div>
 
         {/* COLUNA DIREITA: Checklist e Prazos */}
