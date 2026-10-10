@@ -10,9 +10,10 @@ import {
   Settings, Palette, Wind, Heart,
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
-  Laugh, Footprints, Zap, Glasses, Copy, Share2
+  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram
 } from 'lucide-react';
 
+import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -1487,9 +1488,31 @@ function Badges({ sessions }) {
   );
 }
 
+export const OWL_SKINS = [
+  { id: 'none', name: 'Coruja Clássica', desc: 'Plumagem natural branca e creme', price: 0, preview: '/owl_happy.png' },
+  { id: 'noturna', name: 'Coruja da Meia-Noite', desc: 'Penas em azul marinho e grafite estrelado', price: 120, preview: '/owl_noturna_happy.png' },
+  { id: 'neve', name: 'Coruja das Neves', desc: 'Penas alvas e gélidas com reflexos polares', price: 180, preview: '/owl_neve_happy.png' },
+  { id: 'dourada', name: 'Coruja Solar', desc: 'Plumagem mística em tons de âmbar e ouro', price: 240, preview: '/owl_dourada_happy.png' },
+  { id: 'sakura', name: 'Coruja Sakura', desc: 'Plumagem suave em degradê rosa pastel', price: 300, preview: '/owl_sakura_happy.png' },
+  { id: 'ametista', name: 'Coruja Cósmica', desc: 'Plumagem etérea em tons de violeta e lavanda', price: 380, preview: '/owl_ametista_happy.png' },
+  { id: 'esmeralda', name: 'Coruja da Floresta', desc: 'Penas em tons de menta fresca e esmeralda', price: 450, preview: '/owl_esmeralda_happy.png' },
+  { id: 'rubi', name: 'Coruja Fênix', desc: 'Plumagem vibrante em tons ardentes de rubi', price: 550, preview: '/owl_rubi_happy.png' },
+];
+
 function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = [], commitments = [], config = {} }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sharingStory, setSharingStory] = useState(false);
+  const storyCardRef = useRef(null);
+
+  const [currentSkinId, setCurrentSkinId] = useState(() => {
+    try {
+      const localCfg = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      return localCfg.petSkin || localCfg.equippedSkin || config?.petSkin || config?.equippedSkin || "none";
+    } catch {
+      return config?.petSkin || config?.equippedSkin || "none";
+    }
+  });
 
   if (!sessions || sessions.length === 0) return null;
 
@@ -1559,11 +1582,16 @@ function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = []
     PerfilIcon = Flame;
   }
 
-  // Mascote da coruja com skin ativa
-  const currentSkinId = config?.petSkin || config?.equippedSkin || "none";
-  const mascotSrc = currentSkinId === "none" ? "/owl_happy.png" : `/owl_${currentSkinId}_happy.png`;
+  // Mascote da coruja com a cor equipada pelo usuário
+  const activeSkin = OWL_SKINS.find((s) => s.id === currentSkinId) || OWL_SKINS[0];
+  const mascotSrc = activeSkin.id === "none" ? "/owl_happy.png" : `/owl_${activeSkin.id}_happy.png`;
 
   const handleOpen = () => {
+    try {
+      const localCfg = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      const sid = localCfg.petSkin || localCfg.equippedSkin || config?.petSkin || config?.equippedSkin || "none";
+      setCurrentSkinId(sid);
+    } catch {}
     setOpen(true);
     sfx.levelUp();
     if (window.confetti) {
@@ -1578,12 +1606,72 @@ Tempo Total Focado: ${tempoStr}
 Sessões Concluídas: ${totalSessoes} (média ~${mediaMinutos} min/sessão)
 Disciplina Mais Estudada: ${topDisc} (${pctTop}% do foco)
 Perfil de Estudo: ${perfilTitulo}
+Plumagem da Coruja: ${activeSkin.name}
 Ofensiva: ${streak > 0 ? `${streak} dias consecutivos` : 'Ativo'}
-Plataforma: Omnia`;
+Plataforma: Omnia (omnia-unio.vercel.app)`;
 
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleShareStory = async () => {
+    sfx.click();
+    if (!storyCardRef.current) return;
+    setSharingStory(true);
+    try {
+      await new Promise((r) => setTimeout(r, 120));
+      const canvas = await html2canvas(storyCardRef.current, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#0b1120",
+        logging: false,
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          setSharingStory(false);
+          return;
+        }
+        const file = new File([blob], `omnia-wrapped-story-${todayISO()}.png`, { type: "image/png" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: "Omnia Wrapped",
+              text: "Minha retrospectiva na Omnia! 🦉✨",
+            });
+            setSharingStory(false);
+            return;
+          } catch (err) {
+            if (err.name !== "AbortError") console.error(err);
+          }
+        }
+
+        // Fallback: download da imagem no formato 9:16 para stories
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.download = `omnia_wrapped_story_${todayISO()}.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        try {
+          await navigator.clipboard.writeText(
+            `Meu Omnia Wrapped 🦉✨\nTempo focado: ${tempoStr}\nDisciplina: ${topDisc}\nOfensiva: ${streak} dias\nCoruja: ${activeSkin.name}\nomnia-unio.vercel.app`
+          );
+        } catch (e) {}
+
+        alert("Imagem do Story pronta e baixada! Abra o Instagram para postar nos seus Stories com a sua coruja.");
+        setSharingStory(false);
+      }, "image/png", 0.95);
+    } catch (err) {
+      console.error("Erro ao gerar Story:", err);
+      alert("Não foi possível gerar a imagem automaticamente. Você pode usar o botão 'Copiar Resumo'!");
+      setSharingStory(false);
+    }
   };
 
   return (
@@ -1752,19 +1840,19 @@ Plataforma: Omnia`;
                 </div>
               </div>
 
-              {/* Card de Perfil com Mascote da Coruja */}
+              {/* Card de Perfil com Mascote da Coruja na cor equipada */}
               <div
                 className="p-4 rounded-2xl border flex items-center gap-4"
                 style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
               >
-                {/* Mascote Sprite */}
+                {/* Mascote Sprite na cor equipada */}
                 <div
                   className="w-16 h-16 rounded-2xl border overflow-hidden shrink-0 flex items-center justify-center p-1 shadow-sm"
                   style={{ backgroundColor: T.surface, borderColor: T.border }}
                 >
                   <img
                     src={mascotSrc}
-                    alt="Mascote Coruja"
+                    alt={activeSkin.name}
                     className="w-14 h-14 object-contain"
                     style={{ imageRendering: "pixelated" }}
                     onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
@@ -1773,10 +1861,18 @@ Plataforma: Omnia`;
 
                 {/* Descrição do Perfil */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <PerfilIcon size={14} style={{ color: T.brand }} />
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: T.brand }}>
-                      {perfilTitulo}
+                  <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <PerfilIcon size={14} style={{ color: T.brand }} />
+                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: T.brand }}>
+                        {perfilTitulo}
+                      </span>
+                    </div>
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full font-bold border ml-auto"
+                      style={{ backgroundColor: TINT.brand, color: T.brand, borderColor: T.border }}
+                    >
+                      {activeSkin.name}
                     </span>
                   </div>
                   <p className="text-xs leading-relaxed" style={{ color: T.inkSoft }}>
@@ -1789,6 +1885,27 @@ Plataforma: Omnia`;
             {/* Rodapé com Ações Adaptativas */}
             <div className="mt-4 pt-3 border-t flex flex-col sm:flex-row items-center gap-2.5 shrink-0 relative z-10" style={{ borderColor: T.border }}>
               <button
+                onClick={handleShareStory}
+                disabled={sharingStory}
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-sm hover:opacity-95 text-white disabled:opacity-50"
+                style={{
+                  background: 'linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                }}
+              >
+                {sharingStory ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <span>Gerando Story...</span>
+                  </>
+                ) : (
+                  <>
+                    <Instagram size={15} />
+                    <span>Compartilhar nos Stories</span>
+                  </>
+                )}
+              </button>
+
+              <button
                 onClick={handleCopy}
                 className="w-full sm:flex-1 py-2.5 px-4 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-colors hover:opacity-90"
                 style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
@@ -1796,7 +1913,7 @@ Plataforma: Omnia`;
                 {copied ? (
                   <>
                     <Check size={15} className="text-emerald-500" />
-                    <span>Copiado com Sucesso!</span>
+                    <span>Copiado!</span>
                   </>
                 ) : (
                   <>
@@ -1808,15 +1925,130 @@ Plataforma: Omnia`;
 
               <button
                 onClick={() => setOpen(false)}
-                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-sm hover:opacity-95"
+                className="w-full sm:w-auto py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-sm hover:opacity-95"
                 style={{ backgroundColor: T.brand, color: T.brandInk }}
               >
-                <Sparkles size={15} /> Incrível
+                <Sparkles size={15} /> Fechar
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Template de Instagram Story (9:16 - 450x800px) */}
+      <div
+        ref={storyCardRef}
+        style={{
+          position: "fixed",
+          left: "-9999px",
+          top: 0,
+          width: "450px",
+          height: "800px",
+          background: "linear-gradient(160deg, #070d1e 0%, #151638 45%, #050814 100%)",
+          color: "#ffffff",
+          fontFamily: "'Inter', sans-serif",
+          padding: "36px 28px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
+      >
+        {/* Glow ambient background effects */}
+        <div style={{ position: "absolute", top: "-50px", right: "-50px", width: "240px", height: "240px", borderRadius: "50%", background: "#3b82f6", filter: "blur(70px)", opacity: 0.35, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "-60px", left: "-60px", width: "260px", height: "260px", borderRadius: "50%", background: "#ec4899", filter: "blur(80px)", opacity: 0.25, pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: "40%", right: "-40px", width: "180px", height: "180px", borderRadius: "50%", background: "#8b5cf6", filter: "blur(70px)", opacity: 0.3, pointerEvents: "none" }} />
+
+        {/* Top Header */}
+        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(59, 130, 246, 0.2)", border: "1px solid rgba(59, 130, 246, 0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Sparkles size={18} color="#60a5fa" />
+            </div>
+            <div>
+              <div style={{ fontSize: "16px", fontWeight: "900", letterSpacing: "-0.5px" }}>OMNIA WRAPPED</div>
+              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "1px" }}>Retrospectiva Acadêmica</div>
+            </div>
+          </div>
+          <div style={{ padding: "4px 12px", borderRadius: "999px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", fontSize: "11px", fontWeight: "700" }}>
+            2026
+          </div>
+        </div>
+
+        {/* Hero: Mascote da Coruja na cor equipada */}
+        <div style={{ position: "relative", zIndex: 10, textAlign: "center", margin: "14px 0" }}>
+          <div style={{ width: "125px", height: "125px", margin: "0 auto", borderRadius: "30px", background: "rgba(255, 255, 255, 0.06)", border: "1px solid rgba(255, 255, 255, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(10px)", boxShadow: "0 12px 30px rgba(0,0,0,0.5)" }}>
+            <img
+              src={mascotSrc}
+              alt={activeSkin.name}
+              style={{ width: "100px", height: "100px", objectFit: "contain", imageRendering: "pixelated" }}
+            />
+          </div>
+          <div style={{ marginTop: "12px", display: "inline-block", padding: "4px 14px", borderRadius: "999px", background: "rgba(96, 165, 250, 0.2)", border: "1px solid rgba(96, 165, 250, 0.4)", fontSize: "11px", fontWeight: "800", color: "#93c5fd" }}>
+            {activeSkin.name}
+          </div>
+          <div style={{ marginTop: "6px", fontSize: "20px", fontWeight: "900", color: "#ffffff" }}>
+            {perfilTitulo}
+          </div>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.65)", maxWidth: "340px", margin: "4px auto 0", lineHeight: "1.4" }}>
+            {perfilDesc}
+          </div>
+        </div>
+
+        {/* Big Highlights: Stats */}
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", gap: "10px" }}>
+          {/* Main Stat Card */}
+          <div style={{ background: "rgba(255, 255, 255, 0.07)", border: "1px solid rgba(255, 255, 255, 0.12)", borderRadius: "20px", padding: "16px", textAlign: "center", backdropFilter: "blur(10px)" }}>
+            <div style={{ fontSize: "10px", textTransform: "uppercase", fontWeight: "700", letterSpacing: "1px", color: "#93c5fd", marginBottom: "4px" }}>
+              Tempo Total Dedicado
+            </div>
+            <div style={{ fontSize: "42px", fontWeight: "900", letterSpacing: "-1px", color: "#60a5fa" }}>
+              {tempoStr}
+            </div>
+            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+              {totalSessoes} sessões de foco • média de ~{mediaMinutos} min
+            </div>
+          </div>
+
+          {/* 2-Column Stats Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "18px", padding: "12px 14px" }}>
+              <div style={{ fontSize: "9px", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.5px", color: "#c084fc", marginBottom: "4px" }}>
+                Top Disciplina
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: "900", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {topDisc}
+              </div>
+              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                {pctTop}% do foco total
+              </div>
+            </div>
+
+            <div style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "18px", padding: "12px 14px" }}>
+              <div style={{ fontSize: "9px", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.5px", color: "#fb923c", marginBottom: "4px" }}>
+                Ofensiva Diária
+              </div>
+              <div style={{ fontSize: "15px", fontWeight: "900", color: "#ffffff" }}>
+                {streak > 0 ? `${streak} Dias Seguidos` : `${totalSessoes} Sessões`}
+              </div>
+              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                Turno: {topPeriodo}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid rgba(255, 255, 255, 0.1)", paddingTop: "14px" }}>
+          <div style={{ fontSize: "11px", fontWeight: "700", color: "rgba(255,255,255,0.8)" }}>
+            Minha vida em um app 🦉
+          </div>
+          <div style={{ fontSize: "10px", fontWeight: "600", color: "rgba(255,255,255,0.5)" }}>
+            omnia-unio.vercel.app
+          </div>
+        </div>
+      </div>
     </>
   );
 }
@@ -3384,18 +3616,6 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   const [editing, setEditing] = useState(false);
   const [tempName, setTempName] = useState(petName || "Coruja Omnia");
   const [showStore, setShowStore] = useState(false);
-
-  const OWL_SKINS = [
-    { id: 'none', name: 'Coruja Clássica', desc: 'Plumagem natural branca e creme', price: 0, preview: '/owl_happy.png' },
-    { id: 'noturna', name: 'Coruja da Meia-Noite', desc: 'Penas em azul marinho e grafite estrelado', price: 120, preview: '/owl_noturna_happy.png' },
-    { id: 'neve', name: 'Coruja das Neves', desc: 'Penas alvas e gélidas com reflexos polares', price: 180, preview: '/owl_neve_happy.png' },
-    { id: 'dourada', name: 'Coruja Solar', desc: 'Plumagem mística em tons de âmbar e ouro', price: 240, preview: '/owl_dourada_happy.png' },
-    { id: 'sakura', name: 'Coruja Sakura', desc: 'Plumagem suave em degradê rosa pastel', price: 300, preview: '/owl_sakura_happy.png' },
-    { id: 'ametista', name: 'Coruja Cósmica', desc: 'Plumagem etérea em tons de violeta e lavanda', price: 380, preview: '/owl_ametista_happy.png' },
-    { id: 'esmeralda', name: 'Coruja da Floresta', desc: 'Penas em tons de menta fresca e esmeralda', price: 450, preview: '/owl_esmeralda_happy.png' },
-    { id: 'rubi', name: 'Coruja Fênix', desc: 'Plumagem vibrante em tons ardentes de rubi', price: 550, preview: '/owl_rubi_happy.png' },
-  ];
-
   const coins = config?.coins || 0;
   const rawOwned = config?.ownedSkins || [];
   const ownedSkins = ['none', ...rawOwned.filter(id => OWL_SKINS.some(s => s.id === id && s.id !== 'none'))];
