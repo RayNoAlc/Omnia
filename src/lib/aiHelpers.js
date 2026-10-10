@@ -1,4 +1,4 @@
-import { callAI } from "./ai";
+import { callAI, callAIWithTools } from "./ai";
 import { todayISO } from "./utils";
 
 // Limite de segurança pro texto do material: a Groq tem teto de 8.000
