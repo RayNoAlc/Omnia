@@ -50,6 +50,42 @@ export const applyTheme = (themeName) => {
   localStorage.setItem('omnia-theme', themeName);
 };
 
+export const resolveFontFamily = (val) => {
+  if (!val) return "'Inter', sans-serif";
+  const str = String(val).toLowerCase();
+  if (str.includes("georgia") || str.includes("serif") || str === "serif") {
+    return "'Merriweather', Georgia, serif";
+  }
+  if (str.includes("mono") || str.includes("terminal") || str === "monospace") {
+    return "'JetBrains Mono', monospace";
+  }
+  if (str.includes("comic") || str.includes("cursive") || str === "casual" || str.includes("relaxada")) {
+    return "'Comic Neue', 'Comic Sans MS', cursive, sans-serif";
+  }
+  return "'Inter', sans-serif";
+};
+
+export const applyFont = (fontVal) => {
+  const family = resolveFontFamily(fontVal);
+  if (typeof document !== 'undefined') {
+    document.documentElement.style.setProperty('--font-family', family);
+    document.documentElement.style.fontFamily = family;
+    if (document.body) {
+      document.body.style.fontFamily = family;
+    }
+  }
+};
+
+// Auto-apply saved font on module evaluation
+if (typeof window !== 'undefined') {
+  try {
+    const saved = JSON.parse(localStorage.getItem('omnia_config') || '{}');
+    applyFont(saved.fontFamily);
+  } catch (e) {
+    applyFont('Inter, sans-serif');
+  }
+}
+
 export const T = {
   bg: 'var(--bg)', surface: 'var(--surface)', surfaceAlt: 'var(--surfaceAlt)',
   ink: 'var(--ink)', inkSoft: 'var(--inkSoft)', border: 'var(--border)',

@@ -24,7 +24,7 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, child
   };
 
   return (
-    <div className='flex h-screen overflow-hidden' style={{ backgroundColor: T.bg, color: T.ink }}>
+    <div className='flex h-screen overflow-hidden' style={{ backgroundColor: T.bg, color: T.ink, fontFamily: 'var(--font-family, inherit)' }}>
       {/* Sidebar (Desktop) */}
       <aside className={`hidden ${isZen ? '' : 'md:flex'} w-64 flex-col border-r shadow-lg relative z-20`} style={{ backgroundColor: T.surface, borderColor: T.border }}>
         <div className='p-6 flex items-center justify-center'>

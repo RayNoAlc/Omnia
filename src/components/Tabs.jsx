@@ -20,7 +20,7 @@ import JSZip from 'jszip';
 import * as ics from 'ics';
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import {
-  T, TINT, THEMES, applyTheme, TIPO_LABELS, PRIORIDADE_META, PERIODO_LABELS, TABS,
+  T, TINT, THEMES, applyTheme, applyFont, resolveFontFamily, TIPO_LABELS, PRIORIDADE_META, PERIODO_LABELS, TABS,
   PriorityDot, TypeTag, Card, SectionLabel, EmptyState, PrimaryButton, GhostButton,
 } from "./ui";
 import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre, OMNIA_SECRET_DEV_COMMAND, isSecretDevCommand, executeGodModeCheat } from "../lib/utils";
@@ -5585,17 +5585,44 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
           
           <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
             {[
-              { id: "Inter, sans-serif", name: "Padrão (Inter)", desc: "Limpa e moderna" },
-              { id: "Georgia, serif", name: "Foco (Serifada)", desc: "Estilo livro clássico" },
-              { id: "monospace", name: "Terminal", desc: "Monoespaçada para devs" },
-              { id: "Comic Sans MS, cursive", name: "Relaxada", desc: "Divertida e informal" }
-            ].map(f => (
-              <button key={f.id} onClick={() => updateConfig({ ...safeConfig, fontFamily: f.id })} className='flex flex-col items-start p-4 rounded-xl border hover:opacity-80 transition-all'
-                style={{ backgroundColor: safeConfig.fontFamily === f.id ? T.brand + '22' : T.surfaceAlt, borderColor: safeConfig.fontFamily === f.id ? T.brand : T.border, fontFamily: f.id }}>
-                <span className='font-bold' style={{ color: T.ink }}>{f.name}</span>
-                <span className='text-xs mt-1' style={{ color: T.inkSoft }}>{f.desc}</span>
-              </button>
-            ))}
+              { id: "Inter, sans-serif", name: "Padrão (Inter)", desc: "Limpa e moderna", family: "'Inter', sans-serif" },
+              { id: "Georgia, serif", name: "Foco (Serifada)", desc: "Estilo livro clássico", family: "'Merriweather', Georgia, serif" },
+              { id: "monospace", name: "Terminal", desc: "Monoespaçada para devs", family: "'JetBrains Mono', monospace" },
+              { id: "Comic Sans MS, cursive", name: "Relaxada", desc: "Divertida e informal", family: "'Comic Neue', 'Comic Sans MS', cursive, sans-serif" }
+            ].map(f => {
+              const activeFont = resolveFontFamily(safeConfig.fontFamily);
+              const isSelected = resolveFontFamily(f.id) === activeFont;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    sfx.pop();
+                    updateConfig({ ...safeConfig, fontFamily: f.id });
+                    applyFont(f.id);
+                  }}
+                  className='flex flex-col items-start p-4 rounded-xl border hover:opacity-90 transition-all text-left relative overflow-hidden'
+                  style={{
+                    backgroundColor: isSelected ? (TINT.brand || T.brand + '22') : T.surfaceAlt,
+                    borderColor: isSelected ? T.brand : T.border,
+                    fontFamily: f.family,
+                    boxShadow: isSelected ? `0 0 0 1.5px ${T.brand}` : 'none'
+                  }}
+                >
+                  <div className='flex items-center justify-between w-full'>
+                    <span className='font-bold text-base' style={{ color: T.ink }}>{f.name}</span>
+                    {isSelected && (
+                      <span className='text-[10px] uppercase font-bold px-2 py-0.5 rounded-full' style={{ backgroundColor: T.brand, color: T.brandInk }}>
+                        Ativa
+                      </span>
+                    )}
+                  </div>
+                  <span className='text-xs mt-1' style={{ color: T.inkSoft }}>{f.desc}</span>
+                  <div className='mt-2 text-xs opacity-75' style={{ color: T.ink, fontFamily: f.family }}>
+                    Aa Bb Cc 123 • O rápido cachorro
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </section>
 

@@ -25,7 +25,7 @@ import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsFo
 import { useFocusTimer } from "./lib/useFocusTimer";
 import { sfx } from "./lib/soundEffects";
 import { AppLayout } from "./layouts/AppLayout";
-import { T, TABS, applyTheme } from "./components/ui";
+import { T, TABS, applyTheme, applyFont } from "./components/ui";
 
 
 class GlobalErrorBoundary extends React.Component {
@@ -55,11 +55,21 @@ function AppInner() {
   useEffect(() => {
     applyTheme(localStorage.getItem("omnia-theme") || "dark");
     const savedCfg = localStorage.getItem("omnia_config");
-    if (savedCfg) { const parsed = JSON.parse(savedCfg); if (parsed) setConfig(parsed); }
+    if (savedCfg) {
+      const parsed = JSON.parse(savedCfg);
+      if (parsed) {
+        setConfig(parsed);
+        if (parsed.fontFamily) applyFont(parsed.fontFamily);
+      }
+    }
     const handleStorage = (e) => {
       if (!e || e.key === "omnia_config" || e.type === "storage") {
         const fresh = localStorage.getItem("omnia_config");
-        if (fresh) setConfig(JSON.parse(fresh));
+        if (fresh) {
+          const parsedFresh = JSON.parse(fresh);
+          setConfig(parsedFresh);
+          if (parsedFresh?.fontFamily) applyFont(parsedFresh.fontFamily);
+        }
       }
     };
     window.addEventListener("storage", handleStorage);
@@ -148,7 +158,19 @@ function AppInner() {
     }
   }, [config]);
 
-  const updateConfig = (newCfg) => { setConfig(newCfg); localStorage.setItem("omnia_config", JSON.stringify(newCfg)); };
+  useEffect(() => {
+    if (config?.fontFamily) {
+      applyFont(config.fontFamily);
+    }
+  }, [config?.fontFamily]);
+
+  const updateConfig = (newCfg) => {
+    setConfig(newCfg);
+    localStorage.setItem("omnia_config", JSON.stringify(newCfg));
+    if (newCfg?.fontFamily) {
+      applyFont(newCfg.fontFamily);
+    }
+  };
 
   useEffect(() => {
     window.__OMNIA_DEV_MAX__ = () => {
