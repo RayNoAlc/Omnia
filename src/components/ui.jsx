@@ -1,4 +1,4 @@
-import { Settings, Home, Inbox as InboxIcon, Calendar, BookOpen, Headphones, MessageCircle, User, BarChart3 } from "lucide-react";
+import { Settings, Home, Inbox as InboxIcon, Calendar, BookOpen, Headphones, MessageCircle, User, BarChart3, BookHeart } from "lucide-react";
 import { sfx } from "../lib/soundEffects";
 
 export const THEMES = {
@@ -121,13 +121,13 @@ export const PRIORIDADE_META = {
 export const PERIODO_LABELS = { manha: "Manhã", tarde: "Tarde", noite: "Noite" };
 
 export const TABS = [
-
   { id: "hoje", label: "Hoje", icon: Home },
   { id: "inbox", label: "Inbox", icon: InboxIcon },
   { id: "agenda", label: "Agenda", icon: Calendar },
   { id: "desempenho", label: "Desempenho", icon: BarChart3 },
   { id: "biblioteca", label: "Biblioteca", icon: BookOpen },
   { id: "foco", label: "Foco", icon: Headphones },
+  { id: "diario", label: "Diário", icon: BookHeart },
   { id: "secretaria", label: "Secretária", icon: MessageCircle },
   { id: "rotina", label: "Minha Rotina", icon: User },
   { id: 'config', label: 'Configurações', icon: Settings }

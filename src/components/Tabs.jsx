@@ -10,9 +10,10 @@ import {
   Settings, Palette, Wind, Heart,
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
-  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users, Music
+  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users, Music, Filter
 } from 'lucide-react';
 
+import confetti from 'canvas-confetti';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -710,7 +711,7 @@ function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudad
   );
 }
 
-export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje, proximos, overload, onToggleBlock, onGoInbox, onGoAgenda, routine, metaHoje, onSetMeta, minutosEstudadosHoje, avisos, config, updateConfig, notes, onSaveNote }) {
+export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje, proximos, overload, onToggleBlock, onGoInbox, onGoAgenda, onGoDiario, routine, metaHoje, onSetMeta, minutosEstudadosHoje, avisos, config, updateConfig, notes, onSaveNote }) {
   
   const [mood, setMood] = React.useState(null);
   const [journalText, setJournalText] = React.useState("");
@@ -722,6 +723,16 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
     const finalTxt = `Humor: ${mood}\n\n${journalText.trim()}`;
     if (onSaveNote) {
       await onSaveNote({ disciplina: "Diário de Bordo", texto: finalTxt });
+      sfx.complete();
+      if (config?.enableConfetti !== false) {
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 },
+          colors: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
+          zIndex: 9999
+        });
+      }
       setMood(null);
       setJournalText("");
     }
@@ -900,9 +911,22 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
           {config?.enableJournal !== false && !hasJournalToday && (
             <Card style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
               <div className="max-w-3xl mx-auto">
-                <div className="flex items-center md:justify-center gap-2 mb-2">
-                  <BookHeart className="w-5 h-5" style={{ color: T.brand }} />
-                  <h3 className="text-lg font-bold" style={{ color: T.ink }}>Diário de Bordo</h3>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <BookHeart className="w-5 h-5" style={{ color: T.brand }} />
+                    <h3 className="text-lg font-bold" style={{ color: T.ink }}>Diário de Bordo</h3>
+                  </div>
+                  {onGoDiario && (
+                    <button
+                      type="button"
+                      onClick={() => { sfx.pop(); onGoDiario(); }}
+                      className="text-xs font-semibold flex items-center gap-1.5 transition-opacity hover:opacity-80"
+                      style={{ color: T.brand }}
+                    >
+                      <span>Abrir Diário Completo</span>
+                      <BookHeart className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 <p className="text-sm mb-4 md:text-center" style={{ color: T.inkSoft }}>Como você está se sentindo hoje? Faça um rápido check-in mental.</p>
                 
@@ -919,7 +943,8 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
                     return (
                       <button
                         key={m.id}
-                        onClick={() => setMood(m.id)}
+                        type="button"
+                        onClick={() => { sfx.pop(); setMood(m.id); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
                         style={{
                           backgroundColor: isSelected ? T.brand + '22' : T.bg,
@@ -951,9 +976,27 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
           )}
           
           {config?.enableJournal !== false && hasJournalToday && (
-            <div className="text-center p-4 rounded-xl text-sm" style={{ backgroundColor: T.surfaceAlt, color: T.inkSoft, border: `1px solid ${T.border}` }}>
-              <Smile className="w-5 h-5 mx-auto mb-2" style={{ color: T.brand }} />
-              Você já registrou seu diário hoje! Suas notas estão seguras na Biblioteca.
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl text-sm" style={{ backgroundColor: T.surfaceAlt, color: T.inkSoft, border: `1px solid ${T.border}` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: '#10b98122', color: '#10b981' }}>
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm" style={{ color: T.ink }}>Check-in mental realizado hoje!</div>
+                  <div className="text-xs" style={{ color: T.inkSoft }}>Sua reflexão foi salva no Diário de Bordo exclusivo.</div>
+                </div>
+              </div>
+              {onGoDiario && (
+                <button
+                  type="button"
+                  onClick={() => { sfx.pop(); onGoDiario(); }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 hover:opacity-90"
+                  style={{ backgroundColor: T.brand + '22', color: T.brand, border: `1px solid ${T.brand}44` }}
+                >
+                  <BookHeart className="w-4 h-4" />
+                  <span>Abrir Diário Completo</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -3516,11 +3559,21 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
     setMaterials((prev) => prev.filter((x) => x.id !== m.id));
   }
 
+  // Diário de Bordo tem sua própria aba dedicada e não deve se misturar com materiais de estudo
+  const notasAcademicas = (notes || []).filter((n) => {
+    const disc = (n.disciplina || "").toLowerCase();
+    return disc !== "diário de bordo" && disc !== "diario de bordo" && disc !== "diário" && disc !== "diario";
+  });
+
   const disciplinas = Array.from(new Set([
-    ...notes.map((n) => n.disciplina),
+    ...notasAcademicas.map((n) => n.disciplina),
     ...commitments.map((c) => c.disciplina),
     ...materials.map((m) => m.disciplina),
-  ])).filter(Boolean);
+  ])).filter((d) => {
+    if (!d) return false;
+    const lower = d.toLowerCase();
+    return lower !== "diário de bordo" && lower !== "diario de bordo" && lower !== "diário" && lower !== "diario";
+  });
 
   const compromissosOrdenados = [...commitments].sort((a, b) => (a.prazo || "9999-99-99").localeCompare(b.prazo || "9999-99-99"));
   const compromissosPorSemestre = {};
@@ -3538,9 +3591,9 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
   return (
     <div className="space-y-6">
       
-        {showMapa && <MapaMentalModal notes={notes} commitments={commitments} onClose={() => setShowMapa(false)} T={T} />}
+        {showMapa && <MapaMentalModal notes={notasAcademicas} commitments={commitments} onClose={() => setShowMapa(false)} T={T} />}
         <div className="flex flex-wrap gap-2 justify-between items-center">
-          <ExportarBiblioteca userId={userId} commitments={commitments} notes={notes} materials={materials} summaries={summaries} disciplinas={disciplinas} semestres={semestres.filter((s) => s !== "Sem data")} />
+          <ExportarBiblioteca userId={userId} commitments={commitments} notes={notasAcademicas} materials={materials} summaries={summaries} disciplinas={disciplinas} semestres={semestres.filter((s) => s !== "Sem data")} />
           <PrimaryButton onClick={() => setShowMapa(true)}><Network className="w-4 h-4 mr-2" /> Árvore de Conhecimento</PrimaryButton>
         </div>
 
@@ -3578,7 +3631,7 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
               userId={userId}
               disc={disc}
               setCommitments={setCommitments}
-              notasDisc={notes.filter((n) => n.disciplina === disc && !n.commitmentId)}
+              notasDisc={notasAcademicas.filter((n) => n.disciplina === disc && !n.commitmentId)}
               compromissosDisc={commitments.filter((c) => c.disciplina === disc)}
               materiaisDisc={materials.filter((m) => m.disciplina === disc && !m.commitmentId)}
               onDeleteNote={onDeleteNote}
@@ -4549,6 +4602,590 @@ export function FocoTab(props) {
         <div className="flex items-center gap-2 text-sm" style={{ color: T.inkSoft }}><Clock className="w-4 h-4" /> Estudado hoje</div>
         <div className="text-sm font-semibold" style={{ color: T.brand }}>{totalHoje} min</div>
       </Card>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Aba: Diário de Bordo                                                    */
+/* ---------------------------------------------------------------------- */
+export function DiarioTab({
+  userId,
+  notes = [],
+  onSaveNote,
+  onDeleteNote,
+  config,
+  updateConfig,
+}) {
+  const [mood, setMood] = useState(null);
+  const [reflectionText, setReflectionText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedMoodFilter, setSelectedMoodFilter] = useState("all");
+  const [copiedId, setCopiedId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  const MOODS = [
+    { id: "Excelente", label: "Excelente", icon: Laugh, color: "#10b981", bg: "#10b98118", border: "#10b98144" },
+    { id: "Bem", label: "Bem", icon: Smile, color: "#3b82f6", bg: "#3b82f618", border: "#3b82f644" },
+    { id: "Neutro", label: "Neutro", icon: Meh, color: "#94a3b8", bg: "#94a3b818", border: "#94a3b844" },
+    { id: "Cansado", label: "Cansado", icon: Frown, color: "#f59e0b", bg: "#f59e0b18", border: "#f59e0b44" },
+    { id: "Exausto", label: "Exausto", icon: Skull, color: "#ef4444", bg: "#ef444418", border: "#ef444444" },
+  ];
+
+  const PROMPTS = [
+    "Pelo que você é grato hoje?",
+    "Qual foi a sua maior vitória ou aprendizado?",
+    "O que drenou a sua energia e o que você aprendeu com isso?",
+    "Como estão sua mente e seu corpo neste instante?",
+    "O que você deseja priorizar amanhã?",
+  ];
+
+  const TAGS = [
+    "#gratidão", "#vitória", "#desafio", "#aprendizado",
+    "#foco", "#desabafo", "#energia", "#descanso"
+  ];
+
+  function formatDiarioDate(isoString) {
+    if (!isoString) return "Sem data";
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return isoString;
+      return d.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return isoString;
+    }
+  }
+
+  // Filtra as anotações exclusivas do Diário de Bordo
+  const diarioNotes = (notes || [])
+    .filter((n) => {
+      const d = (n.disciplina || "").toLowerCase();
+      return d === "diário de bordo" || d === "diario de bordo" || d === "diário" || d === "diario";
+    })
+    .map((n) => {
+      const rawText = n.texto || "";
+      const match = rawText.match(/^Humor:\s*([^\n\r]+)/i);
+      const parsedMoodId = match ? match[1].trim() : null;
+      const cleanContent = rawText.replace(/^Humor:\s*[^\n\r]+\n*/i, "").trim();
+      const moodMeta = MOODS.find((m) => m.id.toLowerCase() === (parsedMoodId || "").toLowerCase()) || {
+        id: parsedMoodId || "Neutro",
+        label: parsedMoodId || "Neutro",
+        icon: Smile,
+        color: "#94a3b8",
+        bg: "#94a3b818",
+        border: "#94a3b844",
+      };
+      return {
+        id: n.id,
+        created_at: n.created_at,
+        disciplina: n.disciplina,
+        moodId: moodMeta.id,
+        moodMeta,
+        content: cleanContent || rawText,
+        rawText,
+      };
+    })
+    .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+
+  const hojeDateStr = todayISO().slice(0, 10);
+  const hasJournalToday = diarioNotes.some((n) => n.created_at && n.created_at.startsWith(hojeDateStr));
+
+  // Humor predominante nos últimos 7 dias
+  const ultimosSeteDias = diarioNotes.filter((n) => {
+    if (!n.created_at) return false;
+    const diff = Math.abs(new Date() - new Date(n.created_at)) / (1000 * 60 * 60 * 24);
+    return diff <= 7;
+  });
+  const moodCounts = {};
+  ultimosSeteDias.forEach((n) => {
+    moodCounts[n.moodId] = (moodCounts[n.moodId] || 0) + 1;
+  });
+  let predominantMood = null;
+  let maxCount = 0;
+  Object.entries(moodCounts).forEach(([mId, count]) => {
+    if (count > maxCount) {
+      maxCount = count;
+      predominantMood = MOODS.find((m) => m.id === mId) || null;
+    }
+  });
+
+  // Salvar novo registro
+  async function handleSave() {
+    if (!mood) {
+      alert("Por favor, selecione como você está se sentindo hoje!");
+      return;
+    }
+    if (!reflectionText.trim()) {
+      alert("Escreva uma breve reflexão ou pensamento antes de salvar.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const finalTexto = `Humor: ${mood}\n\n${reflectionText.trim()}`;
+      if (onSaveNote) {
+        await onSaveNote({ disciplina: "Diário de Bordo", texto: finalTexto });
+      }
+      sfx.complete();
+      if (config?.enableConfetti !== false) {
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 },
+          colors: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'],
+          zIndex: 9999
+        });
+      }
+      setMood(null);
+      setReflectionText("");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar no diário. Tente novamente.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // Copiar reflexão
+  function handleCopy(entry) {
+    const textToCopy = `[Diário de Bordo - ${formatDiarioDate(entry.created_at)} | Humor: ${entry.moodMeta.label}]\n\n${entry.content}`;
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedId(entry.id);
+    sfx.pop();
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  // Deletar reflexão
+  async function handleDelete(id) {
+    if (onDeleteNote) {
+      await onDeleteNote(id);
+      sfx.trash();
+      setDeleteConfirmId(null);
+    }
+  }
+
+  // Exportar Diário para Markdown
+  function handleExportMarkdown() {
+    if (diarioNotes.length === 0) {
+      alert("Não há registros no Diário para exportar.");
+      return;
+    }
+    let md = `# Diário de Bordo - Omnia\n\n`;
+    md += `*Exportado em: ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}*\n`;
+    md += `*Total de reflexões registradas: ${diarioNotes.length}*\n\n`;
+    md += `---\n\n`;
+
+    diarioNotes.forEach((entry) => {
+      const dataStr = formatDiarioDate(entry.created_at);
+      md += `## ${dataStr} — Humor: ${entry.moodMeta.label}\n\n`;
+      md += `${entry.content}\n\n`;
+      md += `---\n\n`;
+    });
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `diario_de_bordo_omnia_${todayISO().slice(0, 10)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    sfx.complete();
+  }
+
+  function handleAddTag(tag) {
+    sfx.pop();
+    setReflectionText((prev) => (prev ? `${prev.trim()} ${tag} ` : `${tag} `));
+  }
+
+  function handleApplyPrompt(promptText) {
+    sfx.pop();
+    setReflectionText((prev) => (prev ? `${prev.trim()}\n\n*${promptText}*\n` : `*${promptText}*\n`));
+  }
+
+  // Filtragem da lista
+  const filteredNotes = diarioNotes.filter((entry) => {
+    if (selectedMoodFilter !== "all" && entry.moodId.toLowerCase() !== selectedMoodFilter.toLowerCase()) {
+      return false;
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const inContent = entry.content.toLowerCase().includes(q);
+      const inMood = entry.moodMeta.label.toLowerCase().includes(q);
+      const inDate = (entry.created_at || "").toLowerCase().includes(q);
+      if (!inContent && !inMood && !inDate) return false;
+    }
+    return true;
+  });
+
+  return (
+    <div className="space-y-6 max-w-[1400px] mx-auto pt-2">
+      {/* Top Banner / Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+        <div className="flex items-start sm:items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm" style={{ backgroundColor: T.brand + '22', color: T.brand }}>
+            <BookHeart className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight" style={{ color: T.ink }}>Diário de Bordo</h1>
+            <p className="text-xs sm:text-sm mt-0.5" style={{ color: T.inkSoft }}>
+              Seu refúgio reservado para saúde mental, humor e reflexões diárias — isolado das matérias de estudo.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleExportMarkdown}
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all border hover:opacity-80"
+            style={{ backgroundColor: T.bg, borderColor: T.border, color: T.ink }}
+            title="Baixar todas as reflexões em arquivo .md"
+          >
+            <Download className="w-4 h-4" />
+            <span>Exportar (.md)</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="flex items-center gap-3 p-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: hasJournalToday ? '#10b98122' : '#f59e0b22', color: hasJournalToday ? '#10b981' : '#f59e0b' }}>
+            {hasJournalToday ? <CheckCircle2 className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+          </div>
+          <div>
+            <div className="text-xs font-medium" style={{ color: T.inkSoft }}>Status de Hoje</div>
+            <div className="text-sm font-bold" style={{ color: T.ink }}>
+              {hasJournalToday ? "Check-in realizado" : "Check-in pendente"}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-3 p-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: T.brand + '22', color: T.brand }}>
+            <BookHeart className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs font-medium" style={{ color: T.inkSoft }}>Total de Registros</div>
+            <div className="text-sm font-bold" style={{ color: T.ink }}>
+              {diarioNotes.length} {diarioNotes.length === 1 ? "reflexão" : "reflexões"}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="flex items-center gap-3 p-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: (predominantMood?.color || T.inkSoft) + '22', color: predominantMood?.color || T.inkSoft }}>
+            {predominantMood ? (
+              <predominantMood.icon className="w-5 h-5" />
+            ) : (
+              <Sparkles className="w-5 h-5" />
+            )}
+          </div>
+          <div>
+            <div className="text-xs font-medium" style={{ color: T.inkSoft }}>Humor Recente (7 dias)</div>
+            <div className="text-sm font-bold" style={{ color: T.ink }}>
+              {predominantMood ? predominantMood.label : "Em monitoramento"}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Main Grid: Novo Registro + Linha do Tempo */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Formulário de Registro (5 cols) */}
+        <div className="lg:col-span-5 space-y-4">
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4" style={{ color: T.brand }} />
+                <h2 className="text-base font-bold" style={{ color: T.ink }}>Check-in de Hoje</h2>
+              </div>
+              {hasJournalToday && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: '#10b98122', color: '#10b981' }}>
+                  Hoje concluído
+                </span>
+              )}
+            </div>
+
+            {/* Mood selector */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold mb-2" style={{ color: T.inkSoft }}>
+                Como você está se sentindo agora?
+              </label>
+              <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                {MOODS.map((m) => {
+                  const IconCmp = m.icon;
+                  const isSelected = mood === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => { sfx.pop(); setMood(m.id); }}
+                      className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-[11px] font-semibold transition-all border text-center"
+                      style={{
+                        backgroundColor: isSelected ? m.bg : T.bg,
+                        borderColor: isSelected ? m.color : T.border,
+                        color: isSelected ? m.color : T.inkSoft,
+                        boxShadow: isSelected ? `0 0 10px ${m.color}33` : "none",
+                      }}
+                    >
+                      <IconCmp className="w-5 h-5 mb-1" style={{ color: m.color }} />
+                      <span className="truncate w-full">{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Inspiração / Perguntas-guia */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-semibold" style={{ color: T.inkSoft }}>Perguntas de apoio</span>
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
+                {PROMPTS.map((p, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleApplyPrompt(p)}
+                    className="px-2.5 py-1 rounded-lg shrink-0 text-[11px] transition-opacity hover:opacity-80 border"
+                    style={{ backgroundColor: T.bg, borderColor: T.border, color: T.inkSoft }}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Textarea */}
+            <div className="mb-3">
+              <textarea
+                value={reflectionText}
+                onChange={(e) => setReflectionText(e.target.value)}
+                placeholder="Escreva livremente sobre o seu dia, aprendizados, conquistas ou o que estiver passando pela sua cabeça..."
+                rows={5}
+                className="w-full p-3 rounded-xl text-sm outline-none resize-none transition-colors border"
+                style={{
+                  backgroundColor: T.bg,
+                  borderColor: T.border,
+                  color: T.ink,
+                }}
+              />
+              <div className="flex items-center justify-between mt-1 text-[11px]" style={{ color: T.inkSoft }}>
+                <span>{reflectionText.length} caracteres</span>
+                <span>Visível apenas para você</span>
+              </div>
+            </div>
+
+            {/* Quick tags */}
+            <div className="mb-4">
+              <span className="text-[11px] font-medium block mb-1.5" style={{ color: T.inkSoft }}>Tags rápidas</span>
+              <div className="flex flex-wrap gap-1.5">
+                {TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleAddTag(tag)}
+                    className="px-2 py-0.5 rounded-md text-[11px] font-medium transition-all hover:opacity-80 border"
+                    style={{ backgroundColor: T.bg, borderColor: T.border, color: T.brand }}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit button */}
+            <PrimaryButton
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 py-2.5"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Salvando reflexão...</span>
+                </>
+              ) : (
+                <>
+                  <BookHeart className="w-4 h-4" />
+                  <span>Salvar no Diário de Bordo</span>
+                </>
+              )}
+            </PrimaryButton>
+          </Card>
+        </div>
+
+        {/* Linha do Tempo e Histórico (7 cols) */}
+        <div className="lg:col-span-7 space-y-4">
+          <Card className="p-5">
+            {/* Header + Search */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-base font-bold" style={{ color: T.ink }}>Histórico & Linha do Tempo</h2>
+                <p className="text-xs" style={{ color: T.inkSoft }}>Suas anotações pessoais guardadas em ordem cronológica</p>
+              </div>
+              <div className="relative w-full sm:w-56">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: T.inkSoft }} />
+                <input
+                  type="text"
+                  placeholder="Buscar no diário..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs outline-none border"
+                  style={{ backgroundColor: T.bg, borderColor: T.border, color: T.ink }}
+                />
+              </div>
+            </div>
+
+            {/* Mood filter pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 text-xs">
+              <button
+                type="button"
+                onClick={() => { sfx.pop(); setSelectedMoodFilter("all"); }}
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition-all border"
+                style={{
+                  backgroundColor: selectedMoodFilter === "all" ? T.brand + '22' : T.bg,
+                  borderColor: selectedMoodFilter === "all" ? T.brand : T.border,
+                  color: selectedMoodFilter === "all" ? T.brand : T.inkSoft,
+                }}
+              >
+                Todos ({diarioNotes.length})
+              </button>
+              {MOODS.map((m) => {
+                const count = diarioNotes.filter((n) => n.moodId.toLowerCase() === m.id.toLowerCase()).length;
+                const isSelected = selectedMoodFilter.toLowerCase() === m.id.toLowerCase();
+                const IconCmp = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { sfx.pop(); setSelectedMoodFilter(m.id); }}
+                    className="px-2.5 py-1 rounded-lg text-xs font-medium shrink-0 transition-all border flex items-center gap-1"
+                    style={{
+                      backgroundColor: isSelected ? m.bg : T.bg,
+                      borderColor: isSelected ? m.color : T.border,
+                      color: isSelected ? m.color : T.inkSoft,
+                    }}
+                  >
+                    <IconCmp className="w-3.5 h-3.5" style={{ color: m.color }} />
+                    <span>{m.label} ({count})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Entries list */}
+            {filteredNotes.length === 0 ? (
+              <div className="text-center py-12 px-4 rounded-xl border border-dashed" style={{ borderColor: T.border }}>
+                <BookHeart className="w-10 h-10 mx-auto mb-3 opacity-40" style={{ color: T.brand }} />
+                <h3 className="text-sm font-semibold mb-1" style={{ color: T.ink }}>
+                  {searchQuery || selectedMoodFilter !== "all" ? "Nenhuma reflexão encontrada com estes filtros." : "Nenhuma reflexão registrada ainda."}
+                </h3>
+                <p className="text-xs max-w-sm mx-auto" style={{ color: T.inkSoft }}>
+                  {searchQuery || selectedMoodFilter !== "all"
+                    ? "Tente buscar por outro termo ou selecione 'Todos' para ver o histórico completo."
+                    : "Faça seu primeiro check-in mental preenchendo o formulário ao lado!"}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredNotes.map((entry) => {
+                  const MoodIcon = entry.moodMeta.icon;
+                  const isDeleting = deleteConfirmId === entry.id;
+                  const isCopied = copiedId === entry.id;
+
+                  return (
+                    <div
+                      key={entry.id}
+                      className="p-4 rounded-xl border transition-all"
+                      style={{
+                        backgroundColor: T.bg,
+                        borderColor: T.border,
+                      }}
+                    >
+                      {/* Entry Header */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border"
+                            style={{
+                              backgroundColor: entry.moodMeta.bg,
+                              borderColor: entry.moodMeta.border,
+                              color: entry.moodMeta.color,
+                            }}
+                          >
+                            <MoodIcon className="w-3.5 h-3.5" />
+                            <span>{entry.moodMeta.label}</span>
+                          </span>
+                          <span className="text-xs font-medium" style={{ color: T.inkSoft }}>
+                            {formatDiarioDate(entry.created_at)}
+                          </span>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(entry)}
+                            className="p-1.5 rounded-lg text-xs transition-colors hover:opacity-80"
+                            style={{ color: isCopied ? '#10b981' : T.inkSoft }}
+                            title="Copiar texto"
+                          >
+                            {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          </button>
+
+                          {isDeleting ? (
+                            <div className="flex items-center gap-1 bg-red-500/10 p-1 rounded-lg border border-red-500/30">
+                              <span className="text-[10px] text-red-400 font-bold px-1">Excluir?</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(entry.id)}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500 text-white hover:bg-red-600"
+                              >
+                                Sim
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-200 hover:bg-slate-600"
+                              >
+                                Não
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirmId(entry.id)}
+                              className="p-1.5 rounded-lg text-xs transition-colors hover:text-red-500"
+                              style={{ color: T.inkSoft }}
+                              title="Excluir reflexão"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Entry Body */}
+                      <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed" style={{ color: T.ink }}>
+                        {entry.content}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -5731,7 +6368,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><BookHeart size={20} className="inline mr-2 -mt-1" /> Diário de Bordo e Humor</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Card na aba Hoje para registrar seu humor e pensamentos diários.</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba exclusiva e card rápido no Hoje para registrar seu humor e reflexões diárias.</div>
               </div>
               <input type='checkbox' checked={safeConfig.enableJournal} onChange={() => handleToggle('enableJournal')} className='w-6 h-6 accent-blue-500' />
             </label>
@@ -6006,11 +6643,14 @@ export function GlobalSearchModal({ onClose, commitments, notes, materials, setT
             {resNotes.length > 0 && (
               <div>
                 <div className="text-xs font-bold px-3 py-1 uppercase" style={{ color: T.brand }}>Anotações</div>
-                {resNotes.map(n => (
-                  <button key={n.id} onClick={() => { setTab("biblioteca"); onClose(); }} className="w-full text-left px-3 py-2 rounded-xl hover:opacity-80 transition-all flex items-center justify-between" style={{ backgroundColor: T.surfaceAlt }}>
-                    <span style={{ color: T.ink }} className="font-medium truncate">{n.disciplina} - {n.texto.slice(0, 40)}...</span>
-                  </button>
-                ))}
+                {resNotes.map(n => {
+                  const isDiario = (n.disciplina || "").toLowerCase().includes("diário") || (n.disciplina || "").toLowerCase().includes("diario");
+                  return (
+                    <button key={n.id} onClick={() => { setTab(isDiario ? "diario" : "biblioteca"); onClose(); }} className="w-full text-left px-3 py-2 rounded-xl hover:opacity-80 transition-all flex items-center justify-between" style={{ backgroundColor: T.surfaceAlt }}>
+                      <span style={{ color: T.ink }} className="font-medium truncate">{n.disciplina} - {n.texto.slice(0, 40)}...</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
             {resMaterials.length > 0 && (

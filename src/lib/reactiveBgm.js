@@ -35,6 +35,22 @@ const TAB_SOUNDSCAPES = {
     pulseSpeed: 1.2,
     binauralDiff: 7.5, // 7.5 Hz Theta wave binaural beat
   },
+  diario: {
+    name: "Reflexão Íntima",
+    subtitle: "Paz Mental e Acolhimento",
+    root: 174.61, // F3
+    // Fmaj7 -> Cmaj7 -> Dm7 -> Bbmaj7
+    chords: [
+      [174.61, 220.00, 261.63, 329.63], // F3, A3, C4, E4
+      [130.81, 164.81, 196.00, 246.94], // C3, E3, G3, B3
+      [146.83, 174.61, 220.00, 261.63], // D3, F3, A3, C4
+      [116.54, 174.61, 233.08, 293.66], // Bb2, F3, Bb3, D4
+    ],
+    cutoff: 400,
+    tempoSec: 9.0,
+    pulseSpeed: 0,
+    binauralDiff: 0,
+  },
   agenda: {
     name: "Fluxo Tranquilo",
     subtitle: "Organização e Equilíbrio",

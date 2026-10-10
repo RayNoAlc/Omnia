@@ -6,7 +6,7 @@ import { supabase } from "./lib/supabaseClient";
 import Auth from "./components/Auth";
 import {
   Header, TabNav, HojeTab, InboxTab, AgendaTab, DesempenhoTab,
-  BibliotecaTab, FocoTab, SecretariaTab, RotinaTab, ConfigTab,
+  BibliotecaTab, FocoTab, DiarioTab, SecretariaTab, RotinaTab, ConfigTab,
   GlobalSearchModal,
 } from "./components/Tabs";
 import confetti from "canvas-confetti";
@@ -464,7 +464,11 @@ function AppInner() {
   const avisos = computeAvisos({ hoje, horaAtual: new Date().getHours(), commitments, studyBlocks, metaHoje, minutosEstudadosHoje });
 
     
-  const visibleTabs = TABS.filter(t => t.id !== "desempenho" || config?.enableGamification);
+  const visibleTabs = TABS.filter(t => {
+    if (t.id === "desempenho") return config?.enableGamification;
+    if (t.id === "diario") return config?.enableJournal !== false;
+    return true;
+  });
     return (
     <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()} isZen={isZen}>
       {!dataLoaded ? (
@@ -474,7 +478,7 @@ function AppInner() {
       ) : (
         <>
           {tab === "hoje" && (
-            <HojeTab overdue={overdue} blocksHoje={blocksHoje} commitmentsHoje={commitmentsHoje} routineItemsHoje={routineItemsHoje} proximos={proximos} overload={overloadWindow} onToggleBlock={handleToggleBlock} onGoInbox={() => setTab("inbox")} onGoAgenda={() => setTab("agenda")} routine={routine} metaHoje={metaHoje} onSetMeta={handleSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} avisos={avisos} config={config} updateConfig={updateConfig} notes={visibleNotes} onSaveNote={saveAsNote} />
+            <HojeTab overdue={overdue} blocksHoje={blocksHoje} commitmentsHoje={commitmentsHoje} routineItemsHoje={routineItemsHoje} proximos={proximos} overload={overloadWindow} onToggleBlock={handleToggleBlock} onGoInbox={() => setTab("inbox")} onGoAgenda={() => setTab("agenda")} onGoDiario={() => setTab("diario")} routine={routine} metaHoje={metaHoje} onSetMeta={handleSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} avisos={avisos} config={config} updateConfig={updateConfig} notes={visibleNotes} onSaveNote={saveAsNote} />
           )}
           {tab === "inbox" && (
             <InboxTab userId={userId} initialInboxText={initialInboxText} setInitialInboxText={setInitialInboxText} onSubmit={handleInboxSubmit} loading={inboxLoading} error={inboxError}
@@ -508,6 +512,9 @@ function AppInner() {
               quizAttempts={quizAttempts} professorAttempts={professorAttempts}
               setNotes={setNotes} setMaterials={setMaterials} setSummaries={setSummaries}
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
+          )}
+          {tab === "diario" && (
+            <DiarioTab userId={userId} notes={notes} onSaveNote={saveAsNote} onDeleteNote={handleDeleteNote} config={config} updateConfig={updateConfig} />
           )}
           {tab === "secretaria" && (
             <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} commitments={visibleCommitments} studyBlocks={studyBlocks} notes={visibleNotes} sessions={sessions} setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} config={config} updateConfig={updateConfig} />
