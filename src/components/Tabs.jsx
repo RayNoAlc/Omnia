@@ -22,7 +22,7 @@ import {
 } from "./ui";
 import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre } from "../lib/utils";
 import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
-import { callVision, callAudioTranscription, callAIWithTools } from "../lib/ai";
+import { callVision, callAudioTranscription, callAIWithTools, callAI } from "../lib/ai";
 import { runQATour } from "../lib/qaTour";
 import { ROUTINE_TOOLS, executeRoutineTool } from "../lib/routineTools";
 import { PRESETS } from "../lib/useFocusTimer";
@@ -541,7 +541,7 @@ export function InboxTab({ userId, onSubmit, loading, error, pendingReview, setP
     try {
       let extracted = "";
       if (tipoArquivo === "pdf") {
-        const { extractPdfText } = await import("../lib/pdf");
+        
         extracted = await extractPdfText(file);
         if (!extracted.trim()) {
           throw new Error("Não achei texto nesse PDF (pode ser um PDF escaneado como imagem — tente enviar como Foto).");
@@ -1943,7 +1943,7 @@ function CompromissoWorkspaceContent({
     try {
       let extracted = "";
       if (tipoArquivo === "pdf") {
-        const { extractPdfText } = await import("../lib/pdf");
+        
         extracted = await extractPdfText(file);
         if (!extracted.trim()) throw new Error("Não achei texto nesse PDF (tente enviar como Foto se for escaneado).");
       } else if (tipoArquivo === "imagem") {
@@ -2280,7 +2280,7 @@ function ExportarBiblioteca({ userId, commitments, notes, materials, summaries, 
         escopo === "tudo" ? true : escopo === "disciplina" ? s.disciplina === valor : s.commitmentId ? idsCommitments.has(s.commitmentId) : false
       );
 
-      const { default: JSZip } = await import("jszip");
+      
       const zip = new JSZip();
 
       zip.file(
@@ -3912,7 +3912,7 @@ function QAAutomatedSystem({ userId }) {
     try {
       addLog("Testando Supabase CRUD...", "info");
       const tempId = "qa-" + Math.random().toString(36).substr(2, 5);
-      const { addCommitment, deleteCommitment } = await import("../lib/db.js");
+      
       const c = await addCommitment(userId, { tipo: 'outro', disciplina: 'QA_TEST', assunto: 'Teste Automatizado', prazo: '2099-12-31', concluido: false });
       if (!c || !c.id) throw new Error("Falha ao inserir compromisso.");
       await deleteCommitment(c.id);
@@ -3922,7 +3922,7 @@ function QAAutomatedSystem({ userId }) {
     // 3. AI Connection Test
     try {
       addLog("Testando conexão Groq (callAI)...", "info");
-      const { callAI } = await import("../lib/ai.js");
+      
       const res = await callAI("Responda apenas 'OK'", "Teste de QA", { json: false });
       if (!res.includes("OK")) throw new Error("Resposta da IA inesperada: " + res);
       addLog("Conexão Groq OK.", "success");
@@ -3931,7 +3931,7 @@ function QAAutomatedSystem({ userId }) {
     // 4. Supabase Realtime
     try {
       addLog("Testando Supabase Realtime WebSockets...", "info");
-      const { supabase } = await import("../lib/supabaseClient.js");
+      
       const channel = supabase.channel('qa_test_channel');
       await new Promise((resolve, reject) => {
         channel.subscribe(async (status) => {
