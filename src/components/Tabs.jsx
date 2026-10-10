@@ -3126,24 +3126,28 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
 
   let currentSrc = sleepSrc;
   let status = "Dormindo...";
-  let isFocusing = false;
+  let animClass = "animate-pet-breathe";
 
   if (timerOn) {
     currentSrc = focusSrc;
     status = "Focando!";
-    isFocusing = true;
+    animClass = "animate-pet-focus";
   } else if (config?.vacationMode) {
     currentSrc = sleepSrc;
     status = "De férias";
+    animClass = "animate-pet-breathe";
   } else if (streak > 5) {
     currentSrc = happySrc;
     status = "Mestre da Rotina";
+    animClass = "animate-pet-cool";
   } else if (streak > 0) {
     currentSrc = happySrc;
     status = "Animado";
+    animClass = "animate-pet-cool";
   } else {
     currentSrc = sleepSrc;
     status = "Esperando você estudar...";
+    animClass = "animate-pet-breathe";
   }
 
   return (
@@ -3256,7 +3260,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
           key={currentSrc}
           src={currentSrc}
           alt={status}
-          className={`w-20 h-20 object-contain select-none filter drop-shadow-md transition-all duration-300 ${isFocusing ? 'animate-pulse' : ''}`}
+          className={`w-20 h-20 object-contain select-none filter drop-shadow-md ${animClass}`}
           style={{ imageRendering: 'pixelated' }}
         />
       </div>

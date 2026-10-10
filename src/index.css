@@ -6,28 +6,55 @@ body {
   margin: 0;
 }
 @keyframes pet-breathe {
-  0%, 100% { transform: scaleY(1) translateY(0); }
-  50% { transform: scaleY(0.95) scaleX(1.02) translateY(2px); }
+  0%, 100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  50% {
+    transform: translateY(2.5px) scale(1.04, 0.94);
+  }
 }
 .animate-pet-breathe {
-  animation: pet-breathe 4s ease-in-out infinite;
+  animation: pet-breathe 3.5s ease-in-out infinite;
+  transform-origin: bottom center;
+  will-change: transform;
 }
 
 @keyframes pet-focus {
-  0%, 100% { transform: scale(1) translateY(0); }
-  25% { transform: scale(1.05, 0.95) translateY(2px); }
-  50% { transform: scale(0.95, 1.05) translateY(-4px); }
-  75% { transform: scale(1.02, 0.98) translateY(1px); }
+  0%, 100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  25% {
+    transform: translateY(-4px) scale(0.97, 1.03);
+  }
+  50% {
+    transform: translateY(1.5px) scale(1.02, 0.98);
+  }
+  75% {
+    transform: translateY(-2px) scale(0.99, 1.01);
+  }
 }
 .animate-pet-focus {
   animation: pet-focus 2s ease-in-out infinite;
+  transform-origin: bottom center;
+  will-change: transform;
 }
 
 @keyframes pet-cool {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  25% { transform: translateY(-3px) rotate(-3deg); }
-  75% { transform: translateY(-3px) rotate(3deg); }
+  0%, 100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translateY(-5px) rotate(-4deg) scale(1.04);
+  }
+  50% {
+    transform: translateY(0) rotate(0deg) scale(1);
+  }
+  75% {
+    transform: translateY(-5px) rotate(4deg) scale(1.04);
+  }
 }
 .animate-pet-cool {
-  animation: pet-cool 3s ease-in-out infinite;
+  animation: pet-cool 2.5s ease-in-out infinite;
+  transform-origin: bottom center;
+  will-change: transform;
 }
