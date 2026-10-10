@@ -2,6 +2,7 @@ import React from 'react';
 import localforage from 'localforage';
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
+import { T, TABS } from "./components/ui";
 import { supabase } from "./lib/supabaseClient";
 import Auth from "./components/Auth";
 import {
