@@ -12,7 +12,7 @@ function getCustomApiKey() {
 async function invokeAiProxy(body) {
   const customKey = getCustomApiKey();
   if (!customKey || customKey.trim() === '') {
-    throw new Error("⚠️ IA Desativada: Nenhuma chave de API configurada! Por favor, vá até a aba Configurações e cadastre sua chave da Groq para utilizar a IA.");
+    throw new Error("IA Desativada: Nenhuma chave de API configurada. Por favor, vá até a aba Configurações e cadastre sua chave da Groq para utilizar a IA.");
   }
   body.customApiKey = customKey;
 

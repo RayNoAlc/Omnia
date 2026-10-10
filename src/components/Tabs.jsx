@@ -7,7 +7,10 @@ import {
   Plus, Trash2, Clock, Sparkles, GraduationCap, RefreshCw,
   AlertTriangle, Info, LogOut, FileText, Image as ImageIcon, Mic, Paperclip, Download,
   Moon, SlidersHorizontal, Pencil, Target, CalendarDays, Headphones,
-  Settings, Palette, Wind, Heart
+  Settings, Palette, Wind, Heart,
+  Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
+  Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
+  Laugh, Footprints, Zap, Glasses
 } from 'lucide-react';
 
 import jsPDF from 'jspdf';
@@ -159,16 +162,23 @@ const getRoutineIcon = (type) => {
 
   function DailyHabits({ T }) {
     const today = todayISO();
+    const HABIT_ICONS = {
+      agua: Droplets,
+      exercicio: Activity,
+      leitura: BookOpen,
+      luz: Sun
+    };
+
     const [habits, setHabits] = useState(() => {
       try {
         const saved = localStorage.getItem("omnia_habits_" + today);
         if (saved) return JSON.parse(saved);
       } catch(e) {}
       return [
-        { id: "agua", label: "Beber Água (2L)", icon: "💧", done: false },
-        { id: "exercicio", label: "Atividade Física", icon: "🏃", done: false },
-        { id: "leitura", label: "Leitura Lazer", icon: "📚", done: false },
-        { id: "luz", label: "Luz do Sol (15m)", icon: "☀️", done: false }
+        { id: "agua", label: "Beber Água (2L)", done: false },
+        { id: "exercicio", label: "Atividade Física", done: false },
+        { id: "leitura", label: "Leitura Lazer", done: false },
+        { id: "luz", label: "Luz do Sol (15m)", done: false }
       ];
     });
 
@@ -189,21 +199,24 @@ const getRoutineIcon = (type) => {
       <Card style={{ marginTop: '1rem' }}>
         <div className="flex items-center justify-between mb-3">
           <div className="font-bold flex items-center gap-2" style={{ color: T.ink }}>
-            <span>🌱</span> Rastreador de Hábitos
+            <Sprout className="w-4 h-4 text-emerald-500" /> Rastreador de Hábitos
           </div>
           <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: T.brand + '22', color: T.brand }}>
             {progress}%
           </span>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {habits.map(h => (
-            <button key={h.id} onClick={() => toggleHabit(h.id)} className="flex items-center gap-2 p-2 rounded-xl text-left transition-all border" style={{ backgroundColor: h.done ? T.brand + '11' : T.surfaceAlt, borderColor: h.done ? T.brand : T.border }}>
-              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border" style={{ backgroundColor: h.done ? T.brand : 'transparent', borderColor: h.done ? T.brand : T.border }}>
-                {h.done && <Check className="w-3 h-3 text-white" />}
-              </div>
-              <span className="text-xs font-medium truncate" style={{ color: h.done ? T.ink : T.inkSoft, textDecoration: h.done ? "line-through" : "none" }}>{h.icon} {h.label}</span>
-            </button>
-          ))}
+          {habits.map(h => {
+            const IconCmp = HABIT_ICONS[h.id] || Check;
+            return (
+              <button key={h.id} onClick={() => toggleHabit(h.id)} className="flex items-center gap-2 p-2 rounded-xl text-left transition-all border" style={{ backgroundColor: h.done ? T.brand + '11' : T.surfaceAlt, borderColor: h.done ? T.brand : T.border }}>
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border" style={{ backgroundColor: h.done ? T.brand : 'transparent', borderColor: h.done ? T.brand : T.border }}>
+                  {h.done ? <Check className="w-3 h-3 text-white" /> : <IconCmp className="w-3 h-3" style={{ color: T.inkSoft }} />}
+                </div>
+                <span className="text-xs font-medium truncate" style={{ color: h.done ? T.ink : T.inkSoft, textDecoration: h.done ? "line-through" : "none" }}>{h.label}</span>
+              </button>
+            );
+          })}
         </div>
       </Card>
     );
@@ -213,7 +226,15 @@ const getRoutineIcon = (type) => {
 function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudadosHoje, config }) {
   const isVacation = config?.vacationMode;
   if (isVacation) {
-    return <Card style={{ borderColor: T.brand, backgroundColor: T.brand + '22' }}><div className='flex flex-col items-center justify-center p-4 text-center'><h3 className='font-bold text-lg mb-2' style={{ color: T.brand }}>🌴 Modo Férias Ativado</h3><p className='text-sm' style={{ color: T.inkSoft }}>Seus streaks estão congelados. Sem metas de estudo para hoje. Descanse!</p></div></Card>;
+    return (
+      <Card style={{ borderColor: T.brand, backgroundColor: T.brand + '22' }}>
+        <div className='flex flex-col items-center justify-center p-4 text-center'>
+          <Palmtree className="w-6 h-6 mb-2" style={{ color: T.brand }} />
+          <h3 className='font-bold text-lg mb-2' style={{ color: T.brand }}>Modo Férias Ativado</h3>
+          <p className='text-sm' style={{ color: T.inkSoft }}>Seus streaks estão congelados. Sem metas de estudo para hoje. Descanse!</p>
+        </div>
+      </Card>
+    );
   }
 
   const [editing, setEditing] = useState(false);
@@ -470,12 +491,32 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
               </div>
               <p className="text-sm mb-4" style={{ color: T.inkSoft }}>Como você está se sentindo hoje? Faça um rápido check-in mental.</p>
               
-              <div className="flex gap-2 mb-4">
-                {['🤩', '😊', '😐', '😩', '💀'].map(em => (
-                  <button key={em} onClick={() => setMood(em)} className="text-2xl p-2 rounded-full transition-transform hover:scale-110" style={{ backgroundColor: mood === em ? T.brand + '40' : 'transparent', border: mood === em ? `1px solid ${T.brand}` : '1px solid transparent' }}>
-                    {em}
-                  </button>
-                ))}
+              <div className="flex gap-2 mb-4 flex-wrap">
+                {[
+                  { id: "Excelente", label: "Excelente", icon: Laugh, color: "#10b981" },
+                  { id: "Bem", label: "Bem", icon: Smile, color: "#3b82f6" },
+                  { id: "Neutro", label: "Neutro", icon: Meh, color: "#94a3b8" },
+                  { id: "Cansado", label: "Cansado", icon: Frown, color: "#f59e0b" },
+                  { id: "Exausto", label: "Exausto", icon: Skull, color: "#ef4444" }
+                ].map(m => {
+                  const IconCmp = m.icon;
+                  const isSelected = mood === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setMood(m.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
+                      style={{
+                        backgroundColor: isSelected ? T.brand + '22' : T.bg,
+                        borderColor: isSelected ? T.brand : T.border,
+                        color: isSelected ? T.ink : T.inkSoft
+                      }}
+                    >
+                      <IconCmp className="w-4 h-4" style={{ color: isSelected ? T.brand : m.color }} />
+                      <span>{m.label}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               <textarea
@@ -859,8 +900,9 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
                       <span className="text-[10px] font-bold uppercase mb-1" style={{ color: T.importante }}>Vence hoje</span>
                       {dayComms.length === 0 && <span className="text-[10px] opacity-40" style={{ color: T.inkSoft }}>Nada</span>}
                       {dayComms.map(c => (
-                        <div key={c.id} className="p-1 rounded cursor-pointer truncate" style={{ backgroundColor: T.importante + '22', color: T.importante }} onClick={() => setOpenCommitment(c)}>
-                          🔥 {c.assunto}
+                        <div key={c.id} className="p-1 rounded cursor-pointer truncate flex items-center gap-1" style={{ backgroundColor: T.importante + '22', color: T.importante }} onClick={() => setOpenCommitment(c)}>
+                          <Flame className="w-3 h-3 inline text-amber-500 shrink-0" />
+                          <span className="truncate">{c.assunto}</span>
                         </div>
                       ))}
                     </div>
@@ -1008,9 +1050,9 @@ function Badges({ sessions }) {
   const badges = [];
   if (sessions.some(s => { const d = new Date(s.date); return d.getDay() === 0; })) badges.push({ ic: <Skull size={24} />, n: "Sobrevivente", d: "Estudou num Domingo" });
   if (sessions.some(s => { const h = parseInt((s.date || "T00:00:00").slice(11,13)); return h >= 4 && h <= 6; })) badges.push({ ic: <Sunrise size={24} />, n: "Madrugador", d: "Estudou antes das 7h" });
-  if (sessions.some(s => s.minutos >= 120)) badges.push({ ic: "🏃", n: "Maratonista", d: "Sessão de +2h" });
+  if (sessions.some(s => s.minutos >= 120)) badges.push({ ic: <Activity size={24} />, n: "Maratonista", d: "Sessão de +2h" });
   if (sessions.length >= 10) badges.push({ ic: <Medal size={24} />, n: "Iniciante", d: "10 sessões" });
-  if (sessions.length >= 50) badges.push({ ic: "🥈", n: "Veterano", d: "50 sessões" });
+  if (sessions.length >= 50) badges.push({ ic: <Award size={24} />, n: "Veterano", d: "50 sessões" });
   if (sessions.length >= 100) badges.push({ ic: <Crown size={24} />, n: "Lenda", d: "100 sessões" });
 
   return (
@@ -1093,14 +1135,14 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts, notes, commitme
   const streak = parseInt(localStorage.getItem("omnia_streak_days") || "0");
 
     const conquistas = [
-      { nome: "Primeiro Passo", desc: "Começou a focar", icone: "🎉", earned: sessions.length > 0 },
-      { nome: "Caminhante", desc: "Completou 5 sessões", icone: "🚶", earned: sessions.length >= 5 },
-      { nome: "Mestre do Foco", desc: "Completou 50 sessões", icone: "🧠", earned: sessions.length >= 50 },
-      { nome: "On Fire!", desc: "Streak de 3 dias", icone: "🔥", earned: streak >= 3 },
-      { nome: "Imbatível", desc: "Streak de 7 dias", icone: "🏆", earned: streak >= 7 },
-      { nome: "Sabe Tudo", desc: "Gabaritou um Quiz", icone: "💯", earned: quizAttempts.some(q => q.acertos === q.total && q.total > 0) },
-      { nome: "Aprovado", desc: "Tirou 10 com o Professor", icone: "🎓", earned: professorAttempts.some(p => p.nota === 10) },
-      { nome: "Organizado", desc: "Enviou 10 materiais", icone: "📚", earned: notes.length + commitments.length > 10 }
+      { nome: "Primeiro Passo", desc: "Começou a focar", icone: "sparkles", earned: sessions.length > 0 },
+      { nome: "Caminhante", desc: "Completou 5 sessões", icone: "footprints", earned: sessions.length >= 5 },
+      { nome: "Mestre do Foco", desc: "Completou 50 sessões", icone: "brain", earned: sessions.length >= 50 },
+      { nome: "On Fire!", desc: "Streak de 3 dias", icone: "flame", earned: streak >= 3 },
+      { nome: "Imbatível", desc: "Streak de 7 dias", icone: "trophy", earned: streak >= 7 },
+      { nome: "Sabe Tudo", desc: "Gabaritou um Quiz", icone: "award", earned: quizAttempts.some(q => q.acertos === q.total && q.total > 0) },
+      { nome: "Aprovado", desc: "Tirou 10 com o Professor", icone: "graduation", earned: professorAttempts.some(p => p.nota === 10) },
+      { nome: "Organizado", desc: "Enviou 10 materiais", icone: "book", earned: notes.length + commitments.length > 10 }
     ];
 
 
@@ -1783,7 +1825,9 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
                       }, ms);
                       alert(`Metrônomo iniciado a ${bpm} BPM! Leia uma linha por bipe. Feche a aba ou clique de novo para parar.`);
                     }
-                  }}>▶️ Tocar / Parar</GhostButton>
+                  }}>
+                    <Volume2 className="w-3.5 h-3.5 inline mr-1" /> Tocar / Parar
+                  </GhostButton>
                 </div>
 
                 <textarea value={resumoDraft} onChange={(e) => { setResumoDraft(e.target.value); setResumoSalvo(false); }} rows={8} className="w-full rounded-md p-3 text-sm" style={inputStyle} />
@@ -1792,10 +1836,12 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
                   {salvandoResumo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
                 </PrimaryButton>
                 <GhostButton onClick={() => setPanel(null)}>Fechar</GhostButton>
-                  <button onClick={downloadPdf} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105 ml-auto" style={{ color: T.brand, border: `1px solid ${T.brand}` }} title="Exportar para PDF"><Download className="w-4 h-4 inline" /> Baixar PDF</button>
-                  <button onClick={downloadPdf} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105 ml-auto" style={{ color: T.brand, border: `1px solid ${T.brand}` }} title="Exportar para PDF"><Download className="w-4 h-4 inline" /> Baixar PDF</button>
-                  <button onClick={() => saveResumo(true)} disabled={salvandoResumo} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105" style={{ color: T.brand, border: `1px solid ${T.brand}` }}>⏳ Salvar e Agendar Revisões (1, 3, 7 d)</button>
-                  <button onClick={() => saveResumo(true)} disabled={salvandoResumo} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105" style={{ color: T.brand, border: `1px solid ${T.brand}` }}>⏳ Salvar e Agendar Revisões (1, 3, 7 d)</button>
+                <button onClick={downloadPdf} className="text-xs px-2 py-1 rounded transition-transform hover:scale-105 ml-auto flex items-center gap-1" style={{ color: T.brand, border: `1px solid ${T.brand}` }} title="Exportar para PDF">
+                  <Download className="w-3.5 h-3.5" /> Baixar PDF
+                </button>
+                <button onClick={() => saveResumo(true)} disabled={salvandoResumo} className="text-xs px-2.5 py-1 rounded transition-transform hover:scale-105 flex items-center gap-1" style={{ color: T.brand, border: `1px solid ${T.brand}` }}>
+                  <CalendarClock className="w-3.5 h-3.5" /> Salvar e Agendar Revisões (1, 3, 7 d)
+                </button>
                 {resumoSalvo && <span className="text-xs" style={{ color: T.brand }}>Salvo âœ“</span>}
                 {erroSalvarResumo && <span className="text-xs" style={{ color: T.critico }}>Erro: {erroSalvarResumo}</span>}
               </div>
@@ -2149,7 +2195,9 @@ function CompromissoWorkspaceContent({
                       }, ms);
                       alert(`Metrônomo iniciado a ${bpm} BPM! Leia uma linha por bipe. Feche a aba ou clique de novo para parar.`);
                     }
-                  }}>▶️ Tocar / Parar</GhostButton>
+                  }}>
+                    <Volume2 className="w-3.5 h-3.5 inline mr-1" /> Tocar / Parar
+                  </GhostButton>
                 </div>
 
                   <textarea value={resumoDraft} onChange={(e) => { setResumoDraft(e.target.value); setResumoSalvo(false); }} rows={7} className="w-full rounded-md p-3 text-sm" style={inputStyle} />
@@ -2617,19 +2665,19 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   const [showStore, setShowStore] = useState(false);
 
   const HATS = [
-    { id: 'none', icon: '', price: 0, name: 'Sem Chapéu' },
-    { id: 'cap', icon: '🧢', price: 100, name: 'Boné' },
-    { id: 'crown', icon: '👑', price: 500, name: 'Coroa' },
-    { id: 'grad', icon: '🎓', price: 300, name: 'Formatura' },
-    { id: 'tophat', icon: '🎩', price: 200, name: 'Cartola' },
-    { id: 'cowboy', icon: '🤠', price: 250, name: 'Cowboy' },
-    { id: 'party', icon: '🥳', price: 50, name: 'Festa' },
+    { id: 'none', icon: null, price: 0, name: 'Sem Acessório' },
+    { id: 'crown', icon: <Crown size={22} className="text-yellow-400" />, price: 500, name: 'Coroa' },
+    { id: 'grad', icon: <GraduationCap size={22} className="text-blue-400" />, price: 300, name: 'Formatura' },
+    { id: 'glasses', icon: <Glasses size={22} className="text-slate-300" />, price: 150, name: 'Óculos de Foco' },
+    { id: 'award', icon: <Award size={22} className="text-amber-400" />, price: 200, name: 'Medalha' },
+    { id: 'zap', icon: <Zap size={22} className="text-yellow-400" />, price: 250, name: 'Raio de Foco' },
+    { id: 'party', icon: <Sparkles size={22} className="text-pink-400" />, price: 100, name: 'Brilho Festivo' },
   ];
 
   const coins = config?.coins || 0;
   const ownedHats = config?.ownedHats || ['none'];
   const currentHatId = config?.petHat || 'none';
-  const currentHat = HATS.find(h => h.id === currentHatId)?.icon || '';
+  const currentHat = HATS.find(h => h.id === currentHatId)?.icon || null;
 
   const buyHat = (hat) => {
     if (ownedHats.includes(hat.id)) {
@@ -2664,8 +2712,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   let position = "0%";
   let status = "Dormindo...";
   if (timerOn) { position = "50%"; status = "Focando!"; }
-  else if (config?.vacationMode) { position = "0%"; status = "De férias 🌴"; }
-  else if (config?.vacationMode) { position = "0%"; status = "De Férias 🌴"; }
+  else if (config?.vacationMode) { position = "0%"; status = "De férias"; }
   else if (streak > 5) { position = "100%"; status = "Mestre da Rotina"; }
   else if (streak > 0) { position = "100%"; status = "Animado"; }
   else { position = "0%"; status = "Esperando você estudar..."; }
@@ -2676,7 +2723,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         <div className="absolute bottom-full mb-4 bg-white dark:bg-gray-800 border p-4 rounded-xl shadow-xl w-64 z-50">
           <div className="flex justify-between items-center mb-2">
             <h4 className="font-bold text-sm">Loja da Coruja</h4>
-            <div className="text-sm font-mono text-yellow-500 font-bold">🪙 {coins}</div>
+            <div className="text-sm font-mono text-yellow-500 font-bold flex items-center gap-1"><Coins size={14} /> {coins}</div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {HATS.map(hat => {
@@ -2684,8 +2731,8 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
               const selected = currentHatId === hat.id;
               return (
                 <button key={hat.id} onClick={() => buyHat(hat)} className={`p-2 text-center rounded border transition-all ${selected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
-                  <div className="text-2xl mb-1">{hat.icon || <img src="/owl_happy.png" className="w-6 h-6 mx-auto object-contain" style={{ imageRendering: 'pixelated' }} alt="Padrão" />}</div>
-                  <div className="text-[10px] truncate">{owned ? 'Usar' : `🪙 ${hat.price}`}</div>
+                  <div className="text-2xl mb-1 flex items-center justify-center h-8">{hat.icon || <img src="/owl_happy.png" className="w-6 h-6 mx-auto object-contain" style={{ imageRendering: 'pixelated' }} alt="Padrão" />}</div>
+                  <div className="text-[10px] truncate flex items-center justify-center gap-0.5">{owned ? 'Usar' : <><Coins size={10} /> {hat.price}</>}</div>
                 </button>
               );
             })}
@@ -2703,9 +2750,9 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
 
       <div className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }} onClick={() => setShowStore(!showStore)}>
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
-          <span className="text-white text-xs font-bold">🪙 Loja</span>
+          <span className="text-white text-xs font-bold flex items-center gap-1"><ShoppingBag size={12} /> Loja</span>
         </div>
-        {currentHat && <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 text-4xl z-10 select-none pointer-events-none drop-shadow-md">{currentHat}</div>}
+        {currentHat && <div className="absolute top-1 left-1/2 -translate-x-1/2 text-2xl z-10 select-none pointer-events-none drop-shadow-md">{currentHat}</div>}
         <div className="flex w-[300%] h-full transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${position})` }}>
           <div className="w-1/3 h-full flex items-center justify-center p-1">
             <img src="/owl_sleep.png" alt="Coruja descansando" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
@@ -2966,16 +3013,20 @@ export function FocoTab(props) {
                   <div className="text-xs uppercase font-bold opacity-50 mb-1" style={{ color: T.ink }}>Sons de Foco</div>
                   <div className="flex flex-wrap justify-center gap-2 mb-4">
                     {[
-                      { id: null, label: "Silêncio", icon: "🔇" },
-                      { id: "https://stream.zeno.fm/f3wvbbqmdg8uv", label: "Lo-Fi", icon: "🎧" },
-                      { id: "https://cdn.freesound.org/previews/189/189043_1955047-lq.mp3", label: "Chuva", icon: "🌧️" },
-                      { id: "https://cdn.freesound.org/previews/208/208579_3735166-lq.mp3", label: "Café", icon: "☕" },
-                      { id: "https://cdn.freesound.org/previews/209/209590_3905081-lq.mp3", label: "Fogueira", icon: "🔥" }
-                    ].map(s => (
-                      <button key={s.label} onClick={() => setLofiSrc(s.id)} className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all ${lofiSrc === s.id ? "shadow-md scale-105" : "opacity-60 hover:opacity-100"}`} style={{ backgroundColor: lofiSrc === s.id ? T.brand : T.surfaceAlt, color: lofiSrc === s.id ? T.brandInk : T.ink }}>
-                        {s.icon} {s.label}
-                      </button>
-                    ))}
+                      { id: null, label: "Silêncio", icon: VolumeX },
+                      { id: "https://stream.zeno.fm/f3wvbbqmdg8uv", label: "Lo-Fi", icon: Headphones },
+                      { id: "https://cdn.freesound.org/previews/189/189043_1955047-lq.mp3", label: "Chuva", icon: CloudRain },
+                      { id: "https://cdn.freesound.org/previews/208/208579_3735166-lq.mp3", label: "Café", icon: Coffee },
+                      { id: "https://cdn.freesound.org/previews/209/209590_3905081-lq.mp3", label: "Fogueira", icon: Flame }
+                    ].map(s => {
+                      const IconCmp = s.icon;
+                      return (
+                        <button key={s.label} onClick={() => setLofiSrc(s.id)} className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all flex items-center gap-1.5 ${lofiSrc === s.id ? "shadow-md scale-105" : "opacity-60 hover:opacity-100"}`} style={{ backgroundColor: lofiSrc === s.id ? T.brand : T.surfaceAlt, color: lofiSrc === s.id ? T.brandInk : T.ink }}>
+                          <IconCmp className="w-3.5 h-3.5" />
+                          <span>{s.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 
                 {/* Spotify Integrado (Idea 15) */}
@@ -3029,7 +3080,10 @@ export function FocoTab(props) {
               {metaHoje && (
                 <div className="flex justify-between">
                   <span style={{ color: T.inkSoft }}><Target size={14} className="inline mr-1 -mt-0.5" /> Meta</span>
-                  <span style={{ color: totalHoje >= metaHoje ? T.brand : T.ink }}>{totalHoje}/{metaHoje} min {totalHoje >= metaHoje ? "✅" : ""}</span>
+                  <span className="flex items-center gap-1" style={{ color: totalHoje >= metaHoje ? T.brand : T.ink }}>
+                    {totalHoje}/{metaHoje} min
+                    {totalHoje >= metaHoje && <CheckCircle2 size={13} className="text-emerald-400" />}
+                  </span>
                 </div>
               )}
             </div>
@@ -3568,7 +3622,8 @@ function CompromissoRotinaModal({ block, defaultDia, onSave, onDelete, onClose }
     const templates = [
       {
         id: "enem",
-        name: "📚 Vestibulando ENEM (Forte)",
+        name: "Vestibulando ENEM (Forte)",
+        icon: GraduationCap,
         desc: "Foco intenso de manhã e tarde. Simulados no fim de semana.",
         blocks: [
           { id: "1", diaSemana: "Seg", horaInicio: "08:00", horaFim: "12:00", tipo: "estudo", titulo: "Matemática" },
@@ -3581,7 +3636,8 @@ function CompromissoRotinaModal({ block, defaultDia, onSave, onDelete, onClose }
       },
       {
         id: "trabalho",
-        name: "💼 Trabalho + Estudo Noturno",
+        name: "Trabalho + Estudo Noturno",
+        icon: Briefcase,
         desc: "Trabalho durante o dia, estudos concentrados à noite.",
         blocks: [
           { id: "1", diaSemana: "Seg", horaInicio: "19:30", horaFim: "22:30", tipo: "estudo", titulo: "Revisão Diária" },
@@ -3598,7 +3654,8 @@ function CompromissoRotinaModal({ block, defaultDia, onSave, onDelete, onClose }
       },
       {
         id: "concurso",
-        name: "⚖️ Concurseiro Policial",
+        name: "Concurseiro Policial",
+        icon: Target,
         desc: "Direito, Português, RLM e treino físico (TAF) intercalado.",
         blocks: [
           { id: "1", diaSemana: "Seg", horaInicio: "08:00", horaFim: "11:00", tipo: "estudo", titulo: "Direito Penal" },
@@ -3634,7 +3691,10 @@ function CompromissoRotinaModal({ block, defaultDia, onSave, onDelete, onClose }
                   }
                 }
               }} className="p-4 rounded-xl text-left transition-all hover:scale-[1.02] border" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-                <div className="font-bold text-lg mb-1" style={{ color: T.ink }}>{t.name}</div>
+                <div className="font-bold text-lg mb-1 flex items-center gap-2" style={{ color: T.ink }}>
+                  {t.icon && <t.icon className="w-5 h-5 text-blue-400" />}
+                  <span>{t.name}</span>
+                </div>
                 <div className="text-sm" style={{ color: T.inkSoft }}>{t.desc}</div>
               </button>
             ))}
@@ -4290,7 +4350,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
             
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.brand + '22' }}>
               <div>
-                <div className='font-bold' style={{ color: T.ink }}>🌴 Modo Férias (Burnout)</div>
+                <div className='font-bold' style={{ color: T.ink }}><Palmtree size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Modo Férias (Burnout)</div>
                 <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Pausa streaks e zera metas para você descansar sem culpa.</div>
               </div>
               <input type='checkbox' checked={safeConfig.vacationMode} onChange={() => handleToggle('vacationMode')} className='w-6 h-6 accent-blue-500' />

@@ -1,4 +1,4 @@
-﻿export async function runQATour() {
+export async function runQATour() {
   const wait = (ms) => new Promise(res => setTimeout(res, ms));
 
   // Função helper para criar um "cursor" fantasma que voa pela tela
@@ -48,7 +48,7 @@
 
   const notify = (msg) => {
     const d = document.createElement("div");
-    d.textContent = "🤖 QA Test: " + msg;
+    d.textContent = "[QA Test] " + msg;
     d.style.position = "fixed";
     d.style.top = "20px";
     d.style.left = "50%";
@@ -120,7 +120,7 @@
   await wait(2000);
   await moveAndClick("text=Omnia Dark", "Voltou Tema Original");
 
-  notify("✅ Testes Visuais Concluídos com Sucesso!");
+  notify("Testes Visuais Concluídos com Sucesso!");
   await wait(1500);
   cursor.remove();
 }
