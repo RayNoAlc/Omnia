@@ -433,7 +433,7 @@ function AppInner() {
           )}
           {tab === "desempenho" && (
             <DesempenhoTab commitments={visibleCommitments} sessions={sessions}
-              quizAttempts={quizAttempts} professorAttempts={professorAttempts} />
+              quizAttempts={quizAttempts} professorAttempts={professorAttempts} config={config} notes={visibleNotes} />
           )}
           {tab === "biblioteca" && (
             <BibliotecaTab userId={userId} setCommitments={setCommitments} onDeleteCommitment={handleDeleteCommitment} notes={visibleNotes} commitments={visibleCommitments} materials={materials}
