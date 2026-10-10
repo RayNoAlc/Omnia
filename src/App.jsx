@@ -52,16 +52,24 @@ export default function App() {
 
 function AppInner() {
   const [session, setSession] = useState(undefined);
-  const [config, setConfig] = useState({ enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true });
+  const [config, setConfig] = useState({ enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, coins: 350 });
   useEffect(() => {
     applyTheme(localStorage.getItem("omnia-theme") || "dark");
     const savedCfg = localStorage.getItem("omnia_config");
     if (savedCfg) {
-      const parsed = JSON.parse(savedCfg);
-      if (parsed) {
-        setConfig(parsed);
-        if (parsed.fontFamily) applyFont(parsed.fontFamily);
-      }
+      try {
+        const parsed = JSON.parse(savedCfg);
+        if (parsed) {
+          if (typeof parsed.coins !== "number" || parsed.coins < 50) {
+            parsed.coins = 350;
+            localStorage.setItem("omnia_config", JSON.stringify(parsed));
+          }
+          setConfig(parsed);
+          if (parsed.fontFamily) applyFont(parsed.fontFamily);
+        }
+      } catch {}
+    } else {
+      localStorage.setItem("omnia_config", JSON.stringify({ enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, coins: 350 }));
     }
     const handleStorage = (e) => {
       if (!e || e.key === "omnia_config" || e.type === "storage") {

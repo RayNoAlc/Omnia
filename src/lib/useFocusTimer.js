@@ -204,6 +204,20 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
       setInterruptions(0);
       setCiclosConsecutivos((n) => n + 1);
       setUltimaSessao({ disciplina: disciplinaSessao, minutos: minutosSessao });
+
+      // Recompensa de Moedas de Estudo por foco concluído
+      try {
+        const rawCfg = localStorage.getItem("omnia_config");
+        const cfg = rawCfg ? JSON.parse(rawCfg) : {};
+        const coinsEarned = 25;
+        const currentCoins = typeof cfg.coins === "number" ? cfg.coins : 350;
+        cfg.coins = currentCoins + coinsEarned;
+        localStorage.setItem("omnia_config", JSON.stringify(cfg));
+        window.dispatchEvent(new Event("storage"));
+      } catch (err) {
+        console.warn("Erro ao creditar moedas:", err);
+      }
+
       setPhase("rest");
       setEndsAt(Date.now() + restSeconds * 1000);
       setRemaining(restSeconds);

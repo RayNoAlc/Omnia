@@ -1547,11 +1547,11 @@ export function getPetSprite(petId = 'none', state = 'happy') {
 
 export const STUDY_PETS = [
   { id: 'none', name: 'Coruja Omnia', desc: 'Guardiã clássica da rotina e sabedoria acadêmica', title: 'Mestre da Rotina', price: 0, preview: '/owl_happy.png' },
-  { id: 'gato', name: 'Gato Mochi', desc: 'Companheiro zen, aconchegante e leitor voraz', title: 'Guardião da Calma', price: 120, preview: '/pet_gato_happy.png' },
-  { id: 'shiba', name: 'Shiba Bento', desc: 'Leal, animado e sempre pronto para mais um pomodoro', title: 'Foco e Lealdade', price: 200, preview: '/pet_shiba_happy.png' },
-  { id: 'panda', name: 'Panda Bamboo', desc: 'Serenidade pura e foco sem pressa nem ansiedade', title: 'Mestre da Serenidade', price: 320, preview: '/pet_panda_happy.png' },
-  { id: 'raposa', name: 'Raposa Kitsune', desc: 'Astuta, veloz nas matérias difíceis e curiosa', title: 'Sábia e Astuta', price: 450, preview: '/pet_raposa_happy.png' },
-  { id: 'coelho', name: 'Coelho Pipoca', desc: 'Ágil nos prazos, focado e cheio de energia para revisar', title: 'Veloz nos Prazos', price: 550, preview: '/pet_coelho_happy.png' },
+  { id: 'gato', name: 'Gato Mochi', desc: 'Companheiro zen, aconchegante e leitor voraz', title: 'Guardião da Calma', price: 60, preview: '/pet_gato_happy.png' },
+  { id: 'shiba', name: 'Shiba Bento', desc: 'Leal, animado e sempre pronto para mais um pomodoro', title: 'Foco e Lealdade', price: 90, preview: '/pet_shiba_happy.png' },
+  { id: 'panda', name: 'Panda Bamboo', desc: 'Serenidade pura e foco sem pressa nem ansiedade', title: 'Mestre da Serenidade', price: 120, preview: '/pet_panda_happy.png' },
+  { id: 'raposa', name: 'Raposa Kitsune', desc: 'Astuta, veloz nas matérias difíceis e curiosa', title: 'Sábia e Astuta', price: 150, preview: '/pet_raposa_happy.png' },
+  { id: 'coelho', name: 'Coelho Pipoca', desc: 'Ágil nos prazos, focado e cheio de energia para revisar', title: 'Veloz nos Prazos', price: 180, preview: '/pet_coelho_happy.png' },
 ];
 
 export const OWL_SKINS = STUDY_PETS;
@@ -3690,12 +3690,74 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
 function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig, phase, remaining }) {
   const [editing, setEditing] = useState(false);
   const [showStore, setShowStore] = useState(false);
-  const coins = config?.coins || 0;
-  const rawOwned = config?.ownedSkins || [];
-  const ownedSkins = ['none', ...rawOwned.filter(id => STUDY_PETS.some(s => s.id === id && s.id !== 'none'))];
-  const currentSkinId = STUDY_PETS.some(s => s.id === config?.petSkin) ? config.petSkin : 'none';
-  const activePet = STUDY_PETS.find(s => s.id === currentSkinId) || STUDY_PETS[0];
+  const [feedback, setFeedback] = useState(null);
 
+  // Estado local sincronizado imediatamente para responsividade sem engasgos
+  const [localOwned, setLocalOwned] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      const list = saved.ownedSkins || config?.ownedSkins || [];
+      return Array.from(new Set(['none', ...list.filter(id => STUDY_PETS.some(s => s.id === id && s.id !== 'none'))]));
+    } catch {
+      return ['none', ...(config?.ownedSkins || [])];
+    }
+  });
+
+  const [localSkinId, setLocalSkinId] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      const sid = saved.petSkin || saved.equippedSkin || config?.petSkin || config?.equippedSkin || 'none';
+      return STUDY_PETS.some(s => s.id === sid) ? sid : 'none';
+    } catch {
+      return config?.petSkin || 'none';
+    }
+  });
+
+  const [localCoins, setLocalCoins] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      if (typeof saved.coins === 'number' && saved.coins > 0) return saved.coins;
+      if (typeof config?.coins === 'number' && config.coins > 0) return config.coins;
+      return 350; // Moedas de boas-vindas
+    } catch {
+      return 350;
+    }
+  });
+
+  // Manter em sincronia se a prop config mudar
+  useEffect(() => {
+    if (config?.ownedSkins && Array.isArray(config.ownedSkins)) {
+      setLocalOwned(prev => Array.from(new Set([...prev, ...config.ownedSkins.filter(id => STUDY_PETS.some(s => s.id === id))])));
+    }
+    if (config?.petSkin && STUDY_PETS.some(s => s.id === config.petSkin)) {
+      setLocalSkinId(config.petSkin);
+    }
+    if (typeof config?.coins === 'number') {
+      setLocalCoins(config.coins);
+    }
+  }, [config?.ownedSkins, config?.petSkin, config?.coins]);
+
+  // Escuta eventos de storage locais (ex: foco concluído ou outra aba)
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+        if (saved.ownedSkins && Array.isArray(saved.ownedSkins)) {
+          setLocalOwned(prev => Array.from(new Set([...prev, ...saved.ownedSkins.filter(id => STUDY_PETS.some(s => s.id === id))])));
+        }
+        if (saved.petSkin && STUDY_PETS.some(s => s.id === saved.petSkin)) {
+          setLocalSkinId(saved.petSkin);
+        }
+        if (typeof saved.coins === 'number') {
+          setLocalCoins(saved.coins);
+        }
+      } catch {}
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  const activePet = STUDY_PETS.find(s => s.id === localSkinId) || STUDY_PETS[0];
   const [tempName, setTempName] = useState(petName || activePet.name);
 
   useEffect(() => {
@@ -3703,46 +3765,97 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
       setTempName(activePet.name);
       if (onNameChange) onNameChange(activePet.name);
     }
-  }, [currentSkinId]);
+  }, [localSkinId]);
+
+  const claimBonus = (e) => {
+    if (e) e.stopPropagation();
+    sfx.coin?.();
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 45, spread: 55, origin: { y: 0.6 } });
+    }
+    const newCoins = localCoins + 100;
+    setLocalCoins(newCoins);
+    setFeedback("🪙 +100 moedas de estudo resgatadas com sucesso!");
+    setTimeout(() => setFeedback(null), 3500);
+
+    const nextConfig = { ...config, coins: newCoins };
+    try {
+      const fresh = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      localStorage.setItem("omnia_config", JSON.stringify({ ...fresh, ...nextConfig }));
+      window.dispatchEvent(new Event("storage"));
+    } catch {}
+    if (updateConfig) updateConfig(nextConfig);
+  };
 
   const buySkin = (pet) => {
-    if (ownedSkins.includes(pet.id)) {
+    const isOwned = localOwned.includes(pet.id);
+    const shouldChangeName = !petName || STUDY_PETS.some(p => p.name === petName);
+    const targetName = shouldChangeName ? pet.name : petName;
+
+    if (isOwned) {
       sfx.pop();
-      const shouldChangeName = !petName || STUDY_PETS.some(p => p.name === petName);
-      updateConfig({
-        ...config,
-        petSkin: pet.id,
-        petHat: pet.id,
-        equippedSkin: pet.id,
-        petName: shouldChangeName ? pet.name : petName,
-      });
+      setLocalSkinId(pet.id);
       if (shouldChangeName) {
         setTempName(pet.name);
         if (onNameChange) onNameChange(pet.name);
       }
-    } else if (coins >= pet.price) {
-      if (confirm(`Desbloquear o mascote ${pet.name} por ${pet.price} moedas de estudo?`)) {
-        sfx.coin();
-        if (window.confetti) {
-          window.confetti({ particleCount: 60, spread: 60, origin: { y: 0.6 } });
-        }
-        const shouldChangeName = !petName || STUDY_PETS.some(p => p.name === petName);
-        updateConfig({
-          ...config,
-          coins: coins - pet.price,
-          ownedSkins: Array.from(new Set([...ownedSkins, pet.id])),
-          petSkin: pet.id,
-          petHat: pet.id,
-          equippedSkin: pet.id,
-          petName: shouldChangeName ? pet.name : petName,
-        });
-        if (shouldChangeName) {
-          setTempName(pet.name);
-          if (onNameChange) onNameChange(pet.name);
-        }
+      setFeedback(`✨ ${pet.name} equipado com sucesso!`);
+      setTimeout(() => setFeedback(null), 2500);
+
+      const nextConfig = {
+        ...config,
+        petSkin: pet.id,
+        petHat: pet.id,
+        equippedSkin: pet.id,
+        petName: targetName,
+      };
+      try {
+        const fresh = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+        localStorage.setItem("omnia_config", JSON.stringify({ ...fresh, ...nextConfig }));
+        window.dispatchEvent(new Event("storage"));
+      } catch {}
+      if (updateConfig) updateConfig(nextConfig);
+      return;
+    }
+
+    if (localCoins >= pet.price) {
+      sfx.coin();
+      if (typeof confetti === 'function') {
+        confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
       }
+      const newCoins = Math.max(0, localCoins - pet.price);
+      const newOwned = Array.from(new Set([...localOwned, pet.id]));
+
+      setLocalCoins(newCoins);
+      setLocalOwned(newOwned);
+      setLocalSkinId(pet.id);
+      if (shouldChangeName) {
+        setTempName(pet.name);
+        if (onNameChange) onNameChange(pet.name);
+      }
+      setFeedback(`🎉 ${pet.name} desbloqueado e equipado!`);
+      setTimeout(() => setFeedback(null), 3500);
+
+      const nextConfig = {
+        ...config,
+        coins: newCoins,
+        ownedSkins: newOwned,
+        petSkin: pet.id,
+        petHat: pet.id,
+        equippedSkin: pet.id,
+        petName: targetName,
+      };
+      try {
+        const fresh = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+        localStorage.setItem("omnia_config", JSON.stringify({ ...fresh, ...nextConfig }));
+        window.dispatchEvent(new Event("storage"));
+      } catch {}
+      if (updateConfig) updateConfig(nextConfig);
     } else {
-      alert("Você não tem moedas suficientes! Complete blocos de foco para acumular moedas de estudo.");
+      sfx.bump?.() || sfx.click?.();
+      const faltam = pet.price - localCoins;
+      setFeedback(`Faltam ${faltam} moedas para desbloquear ${pet.name}. Clique em +100 Moedas acima ou conclua um foco!`);
+      setTimeout(() => setFeedback(null), 4000);
     }
   };
 
@@ -3764,9 +3877,9 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
     return () => clearInterval(interval);
   }, [phase, config?.enableSincereOwl]);
 
-  const sleepSrc = getPetSprite(currentSkinId, 'sleep');
-  const focusSrc = getPetSprite(currentSkinId, 'focus');
-  const happySrc = getPetSprite(currentSkinId, 'happy');
+  const sleepSrc = getPetSprite(localSkinId, 'sleep');
+  const focusSrc = getPetSprite(localSkinId, 'focus');
+  const happySrc = getPetSprite(localSkinId, 'happy');
 
   let currentSrc = sleepSrc;
   let status = "Dormindo...";
@@ -3797,15 +3910,23 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   return (
     <div className="flex flex-col items-center gap-2 relative mt-4">
       {showStore && (
-        <div className="absolute bottom-full mb-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl w-84 max-w-[92vw] z-50">
-          <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100 dark:border-gray-700">
+        <div className="absolute bottom-full mb-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl w-88 max-w-[94vw] z-50">
+          <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-slate-100 dark:border-gray-700">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-amber-500" />
               <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Mascotes de Estudo</h4>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-amber-500 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
-                <Coins size={13} /> {coins}
+              <button
+                type="button"
+                onClick={claimBonus}
+                className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-700/60 transition-all hover:scale-105 active:scale-95"
+                title="Resgatar moedas de estudo bônus"
+              >
+                <Plus size={11} /> 100 Moedas
+              </button>
+              <span className="text-xs font-mono font-bold text-amber-500 flex items-center gap-1 bg-slate-100 dark:bg-gray-900 px-2 py-0.5 rounded-full border border-slate-200 dark:border-gray-700">
+                <Coins size={12} /> {localCoins}
               </span>
               <button onClick={() => setShowStore(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5" title="Fechar">
                 <X size={16} />
@@ -3813,10 +3934,16 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
             </div>
           </div>
 
+          {feedback && (
+            <div className="mb-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-medium text-center">
+              {feedback}
+            </div>
+          )}
+
           <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
             {STUDY_PETS.map((pet) => {
-              const owned = ownedSkins.includes(pet.id);
-              const selected = currentSkinId === pet.id;
+              const owned = localOwned.includes(pet.id);
+              const selected = localSkinId === pet.id;
               return (
                 <div
                   key={pet.id}
@@ -3854,6 +3981,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
                       </span>
                     ) : owned ? (
                       <button
+                        type="button"
                         onClick={() => buySkin(pet)}
                         className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors"
                       >
@@ -3861,12 +3989,14 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
                       </button>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => buySkin(pet)}
-                        className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-colors ${
-                          coins >= pet.price
-                            ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
-                            : 'bg-slate-200 dark:bg-gray-700 text-slate-400 dark:text-gray-500 cursor-not-allowed'
+                        className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+                          localCoins >= pet.price
+                            ? 'bg-amber-500 hover:bg-amber-600 active:scale-95 text-white shadow-sm cursor-pointer'
+                            : 'bg-amber-500/20 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-300/40 cursor-pointer hover:bg-amber-500/30'
                         }`}
+                        title={localCoins >= pet.price ? `Desbloquear ${pet.name}` : `Faltam ${pet.price - localCoins} moedas (clique para ver detalhes)`}
                       >
                         <Coins size={11} /> {pet.price}
                       </button>
@@ -3879,7 +4009,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
 
           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-gray-700 text-center">
             <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
-              <Sparkles size={11} /> Conclua blocos de foco para ganhar moedas de estudo
+              <Sparkles size={11} /> Conclua blocos de foco (+25 🪙) para acumular moedas de estudo
             </span>
           </div>
         </div>
