@@ -453,7 +453,7 @@ function AppInner() {
           {tab === "secretaria" && (
             <SecretariaTab userId={userId} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} commitments={visibleCommitments} studyBlocks={studyBlocks} notes={visibleNotes} sessions={sessions} setRoutineBlocks={setRoutineBlocks} setRoutineExceptions={setRoutineExceptions} config={config} />
           )}
-          {tab === "config" && <ConfigTab config={config} updateConfig={updateConfig} userId={userId} />}
+          {tab === "config" && <ConfigTab config={config} updateConfig={updateConfig} userId={userId} commitments={commitments} notes={notes} summaries={summaries} />}
             {tab === "rotina" && (
             <RotinaTab config={config} routine={routine} routineBlocks={routineBlocks} routineExceptions={routineExceptions} onUpdateRoutine={handleUpdateRoutine}
               onAddBlock={handleAddRoutineBlock} onUpdateBlock={handleUpdateRoutineBlock} onDeleteBlock={handleDeleteRoutineBlock}

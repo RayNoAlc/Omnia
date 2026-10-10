@@ -459,6 +459,45 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
           </Card>
         </div>
         
+        {/* Diário de Bordo (Idea 36 & 38) */}
+        {config?.enableJournal !== false && !hasJournalToday && (
+          <Card style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+            <div className="flex items-center gap-2 mb-3">
+              <BookHeart className="w-5 h-5" style={{ color: T.brand }} />
+              <h3 className="text-lg font-bold" style={{ color: T.ink }}>Diário de Bordo</h3>
+            </div>
+            <p className="text-sm mb-4" style={{ color: T.inkSoft }}>Como você está se sentindo hoje? Faça um rápido check-in mental.</p>
+            
+            <div className="flex gap-2 mb-4">
+              {['🤩', '😊', '😐', '😩', '💀'].map(em => (
+                <button key={em} onClick={() => setMood(em)} className="text-2xl p-2 rounded-full transition-transform hover:scale-110" style={{ backgroundColor: mood === em ? T.brand + '40' : 'transparent', border: mood === em ? `1px solid ${T.brand}` : '1px solid transparent' }}>
+                  {em}
+                </button>
+              ))}
+            </div>
+
+            <textarea
+              value={journalText} onChange={e => setJournalText(e.target.value)}
+              placeholder="Escreva sobre o seu dia, suas vitórias ou desabafos..."
+              className="w-full p-3 rounded-xl text-sm outline-none resize-none min-h-[100px] mb-3"
+              style={{ backgroundColor: T.bg, color: T.ink, border: `1px solid ${T.border}` }}
+            />
+            
+            <div className="flex justify-end">
+              <button onClick={handleSaveJournal} className="px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-80" style={{ backgroundColor: T.brand, color: T.bg }}>
+                Salvar no Diário
+              </button>
+            </div>
+          </Card>
+        )}
+        
+        {config?.enableJournal !== false && hasJournalToday && (
+          <div className="text-center p-4 rounded-xl text-sm" style={{ backgroundColor: T.surfaceAlt, color: T.inkSoft, border: `1px solid ${T.border}` }}>
+            <Smile className="w-5 h-5 mx-auto mb-2" style={{ color: T.brand }} />
+            Você já registrou seu diário hoje! Suas notas estão seguras na Biblioteca.
+          </div>
+        )}
+
       </div>
     </div>
   );
@@ -571,8 +610,6 @@ export function InboxTab({ userId, onSubmit, loading, error, pendingReview, setP
 
   return (
     <div className="space-y-4">
-      {showTemplates && <RoutineTemplatesModal onClose={() => setShowTemplates(false)} onAddBlock={onAddBlock} T={T} />}
-
       <Card>
         <SectionLabel>Central de entrada</SectionLabel>
         <textarea
@@ -737,46 +774,6 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
           );
         })}
       </div>
-
-        {/* Diário de Bordo (Idea 36 & 38) */}
-        {config?.enableJournal !== false && !hasJournalToday && (
-          <Card style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-            <div className="flex items-center gap-2 mb-3">
-              <BookHeart className="w-5 h-5" style={{ color: T.brand }} />
-              <h3 className="text-lg font-bold" style={{ color: T.ink }}>Diário de Bordo</h3>
-            </div>
-            <p className="text-sm mb-4" style={{ color: T.inkSoft }}>Como você está se sentindo hoje? Faça um rápido check-in mental.</p>
-            
-            <div className="flex gap-2 mb-4">
-              {['🤩', '😊', '😐', '😩', '💀'].map(em => (
-                <button key={em} onClick={() => setMood(em)} className="text-2xl p-2 rounded-full transition-transform hover:scale-110" style={{ backgroundColor: mood === em ? T.brand + '40' : 'transparent', border: mood === em ? `1px solid ${T.brand}` : '1px solid transparent' }}>
-                  {em}
-                </button>
-              ))}
-            </div>
-
-            <textarea
-              value={journalText} onChange={e => setJournalText(e.target.value)}
-              placeholder="Escreva sobre o seu dia, suas vitórias ou desabafos..."
-              className="w-full p-3 rounded-xl text-sm outline-none resize-none min-h-[100px] mb-3"
-              style={{ backgroundColor: T.bg, color: T.ink, border: `1px solid ${T.border}` }}
-            />
-            
-            <div className="flex justify-end">
-              <button onClick={handleSaveJournal} className="px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-80" style={{ backgroundColor: T.brand, color: T.bg }}>
-                Salvar no Diário
-              </button>
-            </div>
-          </Card>
-        )}
-        
-        {config?.enableJournal !== false && hasJournalToday && (
-          <div className="text-center p-4 rounded-xl text-sm" style={{ backgroundColor: T.surfaceAlt, color: T.inkSoft, border: `1px solid ${T.border}` }}>
-            <Smile className="w-5 h-5 mx-auto mb-2" style={{ color: T.brand }} />
-            Você já registrou seu diário hoje! Suas notas estão seguras na Biblioteca.
-          </div>
-        )}
-
     </div>
     );
   }
@@ -1063,7 +1060,7 @@ function OmniaWrapped({ sessions }) {
 }
 
 
-function Arquetipos({ sessions, quizAttempts, professorAttempts }) {
+function Arquetipos({ sessions, quizAttempts, professorAttempts, notes, commitments }) {
   const [selectedClass, setSelectedClass] = useState(localStorage.getItem('omnia_rpg_class') || null);
   
   const xpSessions = sessions.reduce((a, s) => a + s.minutos * 10, 0);
@@ -1090,6 +1087,7 @@ function Arquetipos({ sessions, quizAttempts, professorAttempts }) {
     const picoPeriodo = Object.keys(periodosMap).reduce((a, b) => periodosMap[a] > periodosMap[b] ? a : b);
 
   const level = Math.floor(totalXp / 1000) + 1;
+  const streak = parseInt(localStorage.getItem("omnia_streak_days") || "0");
 
     const conquistas = [
       { nome: "Primeiro Passo", desc: "Começou a focar", icone: "🎉", earned: sessions.length > 0 },
@@ -1258,7 +1256,7 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
 
       
         {/* GAMIFICATION MODULE */}
-        <Arquetipos sessions={sessions} quizAttempts={quizAttempts} professorAttempts={professorAttempts} />
+        <Arquetipos sessions={sessions} quizAttempts={quizAttempts} professorAttempts={professorAttempts} notes={notes} commitments={commitments} />
         <OmniaWrapped sessions={sessions} />
         <Badges sessions={sessions} />
         <Heatmap sessions={sessions} />
@@ -1597,7 +1595,7 @@ function QuizPanel({ disciplina, sourceTexts, userId, commitmentId, setQuizAttem
   );
 }
 
-function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDisc, onDeleteNote, onDeleteMaterial, onOpenCommitment, onDeleteCommitment, summaries, setSummaries, setQuizAttempts, setProfessorAttempts }) {
+function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDisc, onDeleteNote, onDeleteMaterial, onOpenCommitment, onDeleteCommitment, summaries, setSummaries, setQuizAttempts, setProfessorAttempts, setCommitments }) {
   const [panel, setPanel] = useState(null);
   const [resumoLoading, setResumoLoading] = useState(false);
   const [resumoDraft, setResumoDraft] = useState("");
@@ -1607,7 +1605,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
     try {
       const doc = new jsPDF();
       doc.setFontSize(16);
-      doc.text("Resumo: " + (disc || (commitment && commitment.assunto) || "Omnia"), 14, 22);
+      doc.text("Resumo: " + (disc || "Omnia"), 14, 22);
       doc.setFontSize(12);
       const lines = doc.splitTextToSize(resumoDraft, 180);
       let y = 32;
@@ -1619,7 +1617,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
         doc.text(line, 14, y);
         y += 7;
       });
-      doc.save(`Resumo_${disc || (commitment && commitment.assunto) || "Omnia"}.pdf`);
+      doc.save(`Resumo_${disc || "Omnia"}.pdf`);
     } catch(e) {
       alert("Erro ao exportar PDF.");
     }
@@ -1808,7 +1806,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
         )}
 
         {panel === "flashcards" && (
-          <FlashcardsPanel disciplina={commitment.disciplina} sourceTexts={sourceTexts} onClose={() => setPanel(null)} />
+          <FlashcardsPanel disciplina={disc} sourceTexts={sourceTexts} onClose={() => setPanel(null)} />
         )}
 
           {panel === "quiz" && (
@@ -1875,7 +1873,7 @@ function CompromissoWorkspaceContent({
     try {
       const doc = new jsPDF();
       doc.setFontSize(16);
-      doc.text("Resumo: " + (disc || (commitment && commitment.assunto) || "Omnia"), 14, 22);
+      doc.text("Resumo: " + ((commitment && commitment.disciplina) || (commitment && commitment.assunto) || "Omnia"), 14, 22);
       doc.setFontSize(12);
       const lines = doc.splitTextToSize(resumoDraft, 180);
       let y = 32;
@@ -1887,7 +1885,7 @@ function CompromissoWorkspaceContent({
         doc.text(line, 14, y);
         y += 7;
       });
-      doc.save(`Resumo_${disc || (commitment && commitment.assunto) || "Omnia"}.pdf`);
+      doc.save(`Resumo_${(commitment && commitment.disciplina) || (commitment && commitment.assunto) || "Omnia"}.pdf`);
     } catch(e) {
       alert("Erro ao exportar PDF.");
     }
@@ -2255,7 +2253,6 @@ function ExportarBiblioteca({ userId, commitments, notes, materials, summaries, 
   const [escopo, setEscopo] = useState("tudo");
   const [valor, setValor] = useState("");
   const [exporting, setExporting] = useState(false);
-  const [showTemplates, setShowTemplates] = useState(false);
   const [progresso, setProgresso] = useState("");
   const [erro, setErro] = useState(null);
   const inputStyle = { backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink };
@@ -2499,6 +2496,7 @@ function MapaMentalModal({ notes, commitments, onClose, T }) {
 
 export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, notes, commitments, materials, quizAttempts, professorAttempts, onDeleteNote, summaries, setSummaries, setNotes, setMaterials, setQuizAttempts, setProfessorAttempts }) {
   const [openCommitment, setOpenCommitment] = useState(null);
+  const [showMapa, setShowMapa] = useState(false);
 
   async function handleDeleteMaterialLib(m) {
     await deleteMaterial(m.id, m.storagePath);
@@ -2566,6 +2564,7 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
               key={disc}
               userId={userId}
               disc={disc}
+              setCommitments={setCommitments}
               notasDisc={notes.filter((n) => n.disciplina === disc && !n.commitmentId)}
               compromissosDisc={commitments.filter((c) => c.disciplina === disc)}
               materiaisDisc={materials.filter((m) => m.disciplina === disc && !m.commitmentId)}
@@ -2738,6 +2737,7 @@ export function FocoTab(props) {
   const { config, updateConfig } = props;
   const { commitments, sessions, metaHoje, timer, userId, notes, materials, summaries, quizAttempts, professorAttempts, setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts } = props;
   const [lofiSrc, setLofiSrc] = useState(null);
+  const [lofiOn, setLofiOn] = useState(false);
 
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
@@ -3452,7 +3452,7 @@ function CompromissoRotinaModal({ block, defaultDia, onSave, onDelete, onClose }
 }
 
 
-  function RoutineTemplatesModal({ onClose, setRoutineBlocks, T }) {
+  function RoutineTemplatesModal({ onClose, onAddBlock, T }) {
     const templates = [
       {
         id: "enem",
@@ -3538,6 +3538,7 @@ function CompromissoRotinaModal({ block, defaultDia, onSave, onDelete, onClose }
 
 export function RotinaTab({ config, routine, routineBlocks, routineExceptions, onUpdateRoutine, onAddBlock, onUpdateBlock, onDeleteBlock, onDeleteException }) {
 const [exporting, setExporting] = useState(false);
+const [showTemplates, setShowTemplates] = useState(false);
 const gridRef = useRef(null);
   const exportarCalendario = () => {
     const byDayMap = { Seg: 'MO', Ter: 'TU', Qua: 'WE', Qui: 'TH', Sex: 'FR', Sab: 'SA', Dom: 'SU' };
@@ -3746,6 +3747,7 @@ const exportarGrade = () => {
   
   return (
     <div className="space-y-4">
+      {showTemplates && <RoutineTemplatesModal onClose={() => setShowTemplates(false)} onAddBlock={onAddBlock} T={T} />}
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <div className="flex items-center justify-between mb-1">
@@ -4010,7 +4012,7 @@ export function ConfigTab(props) {
   return React.createElement(ConfigErrorBoundary, null, React.createElement(ConfigTabInner, props));
 }
 
-function ConfigTabInner({ config = {}, updateConfig, userId }) {
+function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes, summaries }) {
   const [devClicks, setDevClicks] = useState(0);
   const isDev = devClicks >= 5;
   const safeConfig = { enableAnalytics: true, enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, ...(config || {}) };

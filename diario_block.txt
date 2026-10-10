@@ -1,0 +1,738 @@
+
+import {
+  Network, ShieldAlert, Layers, Archive, Lock, Volume2, Square, BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
+  Gamepad2, Calendar, Key, Flame, TrendingUp,
+  CheckCircle, Globe, Wrench, Bird, Crown, Skull, Sunrise, Activity, Medal, Pin
+} from 'lucide-react';
+
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as ics from 'ics';
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import {
+  Send, Play, Pause, RotateCcw, Check, X, Loader2, AlertCircle,
+  Plus, Trash2, Clock, Sparkles, GraduationCap, RefreshCw,
+  AlertTriangle, Info, LogOut, FileText, Image as ImageIcon, Mic, Paperclip, Download,
+  Moon, SlidersHorizontal, Pencil, Target, CalendarDays, Headphones,
+  Settings, Palette,
+} from "lucide-react";
+import {
+  T, TINT, THEMES, applyTheme, TIPO_LABELS, PRIORIDADE_META, PERIODO_LABELS, TABS,
+  PriorityDot, TypeTag, Card, SectionLabel, EmptyState, PrimaryButton, GhostButton,
+} from "./ui";
+import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre } from "../lib/utils";
+import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
+import { callVision, callAudioTranscription, callAIWithTools } from "../lib/ai";
+import { runQATour } from "../lib/qaTour";
+import { ROUTINE_TOOLS, executeRoutineTool } from "../lib/routineTools";
+import { PRESETS } from "../lib/useFocusTimer";
+const ChatMarkdown = lazy(() => import("./ChatMarkdown").then((m) => ({ default: m.ChatMarkdown })));
+import {
+  addQuizAttempt, addProfessorAttempt,
+  upsertSummary, addSession as dbAddSession, addCommitment,
+  uploadMaterialFile, addMaterial, getMaterialSignedUrl, deleteMaterial,
+  addNote, deleteNote,
+} from "../lib/db";
+
+const MAX_FILE_MB = 8;
+
+const TIPO_ARQUIVO_META = {
+  pdf: { label: "PDF", icon: FileText },
+  imagem: { label: "Foto", icon: ImageIcon },
+  audio: { label: "Áudio", icon: Mic },
+};
+
+/* ---------------------------------------------------------------------- */
+/* Header + navegação                                                      */
+/* ---------------------------------------------------------------------- */
+
+
+export function AudioReaderButton({ text, T }) {
+  const [playing, setPlaying] = React.useState(false);
+  const synth = window.speechSynthesis;
+  
+  const toggle = (e) => {
+    e.stopPropagation();
+    if (playing) {
+      synth.cancel();
+      setPlaying(false);
+    } else {
+      synth.cancel(); // clear previous
+      // text can be very long or have markdown, just stripping basic markdown chars
+      const cleanText = (text||"").replace(/[#*_~>]/g, "");
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'pt-BR';
+      utterance.onend = () => setPlaying(false);
+      synth.speak(utterance);
+      setPlaying(true);
+    }
+  };
+  React.useEffect(() => {
+    return () => { if(playing) synth.cancel(); }
+  }, [playing]);
+
+  return (
+    <button onClick={toggle} title="Ouvir em Áudio" style={{ color: playing ? T.brand : T.inkSoft }} className="hover:opacity-70 transition-opacity ml-2">
+      {playing ? <Square className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+    </button>
+  );
+}
+
+export function formatTextWithTags(text, T) {
+  if (!text) return null;
+  const parts = text.split(/(#\w+)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('#')) {
+      return <span key={i} className="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold mx-1" style={{ backgroundColor: T.brand + '33', color: T.brand }}>{part}</span>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+export function Header({ onLogout }) {
+  return (
+    <div className="mb-5 flex items-start justify-between">
+        <div className="flex items-center gap-5">
+          <img src="/omnia.png" alt="Omnia" className="h-24 w-56 object-contain scale-110 drop-shadow-xl" style={{ filter: "brightness(1.5)" }} />
+          <div>
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-lg font-semibold tracking-tight" style={{ color: T.ink }}>Painel de Controle</h2>
+            <span className="text-[10px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ color: T.brand, border: `1px solid ${T.brand}` }}>
+              beta
+            </span>
+          </div>
+          <p className="text-sm mt-0.5" style={{ color: T.inkSoft }}>Jogue a bagunça aqui. A organização é comigo.</p>
+        </div>
+      </div>
+      <button onClick={onLogout} className="flex items-center gap-1 text-xs mt-1" style={{ color: T.inkSoft }}>
+        <LogOut className="w-3.5 h-3.5" /> Sair
+      </button>
+    </div>
+  );
+}
+
+export function TabNav({ tab, setTab }) {
+  return (
+    <nav className="flex md:justify-center gap-1 overflow-x-auto mb-6 pb-1 -mx-1 px-1 custom-scrollbar" style={{ borderBottom: `1px solid ${T.border}` }}>
+      {TABS.map((t) => {
+        const Icon = t.icon;
+        const active = tab === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className="flex items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm font-medium rounded-t-md transition-colors"
+            style={{ color: active ? T.brand : T.inkSoft, borderBottom: active ? `2px solid ${T.brand}` : "2px solid transparent" }}
+          >
+            <Icon className="w-4 h-4" />
+            {t.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Aba: Hoje                                                                */
+/* ---------------------------------------------------------------------- */
+const getRoutineIcon = (type) => {
+  const props = { size: 20, strokeWidth: 1.5, className: "opacity-80" };
+  switch(type) {
+    case "sono": return <Moon {...props} />;
+    case "aula": return <BookOpen {...props} />;
+    case "trabalho": return <Briefcase {...props} />;
+    case "estudo": return <Book {...props} />;
+    case "academia": return <Dumbbell {...props} />;
+    case "refeicao": return <Utensils {...props} />;
+    case "livre": return <Leaf {...props} />;
+    case "lazer": return <Headphones {...props} />;
+    case "esporte": return <Activity {...props} />;
+    case "pessoal": return <Globe {...props} />;
+    case "consulta": return <Target {...props} />;
+    case "evento": return <Sparkles {...props} />;
+    default: return <Pin {...props} />;
+  }
+};
+
+
+  function DailyHabits({ T }) {
+    const today = todayISO();
+    const [habits, setHabits] = useState(() => {
+      try {
+        const saved = localStorage.getItem("omnia_habits_" + today);
+        if (saved) return JSON.parse(saved);
+      } catch(e) {}
+      return [
+        { id: "agua", label: "Beber Água (2L)", icon: "💧", done: false },
+        { id: "exercicio", label: "Atividade Física", icon: "🏃", done: false },
+        { id: "leitura", label: "Leitura Lazer", icon: "📚", done: false },
+        { id: "luz", label: "Luz do Sol (15m)", icon: "☀️", done: false }
+      ];
+    });
+
+    useEffect(() => {
+      localStorage.setItem("omnia_habits_" + today, JSON.stringify(habits));
+    }, [habits, today]);
+
+    const toggleHabit = (id) => {
+      setHabits(prev => prev.map(h => h.id === id ? { ...h, done: !h.done } : h));
+      if (!habits.find(h => h.id === id).done && window.confetti) {
+        window.confetti({ particleCount: 30, spread: 50, origin: { y: 0.8 } });
+      }
+    };
+
+    const progress = Math.round((habits.filter(h => h.done).length / habits.length) * 100);
+
+    return (
+      <Card style={{ marginTop: '1rem' }}>
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-bold flex items-center gap-2" style={{ color: T.ink }}>
+            <span>🌱</span> Rastreador de Hábitos
+          </div>
+          <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ backgroundColor: T.brand + '22', color: T.brand }}>
+            {progress}%
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {habits.map(h => (
+            <button key={h.id} onClick={() => toggleHabit(h.id)} className="flex items-center gap-2 p-2 rounded-xl text-left transition-all border" style={{ backgroundColor: h.done ? T.brand + '11' : T.surfaceAlt, borderColor: h.done ? T.brand : T.border }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border" style={{ backgroundColor: h.done ? T.brand : 'transparent', borderColor: h.done ? T.brand : T.border }}>
+                {h.done && <Check className="w-3 h-3 text-white" />}
+              </div>
+              <span className="text-xs font-medium truncate" style={{ color: h.done ? T.ink : T.inkSoft, textDecoration: h.done ? "line-through" : "none" }}>{h.icon} {h.label}</span>
+            </button>
+          ))}
+        </div>
+      </Card>
+    );
+  }
+
+
+function MetaHojeCard({ blocksHoje, routine, metaHoje, onSetMeta, minutosEstudadosHoje, config }) {
+  const isVacation = config?.vacationMode;
+  if (isVacation) {
+    return <Card style={{ borderColor: T.brand, backgroundColor: T.brand + '22' }}><div className='flex flex-col items-center justify-center p-4 text-center'><h3 className='font-bold text-lg mb-2' style={{ color: T.brand }}>🌴 Modo Férias Ativado</h3><p className='text-sm' style={{ color: T.inkSoft }}>Seus streaks estão congelados. Sem metas de estudo para hoje. Descanse!</p></div></Card>;
+  }
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(metaHoje ? metaHoje / 60 : 2);
+  const plano = planoRecomendadoHoje(blocksHoje, routine);
+  const pct = metaHoje ? Math.min(100, Math.round((minutosEstudadosHoje / metaHoje) * 100)) : null;
+
+  async function salvar() {
+    await onSetMeta(Math.max(15, Math.round(draft * 60)));
+    setEditing(false);
+  }
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: T.inkSoft }}><Target className="w-3.5 h-3.5" /> Meta de hoje</div>
+        <button onClick={() => setEditing((e) => !e)} style={{ color: T.brand }}><Pencil className="w-3.5 h-3.5" /></button>
+      </div>
+
+      {editing ? (
+        <div className="flex items-center gap-2 mb-1">
+          <input type="number" min={0.25} step={0.25} value={draft} onChange={(e) => setDraft(Number(e.target.value) || 0)} className="w-20 rounded-md p-2 text-sm" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink }} />
+          <span className="text-sm" style={{ color: T.inkSoft }}>horas</span>
+          <PrimaryButton onClick={salvar}><Check className="w-4 h-4" /></PrimaryButton>
+        </div>
+      ) : metaHoje ? (
+        <>
+          <div className="flex items-baseline justify-between mb-1.5">
+            <span className="text-sm font-medium" style={{ color: T.ink }}>{minutosEstudadosHoje} de {metaHoje} min</span>
+            <span className="text-xs" style={{ color: T.brand }}>{pct}%</span>
+          </div>
+          <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: T.surfaceAlt }}>
+            <div className="h-full" style={{ width: `${pct}%`, backgroundColor: T.brand }} />
+          </div>
+        </>
+      ) : (
+        <div className="text-xs" style={{ color: T.inkSoft }}>Nenhuma meta definida — clique no lápis pra dizer quantas horas quer estudar hoje.</div>
+      )}
+
+      {plano.itens.length > 0 && (
+        <div className="mt-3 pt-3" style={{ borderTop: `1px solid ${T.border}` }}>
+          <div className="text-[11px] font-mono uppercase tracking-wide mb-1.5" style={{ color: T.inkSoft }}>Plano recomendado pra hoje</div>
+          {plano.itens.map((i) => (
+            <div key={i.disciplina} className="flex items-center justify-between text-sm py-0.5">
+              <span style={{ color: T.ink }}>{i.disciplina}</span>
+              <span style={{ color: T.inkSoft }}>{i.minutos}min</span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between text-sm font-semibold pt-1 mt-1" style={{ borderTop: `1px solid ${T.border}`, color: T.brand }}>
+            <span>Total</span>
+            <span>{plano.total}min</span>
+          </div>
+          <div className="text-[11px] mt-1.5" style={{ color: T.inkSoft }}>
+            Baseado na sua preferência por sessões {plano.duracaoPorBloco === 50 ? "longas" : "curtas"} ({plano.duracaoPorBloco}min) e nos blocos de estudo já planejados pra hoje.
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje, proximos, overload, onToggleBlock, onGoInbox, onGoAgenda, routine, metaHoje, onSetMeta, minutosEstudadosHoje, avisos, config, notes, onSaveNote }) {
+  
+  const [mood, setMood] = React.useState(null);
+  const [journalText, setJournalText] = React.useState("");
+  const hojeDateStr = todayISO().slice(0,10);
+  const hasJournalToday = notes && notes.some(n => n.disciplina === "Diário de Bordo" && n.created_at && n.created_at.startsWith(hojeDateStr));
+
+  const handleSaveJournal = async () => {
+    if (!mood || !journalText.trim()) return alert("Escolha um humor e escreva algo!");
+    const finalTxt = `Humor: ${mood}\n\n${journalText.trim()}`;
+    if (onSaveNote) {
+      await onSaveNote({ disciplina: "Diário de Bordo", texto: finalTxt });
+      setMood(null);
+      setJournalText("");
+    }
+  };
+
+  const items = [
+    ...routineItemsHoje.map((r) => ({ ...r, isRoutine: true, sortKey: r.horaInicio || "99:99" })),
+    ...blocksHoje.map((b) => ({ ...b, sortKey: { manha: "09:00", tarde: "15:00", noite: "19:00" }[b.periodo] || "12:00" })),
+    ...commitmentsHoje.map((c) => ({ ...c, isCommitment: true, sortKey: "23:59" })),
+  ];
+  items.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
+  return (
+    <div className="space-y-6 max-w-[1400px] mx-auto pt-2">
+
+        {/* Revisão Espaçada (Ideia 11) */}
+        {(() => {
+          const hoje = new Date(todayISO() + "T12:00:00Z");
+          const revs = (notes||[]).filter(n => {
+            if (!n.created_at || n.disciplina === "Diário de Bordo") return false;
+            const diffTime = Math.abs(hoje - new Date(n.created_at));
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays === 1 || diffDays === 7 || diffDays === 30 || diffDays === 90;
+          });
+          if (revs.length === 0) return null;
+          return (
+            <Card style={{ borderColor: T.brand, backgroundColor: T.brand + '11' }} className="mb-6">
+              <SectionLabel><RotateCcw size={16} className="inline mr-2 -mt-0.5" /> Revisão Espaçada (Curva de Esquecimento)</SectionLabel>
+              <p className="text-xs mb-3" style={{ color: T.inkSoft }}>A IA separou estas anotações (de 1, 7, 30 ou 90 dias atrás) para você revisar hoje e fixar o conteúdo a longo prazo!</p>
+              <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+                {revs.map(r => {
+                  const d = new Date(r.created_at);
+                  const daysAgo = Math.floor(Math.abs(hoje - d) / (1000 * 60 * 60 * 24));
+                  return (
+                    <div key={r.id} className="min-w-[240px] max-w-[240px] snap-center rounded-lg p-3 text-sm flex flex-col justify-between" style={{ backgroundColor: T.surface, border: `1px solid ${T.border}` }}>
+                      <div>
+                        <div className="font-bold mb-1 truncate" style={{ color: T.brand }}>{r.disciplina}</div>
+                        <div className="line-clamp-4 text-xs whitespace-pre-wrap" style={{ color: T.inkSoft }}>{formatTextWithTags(r.texto, T)}</div>
+                      </div>
+                      <div className="mt-3 flex justify-between items-center">
+                        <AudioReaderButton text={r.texto} T={T} />
+                        <div className="text-[10px] font-bold uppercase text-right" style={{ color: T.ink }}>Há {daysAgo} dias</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          );
+        })()}
+
+      
+      {/* Alertas Globais (Topo) */}
+      {(overdue.length > 0 || overload.length >= 2 || avisos.length > 0) && (
+        <div className="space-y-3 mb-6">
+          {overdue.length > 0 && (
+            <Card style={{ borderColor: T.critico, backgroundColor: TINT.critico }}>
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: T.critico }} />
+                <div className="text-sm" style={{ color: T.critico }}>
+                  <strong>{overdue.length} compromisso{overdue.length > 1 ? "s" : ""} vencido{overdue.length > 1 ? "s" : ""}:</strong>{" "}
+                  {overdue.map((o) => o.assunto).join(", ")}
+                </div>
+              </div>
+            </Card>
+          )}
+          {overload.length >= 2 && (
+            <Card style={{ borderColor: T.importante, backgroundColor: TINT.importante }}>
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" style={{ color: T.importante }} />
+                <div className="text-sm" style={{ color: T.importante }}>
+                  <strong>Semana pesada:</strong> {overload.length} compromissos nos próximos 7 dias —{" "}
+                  {overload.map((c) => `${c.disciplina} em ${formatDateBR(c.prazo)}`).join(", ")}.
+                </div>
+              </div>
+            </Card>
+          )}
+          {avisos.map((a) => (
+            <Card key={a.id} style={{ borderColor: T[a.cor], backgroundColor: TINT[a.cor] }}>
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 mt-0.5 shrink-0" style={{ color: T[a.cor] }} />
+                <div className="text-sm" style={{ color: T[a.cor] }}>{a.mensagem}</div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* COLUNA ESQUERDA: Painel do Dia */}
+        <div className="lg:col-span-7 space-y-8">
+          
+          <Card className="p-5" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.2)", border: `1px solid ${T.surfaceAlt}` }}>
+            <div className="flex justify-between items-end mb-4 border-b pb-2" style={{ borderColor: T.border }}>
+              <h2 className="font-semibold text-lg" style={{ color: T.ink }}>O que eu deveria estar fazendo agora?</h2>
+              <span className="text-xs font-mono uppercase tracking-wider" style={{ color: T.inkSoft }}>{weekdayShort(todayISO())}, {formatDateBR(todayISO())}</span>
+            </div>
+            
+            {items.length === 0 ? (
+              <EmptyState text="Nada planejado para hoje ainda. Jogue algo na Inbox para começar." />
+            ) : (
+              <div className="space-y-3">
+                {items.map((item) => (
+                  <div key={item.id} className="flex items-center gap-4 rounded-lg p-3 transition-colors" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${item.done ? T.brandDark : T.border}` }}>
+                    {item.isRoutine && (
+                      <div className="w-8 text-center shrink-0 text-xl" title={item.tipo}>{getRoutineIcon(item.tipo)}</div>
+                    )}
+                    {!item.isCommitment && !item.isRoutine && (
+                      <button
+                        onClick={() => onToggleBlock(item.id)}
+                        className="w-6 h-6 rounded shrink-0 flex items-center justify-center transition-all"
+                        style={{ border: `1.5px solid ${item.done ? T.brand : T.border}`, backgroundColor: item.done ? T.brand : "transparent" }}
+                      >
+                        {item.done && <Check className="w-4 h-4" style={{ color: T.bg }} />}
+                      </button>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-base font-medium truncate" style={{ color: T.ink, textDecoration: item.done ? "line-through" : "none" }}>
+                        {item.isRoutine ? item.titulo : `${item.disciplina} — ${item.assunto}`}
+                      </div>
+                      <div className="text-sm mt-0.5" style={{ color: T.inkSoft }}>
+                        {item.isRoutine
+                          ? `${item.horaInicio?.slice(0, 5)} - ${item.horaFim?.slice(0, 5)}`
+                          : `${PERIODO_LABELS[item.periodo] || ""} ${item.isCommitment ? `• ${TIPO_LABELS[item.tipo]}` : item.tipo === "revisao" ? "• revisão" : "• estudo"}`}
+                      </div>
+                    </div>
+                    {item.isCommitment && <PriorityDot prioridade={item.prioridade} />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+          
+          <MetaHojeCard blocksHoje={blocksHoje} routine={routine} metaHoje={metaHoje} onSetMeta={onSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} config={config} />
+            <DailyHabits T={T} />
+          </div>
+
+        {/* COLUNA DIREITA: Checklist e Prazos */}
+        <div className="lg:col-span-5 space-y-8 mt-2 lg:mt-0">
+          
+          <Card className="p-5 flex flex-col h-full" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.2)", border: `1px solid ${T.surfaceAlt}` }}>
+            <h2 className="font-semibold text-lg mb-4 border-b pb-2" style={{ color: T.ink, borderColor: T.border }}>Próximos Prazos e Tarefas</h2>
+            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              {proximos.length === 0 ? (
+                <EmptyState text="Nenhum prazo futuro registrado." />
+              ) : (
+                <div className="space-y-3">
+                  {proximos.map((c) => (
+                    <button key={c.id} onClick={onGoAgenda} className="w-full text-left outline-none focus:outline-none bg-transparent hover:bg-transparent group">
+                      <div className="flex items-center justify-between p-3 rounded-lg transition-transform group-hover:scale-[1.01] origin-left transform-gpu overflow-hidden" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                        <div className="min-w-0 pr-3">
+                          <div className="text-sm font-medium truncate" style={{ color: T.ink }}>{c.disciplina} — {c.assunto}</div>
+                          <div className="text-xs mt-1" style={{ color: T.inkSoft }}>
+                            {formatDateBR(c.prazo)} • {weekdayShort(c.prazo)}
+                          </div>
+                        </div>
+                        <TypeTag tipo={c.tipo} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-6 pt-6" style={{ borderTop: `1px solid ${T.border}` }}>
+              <button onClick={onGoInbox} className="w-full py-3 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors shadow-lg" style={{ backgroundColor: TINT.brand, color: T.brand, border: `1px solid ${T.brand}` }}>
+                + Central de Entrada
+              </button>
+            </div>
+          </Card>
+        </div>
+        
+      </div>
+    </div>
+  );
+}
+/* ---------------------------------------------------------------------- */
+/* Aba: Inbox                                                               */
+/* ---------------------------------------------------------------------- */
+export function InboxTab({ userId, onSubmit, loading, error, pendingReview, setPendingReview, onConfirm, onSaveNote, setMaterials, initialInboxText, setInitialInboxText }) {
+  const [text, setText] = useState(initialInboxText || "");
+  useEffect(() => { if (initialInboxText) { setText(initialInboxText); if (setInitialInboxText) setInitialInboxText(""); } }, [initialInboxText, setInitialInboxText]);
+  const [pendingFile, setPendingFile] = useState(null); // { file, tipoArquivo }
+  const [extracting, setExtracting] = useState(null); // "pdf" | "imagem" | "audio" | null
+  const [fileError, setFileError] = useState(null);
+
+  const pdfInputRef = useRef(null);
+  const imgInputRef = useRef(null);
+  const audioInputRef = useRef(null);
+
+  async function handleSubmit() {
+    if (!text.trim() || loading) return;
+    const value = text;
+    setText("");
+    await onSubmit(value);
+  }
+
+  function checkSize(file) {
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      setFileError(`Esse arquivo passa de ${MAX_FILE_MB}MB. Tente um arquivo menor.`);
+      return false;
+    }
+    return true;
+  }
+
+  async function handleFilePicked(e, tipoArquivo) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite escolher o mesmo arquivo de novo depois
+    if (!file || !checkSize(file)) return;
+
+    setFileError(null);
+    setExtracting(tipoArquivo);
+    try {
+      let extracted = "";
+      if (tipoArquivo === "pdf") {
+        const { extractPdfText } = await import("../lib/pdf");
+        extracted = await extractPdfText(file);
+        if (!extracted.trim()) {
+          throw new Error("Não achei texto nesse PDF (pode ser um PDF escaneado como imagem — tente enviar como Foto).");
+        }
+      } else if (tipoArquivo === "imagem") {
+        const { base64, mimeType } = await fileToBase64(file);
+        extracted = await callVision(base64, mimeType);
+      } else if (tipoArquivo === "audio") {
+        const { base64, mimeType } = await fileToBase64(file);
+        extracted = await callAudioTranscription(base64, mimeType);
+      }
+      // Guardamos o texto COMPLETO extraído junto do arquivo. A caixa de
+      // texto mostra o mesmo conteúdo para o usuário revisar/editar, mas
+      // é o texto completo que vai para a Biblioteca — é ele que alimenta
+      // resumo, quiz e Modo Professor depois.
+      setText(extracted);
+      setPendingFile({ file, tipoArquivo, textoCompleto: extracted });
+    } catch (err) {
+      setFileError(err.message || "Não consegui processar esse arquivo. Tente outro ou digite manualmente.");
+    } finally {
+      setExtracting(null);
+    }
+  }
+
+  async function persistMaterial(file, data, commitmentId) {
+    try {
+      const path = await uploadMaterialFile(userId, file.file);
+      const saved = await addMaterial(userId, {
+        disciplina: data.disciplina,
+        commitmentId: commitmentId || null,
+        tipoArquivo: file.tipoArquivo,
+        nomeArquivo: file.file.name,
+        storagePath: path,
+        textoExtraido: file.textoCompleto || data.origemTexto,
+      });
+      // Atualiza a Biblioteca na hora — antes o arquivo só aparecia
+      // depois de recarregar a página.
+      setMaterials((prev) => [saved, ...prev]);
+    } catch (err) {
+      setFileError("O compromisso foi salvo, mas não consegui anexar o arquivo à Biblioteca: " + (err.message || String(err)));
+    }
+  }
+
+  async function handleConfirm(data) {
+    const file = pendingFile;
+    setPendingFile(null);
+    const novoCommitment = await onConfirm(data);
+    if (file) await persistMaterial(file, data, novoCommitment?.id);
+  }
+  async function handleSaveNote(data) {
+    const file = pendingFile;
+    setPendingFile(null);
+    await onSaveNote(data);
+    if (file) await persistMaterial(file, data, null);
+  }
+  function handleDiscard() {
+    setPendingFile(null);
+    setPendingReview(null);
+  }
+
+  const extractingLabel = {
+    pdf: "Lendo o PDF...",
+    imagem: "Analisando a imagem...",
+    audio: "Transcrevendo o áudio...",
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <SectionLabel>Central de entrada</SectionLabel>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder='Ex: "Professor de Anatomia falou que sexta tem prova e vai cair ATM e músculos da mastigação."'
+          rows={4}
+          className="w-full rounded-md p-3 text-sm outline-none resize-none"
+          style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink }}
+        />
+
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <button
+            onClick={() => pdfInputRef.current?.click()}
+            disabled={!!extracting}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md disabled:opacity-50"
+            style={{ color: T.inkSoft, border: `1px solid ${T.border}` }}
+          >
+            <FileText className="w-3.5 h-3.5" /> PDF
+          </button>
+          <button
+            onClick={() => imgInputRef.current?.click()}
+            disabled={!!extracting}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md disabled:opacity-50"
+            style={{ color: T.inkSoft, border: `1px solid ${T.border}` }}
+          >
+            <ImageIcon className="w-3.5 h-3.5" /> Foto
+          </button>
+          <button
+            onClick={() => audioInputRef.current?.click()}
+            disabled={!!extracting}
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md disabled:opacity-50"
+            style={{ color: T.inkSoft, border: `1px solid ${T.border}` }}
+          >
+            <Mic className="w-3.5 h-3.5" /> Áudio
+          </button>
+
+          <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => handleFilePicked(e, "pdf")} />
+          <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFilePicked(e, "imagem")} />
+          <input ref={audioInputRef} type="file" accept="audio/*" className="hidden" onChange={(e) => handleFilePicked(e, "audio")} />
+        </div>
+
+        {extracting && (
+          <div className="flex items-center gap-2 text-xs mt-2" style={{ color: T.brand }}>
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> {extractingLabel[extracting]}
+          </div>
+        )}
+        {fileError && <div className="text-xs mt-2" style={{ color: T.critico }}>{fileError}</div>}
+        {pendingFile && !extracting && (
+          <div className="flex items-center gap-1.5 text-xs mt-2" style={{ color: T.inkSoft }}>
+            <Paperclip className="w-3.5 h-3.5" /> Anexado: {pendingFile.file.name} — será salvo na Biblioteca ao confirmar.
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mt-3">
+          <PrimaryButton onClick={handleSubmit} disabled={loading || !text.trim() || !!extracting}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {loading ? "Interpretando..." : "Interpretar"}
+          </PrimaryButton>
+          {error && <span className="text-xs" style={{ color: T.critico }}>{error}</span>}
+        </div>
+      </Card>
+
+      {pendingReview && (
+        <PendingReviewCard data={pendingReview} onChange={setPendingReview} onConfirm={handleConfirm} onSaveNote={handleSaveNote} onDiscard={handleDiscard} />
+      )}
+    </div>
+  );
+}
+
+function PendingReviewCard({ data, onChange, onConfirm, onSaveNote, onDiscard }) {
+  const incerto = data.incerto || [];
+  const field = (key, el) => (
+    <div>
+      <label className="text-[11px] font-mono uppercase tracking-wide flex items-center gap-1" style={{ color: incerto.includes(key) ? T.importante : T.inkSoft }}>
+        {key}
+        {incerto.includes(key) && <AlertCircle className="w-3 h-3" />}
+      </label>
+      {el}
+    </div>
+  );
+  const inputStyle = { backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink };
+
+  return (
+    <Card style={{ borderColor: T.brand }}>
+      <div className="flex items-start gap-2 mb-3">
+        <Sparkles className="w-4 h-4 mt-0.5 shrink-0" style={{ color: T.brand }} />
+        <div className="text-sm overflow-y-auto max-h-64 flex-1 pr-2 custom-scrollbar" style={{ color: T.inkSoft }}>
+          {data.resumo ? (
+            <Suspense fallback={<span>{data.resumo}</span>}>
+              <ChatMarkdown text={data.resumo} />
+            </Suspense>
+          ) : (
+            "Confira e ajuste antes de adicionar à agenda."
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        {field("tipo", (
+          <select value={data.tipo} onChange={(e) => onChange({ ...data, tipo: e.target.value })} className="w-full rounded-md p-2 text-sm mt-1" style={inputStyle}>
+            {Object.entries(TIPO_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        ))}
+        {field("prioridade", (
+          <select value={data.prioridade} onChange={(e) => onChange({ ...data, prioridade: e.target.value })} className="w-full rounded-md p-2 text-sm mt-1" style={inputStyle}>
+            {Object.entries(PRIORIDADE_META).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+        ))}
+        {field("disciplina", (
+          <input value={data.disciplina || ""} onChange={(e) => onChange({ ...data, disciplina: e.target.value })} className="w-full rounded-md p-2 text-sm mt-1" style={inputStyle} />
+        ))}
+        {field("prazo", (
+          <input type="date" value={data.prazo || ""} onChange={(e) => onChange({ ...data, prazo: e.target.value })} className="w-full rounded-md p-2 text-sm mt-1" style={inputStyle} />
+        ))}
+        <div className="col-span-2">
+          {field("assunto", (
+            <input value={data.assunto || ""} onChange={(e) => onChange({ ...data, assunto: e.target.value })} className="w-full rounded-md p-2 text-sm mt-1" style={inputStyle} />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <PrimaryButton onClick={() => onConfirm(data)}><Check className="w-4 h-4" /> Adicionar à agenda</PrimaryButton>
+        <GhostButton onClick={() => onSaveNote(data)}>Guardar só como anotação</GhostButton>
+        <GhostButton onClick={onDiscard}><X className="w-4 h-4" /> Descartar</GhostButton>
+      </div>
+    </Card>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* Aba: Agenda                                                              */
+/* ---------------------------------------------------------------------- */
+function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
+  const hoje = todayISO();
+  const planos = commitments.filter((c) => c.prazo && c.prazo >= hoje && studyBlocks.some((b) => b.commitmentId === c.id));
+  if (planos.length === 0) return null;
+
+  return (
+    <div className="mb-5">
+      <SectionLabel>Planos de estudo ativos</SectionLabel>
+      <div className="space-y-2">
+        {planos.map((c) => {
+          const blocks = studyBlocks.filter((b) => b.commitmentId === c.id);
+          const done = blocks.filter((b) => b.done).length;
+          const pct = blocks.length ? Math.round((done / blocks.length) * 100) : 0;
+          return (
+            <Card key={c.id}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="text-sm font-medium">{c.disciplina} — {c.assunto}</div>
+                <span className="text-xs font-mono" style={{ color: T.inkSoft }}>{formatDateBR(c.prazo)}</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{ backgroundColor: T.surfaceAlt }}>
+                <div className="h-full" style={{ width: `${pct}%`, backgroundColor: T.brand }} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <GhostButton onClick={() => onReplan(c)}><RefreshCw className="w-3.5 h-3.5" /> Não consegui seguir — replanejar</GhostButton>
+                <GhostButton onClick={() => onReduzir(c)}>Adiantei — reduzir carga futura</GhostButton>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+
