@@ -3701,6 +3701,14 @@ export function FocoTab(props) {
   const { commitments, sessions, metaHoje, timer, userId, notes, materials, summaries, quizAttempts, professorAttempts, setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts } = props;
   const [lofiSrc, setLofiSrc] = useState(null);
   const [lofiOn, setLofiOn] = useState(false);
+  const [soundVolume, setSoundVolume] = useState(0.7);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = soundVolume;
+    }
+  }, [soundVolume, lofiSrc]);
 
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
@@ -3814,26 +3822,68 @@ export function FocoTab(props) {
             <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase={phase} />
             
               {props.config?.enableLofi !== false && (
-              <div className="flex flex-col items-center justify-center gap-4 mt-6 w-full max-w-sm mx-auto">
-                {lofiSrc && <audio src={lofiSrc} autoPlay loop />}
+              <div className="flex flex-col items-center justify-center gap-3 mt-6 w-full max-w-sm mx-auto">
+                {lofiSrc && (
+                  <audio
+                    key={lofiSrc}
+                    ref={audioRef}
+                    src={lofiSrc}
+                    autoPlay
+                    loop
+                    playsInline
+                  />
+                )}
                   <div className="text-xs uppercase font-bold opacity-50 mb-1" style={{ color: T.ink }}>Sons de Foco</div>
-                  <div className="flex flex-wrap justify-center gap-2 mb-4">
+                  <div className="flex flex-wrap justify-center gap-2">
                     {[
                       { id: null, label: "Silêncio", icon: VolumeX },
                       { id: "https://stream.zeno.fm/f3wvbbqmdg8uv", label: "Lo-Fi", icon: Headphones },
-                      { id: "https://cdn.freesound.org/previews/189/189043_1955047-lq.mp3", label: "Chuva", icon: CloudRain },
-                      { id: "https://cdn.freesound.org/previews/208/208579_3735166-lq.mp3", label: "Café", icon: Coffee },
-                      { id: "https://cdn.freesound.org/previews/209/209590_3905081-lq.mp3", label: "Fogueira", icon: Flame }
+                      { id: "/sounds/chuva.mp3", label: "Chuva", icon: CloudRain },
+                      { id: "/sounds/cafe.mp3", label: "Café", icon: Coffee },
+                      { id: "/sounds/fogueira.mp3", label: "Fogueira", icon: Flame }
                     ].map(s => {
                       const IconCmp = s.icon;
+                      const active = lofiSrc === s.id;
                       return (
-                        <button key={s.label} onClick={() => setLofiSrc(s.id)} className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all flex items-center gap-1.5 ${lofiSrc === s.id ? "shadow-md scale-105" : "opacity-60 hover:opacity-100"}`} style={{ backgroundColor: lofiSrc === s.id ? T.brand : T.surfaceAlt, color: lofiSrc === s.id ? T.brandInk : T.ink }}>
+                        <button
+                          key={s.label}
+                          onClick={() => setLofiSrc(s.id)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all flex items-center gap-1.5 ${active ? "shadow-md scale-105" : "opacity-60 hover:opacity-100"}`}
+                          style={{
+                            backgroundColor: active ? T.brand : T.surfaceAlt,
+                            color: active ? T.brandInk : T.ink,
+                            border: `1px solid ${active ? T.brand : T.border}`
+                          }}
+                        >
                           <IconCmp className="w-3.5 h-3.5" />
                           <span>{s.label}</span>
                         </button>
                       );
                     })}
                   </div>
+
+                  {lofiSrc && (
+                    <div className="flex items-center gap-2.5 w-full max-w-xs px-3 py-1.5 rounded-full border shadow-sm transition-all" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+                      {soundVolume === 0 ? (
+                        <VolumeX size={14} style={{ color: T.inkSoft }} />
+                      ) : (
+                        <Volume2 size={14} style={{ color: T.brand }} />
+                      )}
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={soundVolume}
+                        onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
+                        className="w-full accent-blue-500 h-1.5 cursor-pointer"
+                        title="Volume do Som Ambiente"
+                      />
+                      <span className="text-[10px] font-mono w-7 text-right font-medium" style={{ color: T.inkSoft }}>
+                        {Math.round(soundVolume * 100)}%
+                      </span>
+                    </div>
+                  )}
                 
                 {/* Spotify Integrado (Idea 15) */}
                 <div className="w-full">
