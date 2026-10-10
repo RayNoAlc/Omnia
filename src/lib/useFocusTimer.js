@@ -69,23 +69,70 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
     };
   }, []);
 
-  const joinRoom = useCallback((id, host = false) => {
+  const [members, setMembers] = useState([]);
+  const stateRef = useRef({});
+  stateRef.current = { phase, running, endsAt, pausedRemaining, customMin, presetIdx, useCustom };
+
+  const joinRoom = useCallback((id, host = false, userInfo = {}) => {
     if (channelRef.current) supabase.removeChannel(channelRef.current);
-    setRoomId(id);
+    const cleanId = String(id || '').trim().toUpperCase();
+    if (!cleanId) return;
+
+    setRoomId(cleanId);
     setIsHost(host);
-    const channel = supabase.channel(`room_${id}`, { config: { broadcast: { ack: false } } });
-    
-    channel.on('broadcast', { event: 'focus_sync' }, ({ payload }) => {
-      if (!host) {
-        setPhase(payload.phase);
-        setRunning(payload.running);
-        setEndsAt(payload.endsAt);
-        setPausedRemaining(payload.pausedRemaining);
-        setCustomMin(payload.customMin);
-        setPresetIdx(payload.presetIdx);
-        setUseCustom(payload.useCustom);
+    const channel = supabase.channel(`room_${cleanId}`, {
+      config: {
+        broadcast: { ack: false },
+        presence: { key: userInfo.id || Math.random().toString(36).slice(2) }
       }
-    }).subscribe();
+    });
+    
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const presenceState = channel.presenceState();
+        const list = [];
+        Object.values(presenceState).forEach((presences) => {
+          presences.forEach((p) => list.push(p));
+        });
+        setMembers(list);
+      })
+      .on('broadcast', { event: 'focus_sync' }, ({ payload }) => {
+        if (!host && payload) {
+          if (payload.phase !== undefined) setPhase(payload.phase);
+          if (payload.running !== undefined) setRunning(payload.running);
+          if (payload.endsAt !== undefined) setEndsAt(payload.endsAt);
+          if (payload.pausedRemaining !== undefined) setPausedRemaining(payload.pausedRemaining);
+          if (payload.customMin !== undefined) setCustomMin(payload.customMin);
+          if (payload.presetIdx !== undefined) setPresetIdx(payload.presetIdx);
+          if (payload.useCustom !== undefined) setUseCustom(payload.useCustom);
+        }
+      })
+      .on('broadcast', { event: 'request_sync' }, () => {
+        if (host && channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'focus_sync',
+            payload: stateRef.current,
+          });
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            name: userInfo.name || (host ? 'Anfitrião' : 'Colega'),
+            skin: userInfo.skin || 'none',
+            isHost: host,
+            joinedAt: new Date().toISOString(),
+          });
+          if (!host) {
+            channel.send({
+              type: 'broadcast',
+              event: 'request_sync',
+              payload: {},
+            });
+          }
+        }
+      });
     
     channelRef.current = channel;
   }, [setPhase, setRunning, setEndsAt, setPausedRemaining, setCustomMin, setPresetIdx, setUseCustom]);
@@ -95,6 +142,7 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
     channelRef.current = null;
     setRoomId(null);
     setIsHost(false);
+    setMembers([]);
   }, []);
 
   const broadcast = useCallback((newState) => {
@@ -194,16 +242,18 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
   }
   function pausar() {
     sfx.timerPause();
-    setPausedRemaining(Math.max(0, Math.round((endsAt - Date.now()) / 1000)));
+    const rem = Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+    setPausedRemaining(rem);
     setRunning(false);
     setEndsAt(null);
+    broadcast({ running: false, endsAt: null, pausedRemaining: rem });
   }
   function continuar() {
     sfx.timerStart();
     const e = Date.now() + pausedRemaining * 1000;
     setEndsAt(e);
     setRunning(true);
-    broadcast({ endsAt: e, running: true });
+    broadcast({ endsAt: e, running: true, phase });
   }
   function reiniciarCiclo() {
     sfx.click();
@@ -213,6 +263,7 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
     setPausedRemaining(base);
     setRemaining(base);
     setInterruptions(0);
+    broadcast({ running: false, endsAt: null, pausedRemaining: base, remaining: base, phase });
   }
   function encerrar() {
     sfx.click();
@@ -224,12 +275,13 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
     setInterruptions(0);
     setCiclosConsecutivos(0);
     setUltimaSessao(null);
+    broadcast({ running: false, phase: "idle", endsAt: null, remaining: 0, pausedRemaining: 0 });
   }
 
   return {
     selectedId, setSelectedId, presetIdx, setPresetIdx, customMin, setCustomMin,
     useCustom, setUseCustom, phase, running, remaining, ciclosConsecutivos, ultimaSessao,
     selectedCommitment, workSeconds,
-    iniciar, pausar, continuar, reiniciarCiclo, encerrar, roomId, isHost, joinRoom, leaveRoom, broadcast,
+    iniciar, pausar, continuar, reiniciarCiclo, encerrar, roomId, isHost, joinRoom, leaveRoom, broadcast, members,
   };
 }

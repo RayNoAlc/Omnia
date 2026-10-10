@@ -10,7 +10,7 @@ import {
   Settings, Palette, Wind, Heart,
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
-  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram
+  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users
 } from 'lucide-react';
 
 import html2canvas from 'html2canvas';
@@ -3998,9 +3998,66 @@ export function FocoTab(props) {
 
 
   
-  function createRoom() {
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-    timer.joinRoom(code, true);
+  const [copiedType, setCopiedType] = useState(null);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const r = params.get("room");
+      if (r && !timer.roomId) {
+        setRoomCode(r.toUpperCase());
+        setShowRoom(true);
+      }
+    } catch (e) {}
+  }, [timer.roomId]);
+
+  function handleCreateRoom() {
+    sfx.complete();
+    const code = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const userName = config?.petName || "Colega";
+    const userSkin = config?.petSkin || "none";
+    timer.joinRoom(code, true, { name: userName, skin: userSkin, id: userId });
+    setRoomCode(code);
+    setShowRoom(true);
+    try {
+      navigator.clipboard.writeText(code);
+      setCopiedType('code');
+      setTimeout(() => setCopiedType(null), 2500);
+    } catch (e) {}
+  }
+
+  function handleJoinRoom() {
+    if (!roomCode.trim()) return;
+    sfx.complete();
+    const clean = roomCode.trim().toUpperCase();
+    const userName = config?.petName || "Colega";
+    const userSkin = config?.petSkin || "none";
+    timer.joinRoom(clean, false, { name: userName, skin: userSkin, id: userId });
+    setShowRoom(true);
+  }
+
+  function handleCopyCode() {
+    sfx.click();
+    const c = timer.roomId || roomCode;
+    if (c) {
+      navigator.clipboard.writeText(c).catch(() => {});
+      setCopiedType('code');
+      setTimeout(() => setCopiedType(null), 2500);
+    }
+  }
+
+  function handleCopyLink() {
+    sfx.click();
+    const link = `${window.location.origin}${window.location.pathname}?room=${timer.roomId || roomCode}`;
+    navigator.clipboard.writeText(link).catch(() => {});
+    setCopiedType('link');
+    setTimeout(() => setCopiedType(null), 2500);
+  }
+
+  function handleLeaveRoom() {
+    sfx.click();
+    timer.leaveRoom();
+    setRoomCode("");
   }
 
   const datasAtividades = Array.from(new Set((sessions||[]).map(s => s.date ? s.date.slice(0,10) : ""))).filter(Boolean).sort().reverse();
@@ -4017,7 +4074,7 @@ export function FocoTab(props) {
     selectedId, setSelectedId, presetIdx, setPresetIdx, customMin, setCustomMin,
     useCustom, setUseCustom, phase, running, remaining, ciclosConsecutivos, ultimaSessao,
     selectedCommitment, workSeconds,
-    iniciar, pausar, continuar, reiniciarCiclo, encerrar, roomId, isHost, joinRoom, leaveRoom,
+    iniciar, pausar, continuar, reiniciarCiclo, encerrar, roomId, isHost, joinRoom, leaveRoom, members,
   } = timer;
 
   const mins = String(Math.floor(remaining / 60)).padStart(2, "0");
@@ -4037,6 +4094,16 @@ export function FocoTab(props) {
           >
             Modo Foco
           </div>
+          {roomId && (
+            <div
+              className="absolute top-0 right-4 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider rounded-b flex items-center gap-1.5"
+              style={{ backgroundColor: TINT.brand, color: T.brand, border: `1px solid ${T.border}`, borderTop: 0 }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Sala #{roomId}</span>
+              <span className="opacity-70 font-semibold">• {isHost ? "Host" : "Convidado"}</span>
+            </div>
+          )}
           <div className="text-[11px] font-mono uppercase tracking-widest mb-2 mt-2" style={{ color: T.inkSoft }}>
             {phase === "work" ? (running ? "Foco" : "Pausado") : "Pausa"}
           </div>
@@ -4047,16 +4114,49 @@ export function FocoTab(props) {
           )}
           <div className="text-5xl font-mono font-semibold tabular-nums mb-4" style={{ color: T.ink }}>{mins}:{secs}</div>
           <div className="flex items-center justify-center gap-2 flex-wrap">
-            {running ? (
-              <GhostButton onClick={pausar}><Pause className="w-4 h-4" /> Pausar</GhostButton>
+            {roomId && !isHost ? (
+              <>
+                <GhostButton onClick={handleLeaveRoom}><LogOut className="w-4 h-4 text-rose-500" /> Sair da Sala</GhostButton>
+                <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar meu foco</GhostButton>
+              </>
             ) : (
-              <PrimaryButton onClick={continuar}><Play className="w-4 h-4" /> Continuar</PrimaryButton>
+              <>
+                {running ? (
+                  <GhostButton onClick={pausar}><Pause className="w-4 h-4" /> Pausar</GhostButton>
+                ) : (
+                  <PrimaryButton onClick={continuar}><Play className="w-4 h-4" /> Continuar</PrimaryButton>
+                )}
+                <GhostButton onClick={reiniciarCiclo}><RotateCcw className="w-4 h-4" /> Reiniciar ciclo</GhostButton>
+                <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar sessão</GhostButton>
+              </>
             )}
-            <GhostButton onClick={reiniciarCiclo}><RotateCcw className="w-4 h-4" /> Reiniciar ciclo</GhostButton>
-            <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar sessão</GhostButton>
-              <GhostButton onClick={toggleZen} style={{ color: isZen ? T.brand : T.inkSoft }}><Maximize className="w-4 h-4" /> {isZen ? "Sair do Zen" : "Modo Zen"}</GhostButton>
+            <GhostButton onClick={toggleZen} style={{ color: isZen ? T.brand : T.inkSoft }}><Maximize className="w-4 h-4" /> {isZen ? "Sair do Zen" : "Modo Zen"}</GhostButton>
           </div>
-            <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase={phase} />
+          {roomId && (
+            <div className="mt-4 pt-3 border-t max-w-sm mx-auto flex flex-col items-center gap-1.5" style={{ borderColor: T.border }}>
+              <div className="text-[11px] font-medium flex items-center gap-1.5" style={{ color: T.inkSoft }}>
+                <Users className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Estudando juntos nesta sala ({members && members.length > 0 ? members.length : 1})</span>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2">
+                {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
+                  const skinImg = m.skin && m.skin !== 'none' ? `/owl_${m.skin}_happy.png` : '/owl_happy.png';
+                  return (
+                    <div
+                      key={m.joinedAt || idx}
+                      className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] border"
+                      style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+                    >
+                      <img src={skinImg} alt="" className="w-3.5 h-3.5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = '/owl_happy.png'; }} />
+                      <span className="font-medium truncate max-w-[100px]">{m.name || "Colega"}</span>
+                      {m.isHost && <Crown className="w-2.5 h-2.5 text-amber-500 ml-0.5" />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase={phase} />
             
               {props.config?.enableLofi !== false && (
               <div className="flex flex-col items-center justify-center gap-3 mt-6 w-full max-w-sm mx-auto">
@@ -4253,40 +4353,183 @@ export function FocoTab(props) {
             <input type="number" min={5} value={customMin} onChange={(e) => setCustomMin(Number(e.target.value) || 5)} className="w-16 rounded-md p-1.5 text-sm text-center" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }} />
           )}
         </div>
-        <PrimaryButton onClick={iniciar} className="w-full">
-          <Play className="w-4 h-4" /> Iniciar sessão de foco
-        </PrimaryButton>
+        {roomId && !isHost ? (
+          <div className="text-center py-2.5 px-3 rounded-lg text-xs font-medium border" style={{ backgroundColor: TINT.brand, borderColor: T.border, color: T.brand }}>
+            Aguardando o Anfitrião iniciar a sessão para a sala #{roomId}...
+          </div>
+        ) : (
+          <PrimaryButton onClick={iniciar} className="w-full">
+            <Play className="w-4 h-4" /> {roomId ? "Iniciar foco para toda a sala" : "Iniciar sessão de foco"}
+          </PrimaryButton>
+        )}
       </Card>
 
-        <Card>
-          <div className="flex flex-col gap-3">
-            <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase="idle" />
-            
-              <div className="border-t pt-3 mt-1 w-full max-w-sm mx-auto" style={{ borderColor: T.border }}>
-                <GhostButton className="w-full text-xs flex justify-center py-2" onClick={() => window.dispatchEvent(new Event('openBreathing'))}>
-                  <Wind className="w-4 h-4 mr-2" /> Técnica de Respiração (Ansiedade)
-                </GhostButton>
-              </div>
-
-              <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
-              <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowRoom(!showRoom)}>
-                <SectionLabel><Globe size={18} className="inline mr-2 -mt-0.5" /> Modo Multiplayer</SectionLabel>
-                <span className="text-xs" style={{ color: T.brand }}>{showRoom ? "Esconder" : "Mostrar"}</span>
-              </div>
-              {showBreathing && <BreathingModal onClose={() => setShowBreathing(false)} T={props.T || T} />}
-      {showRoom && (
-                <div className="mt-3 flex flex-col gap-2">
-                  <PrimaryButton onClick={createRoom} className="w-full text-xs">Criar Sala de Estudos</PrimaryButton>
-                  <div className="flex gap-2">
-                    <input value={roomCode} onChange={e => setRoomCode(e.target.value)} placeholder="Código da sala" className="flex-1 rounded p-1.5 text-xs text-center" style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }} />
-                    <GhostButton onClick={() => timer.joinRoom(roomCode, false)} className="text-xs" disabled={!roomCode}>Entrar</GhostButton>
-                  </div>
-                </div>
-              )}
-            </div>
+      <Card>
+        <div className="flex flex-col gap-3">
+          <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase="idle" />
+          
+          <div className="border-t pt-3 mt-1 w-full max-w-sm mx-auto" style={{ borderColor: T.border }}>
+            <GhostButton className="w-full text-xs flex justify-center py-2" onClick={() => window.dispatchEvent(new Event('openBreathing'))}>
+              <Wind className="w-4 h-4 mr-2" /> Técnica de Respiração (Ansiedade)
+            </GhostButton>
           </div>
-        </Card>
 
+          <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
+            <div
+              className="flex justify-between items-center cursor-pointer select-none py-1"
+              onClick={() => setShowRoom(!showRoom)}
+            >
+              <SectionLabel className="mb-0 flex items-center gap-2">
+                <Globe size={18} className="text-emerald-500" />
+                <span>Modo Multiplayer {roomId ? `(#${roomId})` : ""}</span>
+              </SectionLabel>
+              <div className="flex items-center gap-2">
+                {roomId && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                )}
+                <span className="text-xs font-semibold" style={{ color: T.brand }}>
+                  {showRoom ? "Esconder" : (roomId ? "Ver sala" : "Conectar")}
+                </span>
+              </div>
+            </div>
+
+            {showRoom && (
+              <div className="mt-3 flex flex-col gap-3">
+                {roomId ? (
+                  <div className="p-3.5 rounded-xl border flex flex-col gap-3" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        </span>
+                        <div>
+                          <div className="text-xs font-mono font-bold tracking-wider" style={{ color: T.ink }}>
+                            SALA #{roomId}
+                          </div>
+                          <div className="text-[10px]" style={{ color: T.inkSoft }}>
+                            {isHost ? "Você é o Anfitrião" : "Conectado como Convidado"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1"
+                        style={{
+                          backgroundColor: isHost ? (TINT.amber || TINT.brand) : TINT.brand,
+                          color: isHost ? (T.amber || T.brand) : T.brand,
+                          border: `1px solid ${T.border}`
+                        }}
+                      >
+                        {isHost ? <Crown size={12} className="text-amber-500" /> : <Users size={12} />}
+                        {isHost ? "Host" : "Convidado"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <GhostButton
+                        onClick={handleCopyCode}
+                        className="text-xs py-2 flex items-center justify-center gap-1.5"
+                      >
+                        {copiedType === 'code' ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                        <span>{copiedType === 'code' ? "Copiado!" : "Copiar código"}</span>
+                      </GhostButton>
+
+                      <GhostButton
+                        onClick={handleCopyLink}
+                        className="text-xs py-2 flex items-center justify-center gap-1.5"
+                      >
+                        {copiedType === 'link' ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
+                        <span>{copiedType === 'link' ? "Copiado!" : "Copiar link"}</span>
+                      </GhostButton>
+                    </div>
+
+                    <div className="border-t pt-2.5" style={{ borderColor: T.border }}>
+                      <div className="text-[11px] font-semibold flex items-center justify-between mb-2" style={{ color: T.inkSoft }}>
+                        <span className="flex items-center gap-1">
+                          <Users size={13} /> Presentes na sala ({members && members.length > 0 ? members.length : 1})
+                        </span>
+                        <span className="text-[10px] opacity-70">Ao vivo</span>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
+                        {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
+                          const skinImg = m.skin && m.skin !== 'none' ? `/owl_${m.skin}_happy.png` : '/owl_happy.png';
+                          return (
+                            <div
+                              key={m.joinedAt || idx}
+                              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs"
+                              style={{ backgroundColor: T.surface, borderColor: T.border }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <img
+                                  src={skinImg}
+                                  alt=""
+                                  className="w-5 h-5 rounded-full object-cover border flex-shrink-0"
+                                  style={{ borderColor: T.border }}
+                                  onError={(e) => { e.currentTarget.src = '/owl_happy.png'; }}
+                                />
+                                <span className="font-medium truncate" style={{ color: T.ink }}>{m.name || "Colega"}</span>
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                {m.isHost && (
+                                  <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-500">
+                                    <Crown size={11} /> Host
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <GhostButton
+                      onClick={handleLeaveRoom}
+                      className="w-full text-xs text-rose-500 hover:text-rose-600 border-rose-200 mt-1 flex items-center justify-center gap-1"
+                    >
+                      <LogOut size={13} /> Sair da Sala
+                    </GhostButton>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2.5">
+                    <PrimaryButton onClick={handleCreateRoom} className="w-full text-xs py-2.5">
+                      <Plus size={14} className="mr-1" /> Criar Sala de Estudos
+                    </PrimaryButton>
+
+                    <div className="relative flex py-1 items-center">
+                      <div className="flex-grow border-t" style={{ borderColor: T.border }}></div>
+                      <span className="flex-shrink mx-2 text-[10px] uppercase font-semibold" style={{ color: T.inkSoft }}>ou entrar em sala</span>
+                      <div className="flex-grow border-t" style={{ borderColor: T.border }}></div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        value={roomCode}
+                        onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                        placeholder="CÓDIGO (EX: A9K2F)"
+                        maxLength={8}
+                        className="flex-1 rounded-lg p-2 text-xs font-mono font-semibold tracking-wider text-center uppercase"
+                        style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleJoinRoom(); }}
+                      />
+                      <GhostButton
+                        onClick={handleJoinRoom}
+                        className="text-xs px-4"
+                        disabled={!roomCode.trim()}
+                      >
+                        Entrar
+                      </GhostButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {showBreathing && <BreathingModal onClose={() => setShowBreathing(false)} T={props.T || T} />}
 
       <Card className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm" style={{ color: T.inkSoft }}><Clock className="w-4 h-4" /> Estudado hoje</div>
