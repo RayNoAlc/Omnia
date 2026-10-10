@@ -337,6 +337,8 @@ function AppInner() {
   async function handleReduzir(commitment) {
     await deletePendingBlocksForCommitment(commitment.id);
     const hoje = todayISO();
+  const visibleCommitments = config?.showArchived ? commitments : commitments.filter(c => !(c.assunto||"").toLowerCase().includes('#arquivado') && !(c.disciplina||"").toLowerCase().includes('#arquivado'));
+  const visibleNotes = config?.showArchived ? notes : notes.filter(n => !(n.texto||"").toLowerCase().includes('#arquivado') && !(n.disciplina||"").toLowerCase().includes('#arquivado'));
     const revisaoDate = addDays(commitment.prazo, -1) > hoje ? addDays(commitment.prazo, -1) : hoje;
     let saved = [];
     if (revisaoDate < commitment.prazo) {
@@ -402,9 +404,6 @@ function AppInner() {
   const avisos = computeAvisos({ hoje, horaAtual: new Date().getHours(), commitments, studyBlocks, metaHoje, minutosEstudadosHoje });
 
     
-  const visibleCommitments = config?.showArchived ? commitments : commitments.filter(c => !(c.assunto||"").toLowerCase().includes('#arquivado') && !(c.disciplina||"").toLowerCase().includes('#arquivado'));
-  const visibleNotes = config?.showArchived ? notes : notes.filter(n => !(n.texto||"").toLowerCase().includes('#arquivado') && !(n.disciplina||"").toLowerCase().includes('#arquivado'));
-
   const visibleTabs = TABS.filter(t => t.id !== "desempenho" || config?.enableGamification);
     return (
     <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()} isZen={isZen}>
