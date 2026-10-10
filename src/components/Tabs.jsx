@@ -3120,17 +3120,31 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
     return () => clearInterval(interval);
   }, [phase, config?.enableSincereOwl]);
 
-  let position = "0%";
-  let status = "Dormindo...";
-  if (timerOn) { position = "50%"; status = "Focando!"; }
-  else if (config?.vacationMode) { position = "0%"; status = "De férias"; }
-  else if (streak > 5) { position = "100%"; status = "Mestre da Rotina"; }
-  else if (streak > 0) { position = "100%"; status = "Animado"; }
-  else { position = "0%"; status = "Esperando você estudar..."; }
-
   const sleepSrc = currentSkinId === 'none' ? '/owl_sleep.png' : `/owl_${currentSkinId}_sleep.png`;
   const focusSrc = currentSkinId === 'none' ? '/owl_focus.png' : `/owl_${currentSkinId}_focus.png`;
   const happySrc = currentSkinId === 'none' ? '/owl_happy.png' : `/owl_${currentSkinId}_happy.png`;
+
+  let currentSrc = sleepSrc;
+  let status = "Dormindo...";
+  let isFocusing = false;
+
+  if (timerOn) {
+    currentSrc = focusSrc;
+    status = "Focando!";
+    isFocusing = true;
+  } else if (config?.vacationMode) {
+    currentSrc = sleepSrc;
+    status = "De férias";
+  } else if (streak > 5) {
+    currentSrc = happySrc;
+    status = "Mestre da Rotina";
+  } else if (streak > 0) {
+    currentSrc = happySrc;
+    status = "Animado";
+  } else {
+    currentSrc = sleepSrc;
+    status = "Esperando você estudar...";
+  }
 
   return (
     <div className="flex flex-col items-center gap-2 relative mt-4">
@@ -3230,7 +3244,7 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
       )}
 
       <div
-        className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group shadow-sm"
+        className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group shadow-sm flex items-center justify-center p-1"
         style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}
         onClick={() => setShowStore(!showStore)}
         title="Clique para abrir o guarda-roupa da coruja"
@@ -3238,17 +3252,13 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
           <span className="text-white text-xs font-bold flex items-center gap-1"><ShoppingBag size={12} /> Roupas</span>
         </div>
-        <div className="flex w-[300%] h-full transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${position})` }}>
-          <div className="w-1/3 h-full flex items-center justify-center p-1">
-            <img src={sleepSrc} alt="Coruja descansando" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
-          </div>
-          <div className="w-1/3 h-full flex items-center justify-center p-1">
-            <img src={focusSrc} alt="Coruja focando" className="w-20 h-20 object-contain select-none animate-pulse filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
-          </div>
-          <div className="w-1/3 h-full flex items-center justify-center p-1">
-            <img src={happySrc} alt="Coruja animada" className="w-20 h-20 object-contain select-none filter drop-shadow-md" style={{ imageRendering: 'pixelated' }} />
-          </div>
-        </div>
+        <img
+          key={currentSrc}
+          src={currentSrc}
+          alt={status}
+          className={`w-20 h-20 object-contain select-none filter drop-shadow-md transition-all duration-300 ${isFocusing ? 'animate-pulse' : ''}`}
+          style={{ imageRendering: 'pixelated' }}
+        />
       </div>
       <div className="text-center">
         {editing ? (
