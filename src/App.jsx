@@ -2,7 +2,6 @@ import React from 'react';
 import localforage from 'localforage';
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import { T, TABS } from "./components/ui";
 import { supabase } from "./lib/supabaseClient";
 import Auth from "./components/Auth";
 import {
@@ -25,7 +24,7 @@ import { classifyInboxText } from "./lib/aiHelpers";
 import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos } from "./lib/utils";
 import { useFocusTimer } from "./lib/useFocusTimer";
 import { AppLayout } from "./layouts/AppLayout";
-import { TABS, applyTheme } from "./components/ui";
+import { T, TABS, applyTheme } from "./components/ui";
 
 
 class GlobalErrorBoundary extends React.Component {
