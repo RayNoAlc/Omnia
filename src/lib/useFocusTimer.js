@@ -18,6 +18,23 @@ export const PRESETS = [
  * frequência dos timers em abas em segundo plano.
  */
 export function useFocusTimer({ userId, commitments, setSessions }) {
+  const [selectedId, setSelectedId] = useState("livre");
+  const [presetIdx, setPresetIdx] = useState(0);
+  const [customMin, setCustomMin] = useState(30);
+  const [useCustom, setUseCustom] = useState(false);
+  const [phase, setPhase] = useState("idle"); // "idle" | "work" | "rest"
+  const [running, setRunning] = useState(false);
+  const [endsAt, setEndsAt] = useState(null); // timestamp em ms
+  const [pausedRemaining, setPausedRemaining] = useState(0); // segundos restantes quando pausado
+  const [remaining, setRemaining] = useState(0);
+  const [interruptions, setInterruptions] = useState(0);
+  const [ciclosConsecutivos, setCiclosConsecutivos] = useState(0);
+  const [ultimaSessao, setUltimaSessao] = useState(null);
+  const phaseEndHandled = useRef(false);
+  const [roomId, setRoomId] = useState(null);
+  const [isHost, setIsHost] = useState(false);
+  const channelRef = useRef(null);
+
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -43,22 +60,7 @@ export function useFocusTimer({ userId, commitments, setSessions }) {
     }
   }, []);
 
-  const [selectedId, setSelectedId] = useState("livre");
-  const [presetIdx, setPresetIdx] = useState(0);
-  const [customMin, setCustomMin] = useState(30);
-  const [useCustom, setUseCustom] = useState(false);
-  const [phase, setPhase] = useState("idle"); // "idle" | "work" | "rest"
-  const [running, setRunning] = useState(false);
-  const [endsAt, setEndsAt] = useState(null); // timestamp em ms
-  const [pausedRemaining, setPausedRemaining] = useState(0); // segundos restantes quando pausado
-  const [remaining, setRemaining] = useState(0);
-  const [interruptions, setInterruptions] = useState(0);
-  const [ciclosConsecutivos, setCiclosConsecutivos] = useState(0);
-  const [ultimaSessao, setUltimaSessao] = useState(null);
-  const phaseEndHandled = useRef(false);
-  const [roomId, setRoomId] = useState(null);
-  const [isHost, setIsHost] = useState(false);
-  const channelRef = useRef(null);
+  
 
   useEffect(() => {
     return () => {
