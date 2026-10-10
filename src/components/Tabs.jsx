@@ -889,51 +889,53 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
         <div className="lg:col-span-12">
           {config?.enableJournal !== false && !hasJournalToday && (
             <Card style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-              <div className="flex items-center gap-2 mb-3">
-                <BookHeart className="w-5 h-5" style={{ color: T.brand }} />
-                <h3 className="text-lg font-bold" style={{ color: T.ink }}>Diário de Bordo</h3>
-              </div>
-              <p className="text-sm mb-4" style={{ color: T.inkSoft }}>Como você está se sentindo hoje? Faça um rápido check-in mental.</p>
-              
-              <div className="flex gap-2 mb-4 flex-wrap">
-                {[
-                  { id: "Excelente", label: "Excelente", icon: Laugh, color: "#10b981" },
-                  { id: "Bem", label: "Bem", icon: Smile, color: "#3b82f6" },
-                  { id: "Neutro", label: "Neutro", icon: Meh, color: "#94a3b8" },
-                  { id: "Cansado", label: "Cansado", icon: Frown, color: "#f59e0b" },
-                  { id: "Exausto", label: "Exausto", icon: Skull, color: "#ef4444" }
-                ].map(m => {
-                  const IconCmp = m.icon;
-                  const isSelected = mood === m.id;
-                  return (
-                    <button
-                      key={m.id}
-                      onClick={() => setMood(m.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
-                      style={{
-                        backgroundColor: isSelected ? T.brand + '22' : T.bg,
-                        borderColor: isSelected ? T.brand : T.border,
-                        color: isSelected ? T.ink : T.inkSoft
-                      }}
-                    >
-                      <IconCmp className="w-4 h-4" style={{ color: isSelected ? T.brand : m.color }} />
-                      <span>{m.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center md:justify-center gap-2 mb-2">
+                  <BookHeart className="w-5 h-5" style={{ color: T.brand }} />
+                  <h3 className="text-lg font-bold" style={{ color: T.ink }}>Diário de Bordo</h3>
+                </div>
+                <p className="text-sm mb-4 md:text-center" style={{ color: T.inkSoft }}>Como você está se sentindo hoje? Faça um rápido check-in mental.</p>
+                
+                <div className="flex gap-2 mb-4 flex-wrap md:justify-center">
+                  {[
+                    { id: "Excelente", label: "Excelente", icon: Laugh, color: "#10b981" },
+                    { id: "Bem", label: "Bem", icon: Smile, color: "#3b82f6" },
+                    { id: "Neutro", label: "Neutro", icon: Meh, color: "#94a3b8" },
+                    { id: "Cansado", label: "Cansado", icon: Frown, color: "#f59e0b" },
+                    { id: "Exausto", label: "Exausto", icon: Skull, color: "#ef4444" }
+                  ].map(m => {
+                    const IconCmp = m.icon;
+                    const isSelected = mood === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => setMood(m.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border"
+                        style={{
+                          backgroundColor: isSelected ? T.brand + '22' : T.bg,
+                          borderColor: isSelected ? T.brand : T.border,
+                          color: isSelected ? T.ink : T.inkSoft
+                        }}
+                      >
+                        <IconCmp className="w-4 h-4" style={{ color: isSelected ? T.brand : m.color }} />
+                        <span>{m.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-              <textarea
-                value={journalText} onChange={e => setJournalText(e.target.value)}
-                placeholder="Escreva sobre o seu dia, suas vitórias ou desabafos..."
-                className="w-full p-3 rounded-xl text-sm outline-none resize-none min-h-[100px] mb-3"
-                style={{ backgroundColor: T.bg, color: T.ink, border: `1px solid ${T.border}` }}
-              />
-              
-              <div className="flex justify-end">
-                <button onClick={handleSaveJournal} className="px-4 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-80" style={{ backgroundColor: T.brand, color: T.bg }}>
-                  Salvar no Diário
-                </button>
+                <textarea
+                  value={journalText} onChange={e => setJournalText(e.target.value)}
+                  placeholder="Escreva sobre o seu dia, suas vitórias ou desabafos..."
+                  className="w-full p-3 rounded-xl text-sm outline-none resize-none min-h-[100px] mb-3 md:text-center"
+                  style={{ backgroundColor: T.bg, color: T.ink, border: `1px solid ${T.border}` }}
+                />
+                
+                <div className="flex justify-end md:justify-center">
+                  <button onClick={handleSaveJournal} className="px-6 py-2 rounded-xl text-sm font-bold transition-opacity hover:opacity-80 shadow-sm" style={{ backgroundColor: T.brand, color: T.bg }}>
+                    Salvar no Diário
+                  </button>
+                </div>
               </div>
             </Card>
           )}
