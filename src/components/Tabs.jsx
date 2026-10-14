@@ -8187,104 +8187,212 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
     }
     updateConfig({ ...safeConfig, [key]: nextVal });
   };
-  return (
-    <div className='max-w-3xl mx-auto space-y-6'>
-      <h2 onClick={() => setDevClicks(c => c + 1)} className='text-3xl font-bold mb-6 select-none cursor-pointer' style={{ color: T.ink }}>Configurações</h2>
+  const [activeCategory, setActiveCategory] = useState("aparencia");
+  const [activeTheme, setActiveTheme] = useState(() => (typeof localStorage !== "undefined" ? localStorage.getItem("omnia-theme") || "aiko" : "aiko"));
 
-      <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-        <div className='flex items-center gap-3 mb-4'>
-          <Palette className='w-6 h-6' style={{ color: T.brand }} />
-          <h3 className='text-xl font-bold' style={{ color: T.ink }}>Aparência e Temas</h3>
-        </div>
-        <p className='mb-6' style={{ color: T.inkSoft }}>Personalize as cores do aplicativo. A logo se ajustará automaticamente ao tema escolhido.</p>
-        
-        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-          {Object.keys(THEMES).map(t => (
-            <button key={t} onClick={() => applyTheme(t)} className='flex items-center justify-between p-4 rounded-xl border hover:opacity-80 transition-opacity'
-              style={{ backgroundColor: THEMES[t].bg, borderColor: THEMES[t].border }}>
-              <span className='font-bold capitalize' style={{ color: THEMES[t].ink }}>{t === 'dark' ? 'Omnia Dark' : t === 'light' ? 'Omnia Light' : t === 'cyberpunk' ? 'Cyberpunk Neon' : t === 'hacker' ? 'Modo Hacker (Matrix)' : t === 'aiko' ? 'Aiko' : 'Lo-Fi Café'}</span>
-              <div className='flex gap-2'>
-                <div className='w-5 h-5 rounded-full shadow-sm' style={{ backgroundColor: THEMES[t].brand }}></div>
-                <div className='w-5 h-5 rounded-full shadow-sm' style={{ backgroundColor: THEMES[t].surface }}></div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
+  const selectTheme = (t) => {
+    sfx.pop();
+    setActiveTheme(t);
+    applyTheme(t);
+  };
 
-        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-          <div className='flex items-center gap-3 mb-4'>
-            <Type className='w-6 h-6' style={{ color: T.brand }} />
-            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Tipografia e Fontes</h3>
+  const ToggleRow = ({ icon: Icon, iconColor, title, desc, checked, onChange, disabled }) => (
+    <div
+      onClick={() => {
+        if (!disabled) {
+          sfx.click();
+          onChange();
+        }
+      }}
+      className="flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer hover:border-sky-500/30"
+      style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+    >
+      <div className="flex items-center gap-3 min-w-0 pr-3">
+        {Icon && (
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-white/5 bg-white/5"
+            style={{ color: iconColor || T.brand }}
+          >
+            <Icon size={18} />
           </div>
-          <p className='mb-6' style={{ color: T.inkSoft }}>Escolha a fonte que mais lhe agrada para leitura e foco.</p>
-          
-          <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
-            {[
-              { id: "Inter, sans-serif", name: "Padrão (Inter)", desc: "Limpa e moderna", family: "'Inter', sans-serif" },
-              { id: "Georgia, serif", name: "Foco (Serifada)", desc: "Estilo livro clássico", family: "'Merriweather', Georgia, serif" },
-              { id: "monospace", name: "Terminal", desc: "Monoespaçada para devs", family: "'JetBrains Mono', monospace" },
-              { id: "Comic Sans MS, cursive", name: "Relaxada", desc: "Divertida e informal", family: "'Comic Neue', 'Comic Sans MS', cursive, sans-serif" }
-            ].map(f => {
-              const activeFont = resolveFontFamily(safeConfig.fontFamily);
-              const isSelected = resolveFontFamily(f.id) === activeFont;
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => {
-                    sfx.pop();
-                    updateConfig({ ...safeConfig, fontFamily: f.id });
-                    applyFont(f.id);
-                  }}
-                  className='flex flex-col items-start p-4 rounded-xl border hover:opacity-90 transition-all text-left relative overflow-hidden'
-                  style={{
-                    backgroundColor: isSelected ? (TINT.brand || T.brand + '22') : T.surfaceAlt,
-                    borderColor: isSelected ? T.brand : T.border,
-                    fontFamily: f.family,
-                    boxShadow: isSelected ? `0 0 0 1.5px ${T.brand}` : 'none'
-                  }}
-                >
-                  <div className='flex items-center justify-between w-full'>
-                    <span className='font-bold text-base' style={{ color: T.ink }}>{f.name}</span>
+        )}
+        <div className="min-w-0">
+          <div className="font-semibold text-sm truncate" style={{ color: T.ink }}>{title}</div>
+          {desc && <div className="text-xs mt-0.5 line-clamp-1" style={{ color: T.inkSoft }}>{desc}</div>}
+        </div>
+      </div>
+      <div
+        className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors shrink-0 ${checked ? 'bg-sky-500' : 'bg-slate-700/60'}`}
+        style={{ backgroundColor: checked ? T.brand : undefined }}
+      >
+        <div
+          className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className='max-w-4xl mx-auto space-y-6 pb-12'>
+      {/* Header com easter egg de desenvolvedor */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4" style={{ borderColor: T.border }}>
+        <div>
+          <h2 onClick={() => setDevClicks(c => c + 1)} className='text-2xl sm:text-3xl font-bold select-none cursor-pointer tracking-tight' style={{ color: T.ink }}>
+            Configurações
+          </h2>
+          <p className="text-xs sm:text-sm mt-0.5" style={{ color: T.inkSoft }}>
+            Personalize sua experiência de estudo, estética e módulos do Omnia.
+          </p>
+        </div>
+        {isDev && (
+          <span className="self-start sm:self-auto px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
+            DEV MODE ATIVO
+          </span>
+        )}
+      </div>
+
+      {/* Navegação por Categorias com Abas de Pílula */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl border overflow-x-auto no-scrollbar shadow-xs" style={{ backgroundColor: T.surface, borderColor: T.border }}>
+        {[
+          { id: 'aparencia', label: 'Aparência & Estilo', icon: Palette },
+          { id: 'modulos', label: 'Módulos & Recursos', icon: SlidersHorizontal },
+          { id: 'dados', label: 'Dados & Segurança', icon: Shield },
+          { id: 'integracoes', label: 'IA & Ferramentas', icon: Key },
+        ].map(cat => {
+          const Icon = cat.icon;
+          const isActive = activeCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => { sfx.tab(); setActiveCategory(cat.id); }}
+              className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all haptic-press cursor-pointer ${
+                isActive ? 'shadow-sm' : 'opacity-70 hover:opacity-100'
+              }`}
+              style={{
+                backgroundColor: isActive ? T.brand : 'transparent',
+                color: isActive ? T.brandInk : T.ink,
+              }}
+            >
+              <Icon size={16} />
+              <span>{cat.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ---------------- 1. ABA APARÊNCIA & ESTILO ---------------- */}
+      {activeCategory === 'aparencia' && (
+        <div className="space-y-6">
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className='flex items-center gap-3 mb-2'>
+              <Palette className='w-5 h-5' style={{ color: T.brand }} />
+              <h3 className='text-lg font-bold' style={{ color: T.ink }}>Temas de Cor</h3>
+            </div>
+            <p className='mb-5 text-xs sm:text-sm' style={{ color: T.inkSoft }}>
+              Escolha a atmosfera visual do Omnia. A logo e a interface se adaptam automaticamente.
+            </p>
+            
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5'>
+              {Object.keys(THEMES).map(t => {
+                const isSelected = activeTheme === t;
+                const themeName = t === 'dark' ? 'Omnia Dark' : t === 'light' ? 'Omnia Light' : t === 'cyberpunk' ? 'Cyberpunk Neon' : t === 'hacker' ? 'Modo Hacker' : t === 'aiko' ? 'Aiko' : 'Lo-Fi Café';
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => selectTheme(t)}
+                    className='flex items-center justify-between p-4 rounded-xl border transition-all haptic-press cursor-pointer text-left'
+                    style={{
+                      backgroundColor: THEMES[t].bg,
+                      borderColor: isSelected ? THEMES[t].brand : THEMES[t].border,
+                      boxShadow: isSelected ? `0 0 12px ${THEMES[t].brand}44` : 'none',
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex -space-x-1">
+                        <div className='w-4 h-4 rounded-full border border-black/20 shadow-xs' style={{ backgroundColor: THEMES[t].brand }} />
+                        <div className='w-4 h-4 rounded-full border border-black/20 shadow-xs' style={{ backgroundColor: THEMES[t].surface }} />
+                      </div>
+                      <span className='font-bold text-sm' style={{ color: THEMES[t].ink }}>{themeName}</span>
+                    </div>
                     {isSelected && (
-                      <span className='text-[10px] uppercase font-bold px-2 py-0.5 rounded-full' style={{ backgroundColor: T.brand, color: T.brandInk }}>
-                        Ativa
+                      <span className='text-[10px] font-bold px-2 py-0.5 rounded-full border' style={{ backgroundColor: THEMES[t].brand, color: THEMES[t].brandInk, borderColor: THEMES[t].brand }}>
+                        Ativo
                       </span>
                     )}
-                  </div>
-                  <span className='text-xs mt-1' style={{ color: T.inkSoft }}>{f.desc}</span>
-                  <div className='mt-2 text-xs opacity-75' style={{ color: T.ink, fontFamily: f.family }}>
-                    Aa Bb Cc 123 • O rápido cachorro
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className='flex items-center gap-3 mb-2'>
+              <Type className='w-5 h-5' style={{ color: T.brand }} />
+              <h3 className='text-lg font-bold' style={{ color: T.ink }}>Tipografia e Fontes</h3>
+            </div>
+            <p className='mb-5 text-xs sm:text-sm' style={{ color: T.inkSoft }}>
+              Selecione o estilo tipográfico que mais favorece sua concentração e leitura.
+            </p>
+            
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-3.5'>
+              {[
+                { id: "Inter, sans-serif", name: "Padrão (Inter)", desc: "Limpa, moderna e altamente legível", family: "'Inter', sans-serif" },
+                { id: "Georgia, serif", name: "Foco (Serifada)", desc: "Estilo livro clássico impresso", family: "'Merriweather', Georgia, serif" },
+                { id: "monospace", name: "Terminal", desc: "Monoespaçada técnica de desenvolvedor", family: "'JetBrains Mono', monospace" },
+                { id: "Comic Sans MS, cursive", name: "Relaxada", desc: "Divertida, amigável e descontraída", family: "'Comic Neue', 'Comic Sans MS', cursive, sans-serif" }
+              ].map(f => {
+                const activeFont = resolveFontFamily(safeConfig.fontFamily);
+                const isSelected = resolveFontFamily(f.id) === activeFont;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => {
+                      sfx.pop();
+                      updateConfig({ ...safeConfig, fontFamily: f.id });
+                      applyFont(f.id);
+                    }}
+                    className='flex flex-col p-4 rounded-xl border transition-all text-left cursor-pointer haptic-press'
+                    style={{
+                      backgroundColor: isSelected ? (TINT.brand || T.brand + '22') : T.surfaceAlt,
+                      borderColor: isSelected ? T.brand : T.border,
+                      fontFamily: f.family,
+                    }}
+                  >
+                    <div className='flex items-center justify-between w-full'>
+                      <span className='font-bold text-sm sm:text-base' style={{ color: T.ink }}>{f.name}</span>
+                      {isSelected && (
+                        <span className='text-[10px] uppercase font-bold px-2 py-0.5 rounded-full' style={{ backgroundColor: T.brand, color: T.brandInk }}>
+                          Ativa
+                        </span>
+                      )}
+                    </div>
+                    <span className='text-xs mt-1' style={{ color: T.inkSoft }}>{f.desc}</span>
+                    <div className='mt-2.5 text-xs opacity-75 font-medium' style={{ color: T.ink, fontFamily: f.family }}>
+                      Aa Bb Cc 123 • O rápido cachorro pulou sobre o foco
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      )}
 
-        
-        
-        
-        
-        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-          <div className='flex items-center gap-3 mb-2'>
-            <Settings className='w-6 h-6' style={{ color: T.brand }} />
-            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos Opcionais e Customização</h3>
-          </div>
-          <p className='mb-5 text-sm' style={{ color: T.inkSoft }}>
-            Controle a experiência da aplicação. Se você busca foco total sem distrações, pode desativar tudo e manter apenas as ferramentas estritamente essenciais.
-          </p>
-
-          {/* Perfis Rápidos de Configuração */}
-          <div className='flex flex-wrap items-center justify-between gap-3 mb-6 p-4 rounded-xl border' style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+      {/* ---------------- 2. ABA MÓDULOS & RECURSOS ---------------- */}
+      {activeCategory === 'modulos' && (
+        <div className="space-y-6">
+          {/* Perfis Rápidos de Foco */}
+          <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
             <div>
               <div className='text-sm font-bold flex items-center gap-1.5' style={{ color: T.ink }}>
-                <SlidersHorizontal size={16} style={{ color: T.brand }} />
-                <span>Perfis Rápidos de Foco</span>
+                <Zap size={16} className="text-amber-400" />
+                <span>Atalhos de Perfil Rápido</span>
               </div>
               <div className='text-xs mt-0.5' style={{ color: T.inkSoft }}>
-                Alterne entre o ambiente ultra minimalista e a experiência completa com 1 clique.
+                Alterne entre ambiente ultra minimalista e recursos completos com 1 clique.
               </div>
             </div>
             <div className='flex flex-wrap gap-2'>
@@ -8292,45 +8400,24 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
                 type='button'
                 onClick={() => {
                   sfx.click();
-                  if (reactiveBgm.getState().isPlaying) {
-                    reactiveBgm.stop();
-                  }
+                  if (reactiveBgm.getState().isPlaying) reactiveBgm.stop();
                   updateConfig({
                     ...safeConfig,
-                    enableRoutine: false,
-                    enableHabits: false,
-                    enablePet: false,
-                    enableMusic: false,
-                    enableLofi: false,
-                    enableBgm: false,
-                    enableBreathing: false,
-                    enableMultiplayer: false,
-                    enableSpacedRepetition: false,
-                    enableStudyGoals: false,
-                    enableJournal: false,
-                    enableGamification: false,
-                    enableSfx: false,
-                    enableConfetti: false,
-                    enableHealthBreak: false,
-                    enableAntiDistraction: false,
-                    enableBossFight: false,
-                    enableBiometricLock: false,
-                    enableMindMap: false,
-                    enableCommunityHub: false,
-                    enableScratchpad: false,
-                    enableSincereOwl: false,
-                    enableAnalytics: false,
-                    enableCalendar: false,
-                    enablePdf: false,
-                    vacationMode: false,
-                    showArchived: false,
+                    enableRoutine: false, enableHabits: false, enablePet: false,
+                    enableMusic: false, enableLofi: false, enableBgm: false,
+                    enableBreathing: false, enableMultiplayer: false, enableSpacedRepetition: false,
+                    enableStudyGoals: false, enableJournal: false, enableGamification: false,
+                    enableSfx: false, enableConfetti: false, enableHealthBreak: false,
+                    enableAntiDistraction: false, enableBossFight: false, enableBiometricLock: false,
+                    enableMindMap: false, enableCommunityHub: false, enableScratchpad: false,
+                    enableSincereOwl: false, enableAnalytics: false, enableCalendar: false,
+                    enablePdf: false, vacationMode: false, showArchived: false,
                   });
                 }}
-                className='px-3.5 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs hover:opacity-90'
-                style={{ backgroundColor: T.surface, borderColor: T.critico, color: T.critico }}
-                title="Desativa hábitos, rotinas, mascotes, músicas, gamificação e extras para máxima simplicidade"
+                className='px-3 py-1.5 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer hover:opacity-90'
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.critico, color: T.critico }}
               >
-                <Zap size={14} /> Desativar Tudo (Modo Ultra Minimalista)
+                <Zap size={13} /> Modo Minimalista
               </button>
               <button
                 type='button'
@@ -8338,184 +8425,191 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
                   sfx.complete();
                   updateConfig({
                     ...safeConfig,
-                    enableRoutine: true,
-                    enableHabits: true,
-                    enablePet: true,
-                    enableMusic: true,
-                    enableLofi: true,
-                    enableBgm: true,
-                    enableBreathing: true,
-                    enableMultiplayer: true,
-                    enableSpacedRepetition: true,
-                    enableStudyGoals: true,
-                    enableJournal: true,
-                    enableGamification: true,
-                    enableSfx: true,
-                    enableConfetti: true,
-                    enableHealthBreak: true,
-                    enableAntiDistraction: true,
-                    enableBossFight: true,
-                    enableMindMap: true,
-                    enableCommunityHub: true,
-                    enableScratchpad: true,
-                    enableSincereOwl: true,
-                    enableAnalytics: true,
-                    enableCalendar: true,
-                    enablePdf: true,
+                    enableRoutine: true, enableHabits: true, enablePet: true,
+                    enableMusic: true, enableLofi: true, enableBgm: true,
+                    enableBreathing: true, enableMultiplayer: true, enableSpacedRepetition: true,
+                    enableStudyGoals: true, enableJournal: true, enableGamification: true,
+                    enableSfx: true, enableConfetti: true, enableHealthBreak: true,
+                    enableAntiDistraction: true, enableBossFight: true, enableMindMap: true,
+                    enableCommunityHub: true, enableScratchpad: true, enableSincereOwl: true,
+                    enableAnalytics: true, enableCalendar: true, enablePdf: true,
                   });
                 }}
-                className='px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90'
+                className='px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer hover:opacity-90 shadow-sm'
                 style={{ backgroundColor: T.brand, color: T.brandInk }}
-                title="Ativa todos os módulos e recursos do aplicativo"
               >
-                <Sparkles size={14} /> Ativar Todos os Módulos
+                <Sparkles size={13} /> Ativar Todos
               </button>
             </div>
           </div>
 
-          <div className='space-y-3.5'>
-            {/* 0. Grade Semanal de Rotina */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <User size={20} className="inline mr-2 -mt-1 text-indigo-400" /> Grade Semanal e Horários de Rotina
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Aba "Minha Rotina" na barra lateral e blocos automáticos de horários fixos (aulas, trabalho, treinos) no painel Hoje.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableRoutine !== false} onChange={() => handleToggle('enableRoutine')} className='w-6 h-6 accent-blue-500' />
-            </label>
+          {/* Subgrupo 1: Estudos & Organização */}
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: T.border }}>
+              <BookOpen size={18} style={{ color: T.brand }} />
+              <h3 className="font-bold text-base" style={{ color: T.ink }}>Estudos & Organização</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ToggleRow
+                icon={User} iconColor="#6366f1"
+                title="Grade Semanal de Rotina"
+                desc="Aba Minha Rotina e blocos de horários fixos no Hoje"
+                checked={safeConfig.enableRoutine !== false}
+                onChange={() => handleToggle('enableRoutine')}
+              />
+              <ToggleRow
+                icon={CheckCircle2} iconColor="#10b981"
+                title="Hábitos Diários"
+                desc="Checklist de hábitos recorrentes no painel Hoje"
+                checked={safeConfig.enableHabits !== false}
+                onChange={() => handleToggle('enableHabits')}
+              />
+              <ToggleRow
+                icon={Target} iconColor="#f43f5e"
+                title="Metas Diárias de Foco"
+                desc="Meta de minutos e medidor de progresso diário"
+                checked={safeConfig.enableStudyGoals !== false}
+                onChange={() => handleToggle('enableStudyGoals')}
+              />
+              <ToggleRow
+                icon={RotateCcw} iconColor="#f59e0b"
+                title="Revisão Espaçada"
+                desc="Anotações de 1, 7, 30 e 90 dias na curva do esquecimento"
+                checked={safeConfig.enableSpacedRepetition !== false}
+                onChange={() => handleToggle('enableSpacedRepetition')}
+              />
+              <ToggleRow
+                icon={BookHeart} iconColor="#ec4899"
+                title="Diário de Bordo & Humor"
+                desc="Registro emocional diário e reflexões pessoais"
+                checked={Boolean(safeConfig.enableJournal)}
+                onChange={() => handleToggle('enableJournal')}
+              />
+              <ToggleRow
+                icon={Brain} iconColor="#8b5cf6"
+                title="Mapas Mentais 2D"
+                desc="Teia visual interativa de matérias e resumos"
+                checked={safeConfig.enableMindMap !== false}
+                onChange={() => handleToggle('enableMindMap')}
+              />
+              <ToggleRow
+                icon={Edit3} iconColor="#38bdf8"
+                title="Lousa em Branco"
+                desc="Bloco de anotações rápidas na Secretaria"
+                checked={Boolean(safeConfig.enableScratchpad)}
+                onChange={() => handleToggle('enableScratchpad')}
+              />
+            </div>
+          </section>
 
-            {/* 1. Rotina de Hábitos */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <CheckCircle2 size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Rotina de Hábitos Diários
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Checklist diário com hábitos recorrentes (água, treino, leitura, sol) no painel Hoje.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableHabits !== false} onChange={() => handleToggle('enableHabits')} className='w-6 h-6 accent-blue-500' />
-            </label>
+          {/* Subgrupo 2: Foco, Sons & Bem-estar */}
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: T.border }}>
+              <Headphones size={18} style={{ color: T.brand }} />
+              <h3 className="font-bold text-base" style={{ color: T.ink }}>Foco, Sons & Bem-estar</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ToggleRow
+                icon={Headphones} iconColor="#3b82f6"
+                title="Player de Músicas & Ruídos"
+                desc="Spotify, YouTube Music e sons da natureza no Foco"
+                checked={safeConfig.enableMusic !== false && safeConfig.enableLofi !== false}
+                onChange={() => handleToggle('enableMusic')}
+              />
+              <ToggleRow
+                icon={Wind} iconColor="#38bdf8"
+                title="Exercícios de Respiração"
+                desc="Técnica Box Breathing (4x4) para controle da ansiedade"
+                checked={safeConfig.enableBreathing !== false}
+                onChange={() => handleToggle('enableBreathing')}
+              />
+              <ToggleRow
+                icon={Heart} iconColor="#f43f5e"
+                title="Pausas Ativas"
+                desc="Lembretes periódicos de postura e hidratação"
+                checked={Boolean(safeConfig.enableHealthBreak)}
+                onChange={() => handleToggle('enableHealthBreak')}
+              />
+              <ToggleRow
+                icon={ShieldAlert} iconColor="#f59e0b"
+                title="Alerta Anti-Distração"
+                desc="Aviso sonoro ao trocar de aba durante o foco"
+                checked={safeConfig.enableAntiDistraction !== false}
+                onChange={() => handleToggle('enableAntiDistraction')}
+              />
+              <ToggleRow
+                icon={Users} iconColor="#a855f7"
+                title="Salas Multiplayer em Grupo"
+                desc="Sincronização de cronômetro com amigos via código"
+                checked={safeConfig.enableMultiplayer !== false}
+                onChange={() => handleToggle('enableMultiplayer')}
+              />
+            </div>
 
-            {/* 2. Mascotes / Sprites */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <Sparkles size={20} className="inline mr-2 -mt-1 text-amber-400" /> Mascotes e Sprites de Foco
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Avatares interativos dos pets (gato, raposa, panda, shiba, coelho), loja de skins, falas e reações na aba Foco.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enablePet !== false} onChange={() => handleToggle('enablePet')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 3. Player de Músicas & Sons de Foco */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <Headphones size={20} className="inline mr-2 -mt-1 text-blue-400" /> Player de Músicas & Sons Ambiente
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Controles de áudio integrados no Foco: Spotify, YouTube Music, rádio Lo-Fi Girl e ruídos naturais (chuva, café, fogueira).
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableMusic !== false && safeConfig.enableLofi !== false} onChange={() => handleToggle('enableMusic')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 4. Trilha Sonora Reativa (BGM) */}
-            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: (safeConfig.enableBgm !== false && bgmState.isPlaying) ? T.brand : T.border, backgroundColor: (safeConfig.enableBgm !== false && bgmState.isPlaying) ? (TINT.brand || T.bg) : T.bg }}>
-              <div className='flex items-center justify-between'>
-                <div>
-                  <div className='font-bold flex items-center gap-2' style={{ color: T.ink }}>
-                    <Music size={20} className={(safeConfig.enableBgm !== false && bgmState.isPlaying) ? "text-emerald-400 animate-pulse" : "text-emerald-500"} />
-                    <span>Trilha Sonora Reativa (BGM Procedural)</span>
-                    {safeConfig.enableBgm !== false && bgmState.isPlaying && (
-                      <span className='text-[10px] uppercase font-bold px-2 py-0.5 rounded-full' style={{ backgroundColor: T.brand, color: T.brandInk }}>
-                        Ao Vivo: {bgmState.name}
-                      </span>
-                    )}
+            {/* Trilha Sonora Reativa (BGM com controles expansíveis) */}
+            <div className="mt-4 p-4 rounded-xl border" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-white/5 bg-white/5 text-emerald-400">
+                    <Music size={18} className={bgmState.isPlaying ? "animate-pulse" : ""} />
                   </div>
-                  <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                    Música de fundo sintetizada em tempo real que se adapta à aba aberta e ações. Inclui widget na barra lateral.
+                  <div>
+                    <div className="font-semibold text-sm flex items-center gap-2" style={{ color: T.ink }}>
+                      <span>Trilha Sonora Reativa (BGM Procedural)</span>
+                      {safeConfig.enableBgm !== false && bgmState.isPlaying && (
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+                          {bgmState.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs mt-0.5" style={{ color: T.inkSoft }}>Música procedural adaptada dinamicamente a cada aba</div>
                   </div>
                 </div>
-                <input
-                  type='checkbox'
-                  checked={safeConfig.enableBgm !== false}
-                  onChange={() => handleToggle('enableBgm')}
-                  className='w-6 h-6 accent-blue-500 cursor-pointer'
-                />
+                <div
+                  onClick={() => handleToggle('enableBgm')}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors shrink-0 cursor-pointer ${safeConfig.enableBgm !== false ? 'bg-sky-500' : 'bg-slate-700/60'}`}
+                  style={{ backgroundColor: safeConfig.enableBgm !== false ? T.brand : undefined }}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${safeConfig.enableBgm !== false ? 'translate-x-5' : 'translate-x-0'}`} />
+                </div>
               </div>
 
               {safeConfig.enableBgm !== false && (
-                <div className='pt-3 border-t flex flex-col gap-3' style={{ borderColor: T.border }}>
-                  <div className='flex items-center justify-between'>
-                    <span className='text-xs font-semibold' style={{ color: T.ink }}>
-                      Status do Som: {bgmState.isPlaying ? 'Tocando no momento' : 'Pausado'}
-                    </span>
-                    <button
-                      type='button'
-                      onClick={() => {
-                        sfx.toggle(!bgmState.isPlaying);
-                        reactiveBgm.toggle();
-                      }}
-                      className='px-3 py-1 rounded-lg text-xs font-semibold border transition-all active:scale-95'
-                      style={{
-                        backgroundColor: bgmState.isPlaying ? T.surfaceAlt : T.brand,
-                        color: bgmState.isPlaying ? T.ink : T.brandInk,
-                        borderColor: T.border,
-                      }}
-                    >
-                      {bgmState.isPlaying ? 'Pausar Áudio' : 'Ouvir Agora'}
-                    </button>
-                  </div>
-
-                  <div className='flex items-center justify-between text-xs'>
+                <div className="pt-3.5 mt-3.5 border-t space-y-3" style={{ borderColor: T.border }}>
+                  <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5" style={{ color: T.inkSoft }}>
-                      <Volume2 size={14} /> Volume da Trilha Reativa
+                      <Volume2 size={14} /> Volume da Trilha
                     </span>
-                    <span className='font-mono font-bold' style={{ color: T.brand }}>{Math.round(bgmState.volume * 100)}%</span>
+                    <span className="font-mono font-bold" style={{ color: T.brand }}>{Math.round(bgmState.volume * 100)}%</span>
                   </div>
                   <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.02"
-                    value={bgmState.volume}
+                    type="range" min="0" max="1" step="0.02" value={bgmState.volume}
                     onChange={(e) => reactiveBgm.setVolume(parseFloat(e.target.value))}
                     className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-blue-500"
                     style={{ backgroundColor: "rgba(255,255,255,0.15)" }}
                   />
-
-                  <div className='pt-1 text-xs'>
-                    <div className='mb-2 font-medium' style={{ color: T.inkSoft }}>Ambiente Sonoro:</div>
-                    <div className='flex flex-wrap gap-1.5'>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <span className="text-xs" style={{ color: T.inkSoft }}>Ambiente sonoro:</span>
+                    <div className="flex flex-wrap gap-1.5">
                       {[
-                        { id: 'auto', label: 'Automático (Por aba)' },
-                        { id: 'foco', label: 'Foco Profundo' },
-                        { id: 'hoje', label: 'Serenidade Matinal' },
-                        { id: 'biblioteca', label: 'Santuário de Estudos' },
-                        { id: 'secretaria', label: 'Assistente Cósmica' },
-                        { id: 'desempenho', label: 'Vitória Dourada' }
+                        { id: 'auto', label: 'Auto' },
+                        { id: 'foco', label: 'Foco' },
+                        { id: 'hoje', label: 'Manhã' },
+                        { id: 'biblioteca', label: 'Estudo' },
+                        { id: 'secretaria', label: 'IA' },
+                        { id: 'desempenho', label: 'Vitória' }
                       ].map(preset => {
                         const isPresetActive = (bgmState.presetOverride || 'auto') === preset.id;
                         return (
                           <button
                             key={preset.id}
                             type="button"
-                            onClick={() => {
-                              sfx.pop();
-                              reactiveBgm.setPreset(preset.id);
-                            }}
-                            className='px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all active:scale-95'
+                            onClick={() => { sfx.pop(); reactiveBgm.setPreset(preset.id); }}
+                            className="px-2 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer"
                             style={{
-                              backgroundColor: isPresetActive ? T.brand : T.surfaceAlt,
+                              backgroundColor: isPresetActive ? T.brand : T.surface,
                               color: isPresetActive ? T.brandInk : T.ink,
-                              borderColor: isPresetActive ? T.brand : T.border
+                              borderColor: isPresetActive ? T.brand : T.border,
                             }}
                           >
                             {preset.label}
@@ -8528,345 +8622,291 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
               )}
             </div>
 
-            {/* 5. Exercícios de Respiração */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <Wind size={20} className="inline mr-2 -mt-1 text-sky-400" /> Exercícios de Respiração (Ansiedade)
+            {/* Efeitos Sonoros SFX com botões de teste */}
+            <div className="mt-3 p-4 rounded-xl border flex flex-col gap-3" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border border-white/5 bg-white/5 text-cyan-400">
+                    <Volume2 size={18} />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm" style={{ color: T.ink }}>Efeitos Sonoros dos Botões (SFX)</div>
+                    <div className="text-xs mt-0.5" style={{ color: T.inkSoft }}>Feedbacks auditivos em tarefas, timers e cliques</div>
+                  </div>
                 </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Técnica Box Breathing (4x4) guiada para acalmar a mente antes ou durante os estudos na aba Foco.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableBreathing !== false} onChange={() => handleToggle('enableBreathing')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 6. Salas de Estudo (Multiplayer) */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <Users size={20} className="inline mr-2 -mt-1 text-purple-400" /> Salas de Estudo em Grupo (Multiplayer)
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Criação e entrada em salas ao vivo para sincronizar o cronômetro com amigos via códigos compartilháveis.
+                <div
+                  onClick={() => { handleToggle('enableSfx'); sfx.click(); }}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors shrink-0 cursor-pointer ${safeConfig.enableSfx !== false ? 'bg-sky-500' : 'bg-slate-700/60'}`}
+                  style={{ backgroundColor: safeConfig.enableSfx !== false ? T.brand : undefined }}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${safeConfig.enableSfx !== false ? 'translate-x-5' : 'translate-x-0'}`} />
                 </div>
               </div>
-              <input type='checkbox' checked={safeConfig.enableMultiplayer !== false} onChange={() => handleToggle('enableMultiplayer')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 7. Revisão Espaçada */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <RotateCcw size={20} className="inline mr-2 -mt-1 text-amber-400" /> Revisão Espaçada (Curva de Esquecimento)
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Cards no Hoje trazendo anotações de 1, 7, 30 e 90 dias atrás para fixação duradoura da memória.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableSpacedRepetition !== false} onChange={() => handleToggle('enableSpacedRepetition')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 8. Metas Diárias de Estudo */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <Target size={20} className="inline mr-2 -mt-1 text-rose-400" /> Metas Diárias de Estudo
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Definição de meta diária em minutos e barra de progresso no painel Hoje.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableStudyGoals !== false} onChange={() => handleToggle('enableStudyGoals')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 9. Diário de Bordo & Humor */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <BookHeart size={20} className="inline mr-2 -mt-1" /> Diário de Bordo e Humor
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Aba exclusiva e card rápido no Hoje para registrar seu humor e reflexões diárias.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableJournal} onChange={() => handleToggle('enableJournal')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 10. Gamificação Completa */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}>
-                  <Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa
-                </div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                  Aba Desempenho, XP, Níveis, Ranking e contadores de Streak de estudo contínuo.
-                </div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 11. Efeitos Sonoros dos Botões */}
-            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <label className='flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity'>
-                <div>
-                  <div className='font-bold' style={{ color: T.ink }}><Volume2 size={20} className="inline mr-2 -mt-1 text-blue-400" /> Efeitos Sonoros dos Botões (SFX)</div>
-                  <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feedbacks táteis e auditivos em cliques de botões, tarefas, timers e navegação.</div>
-                </div>
-                <input type='checkbox' checked={safeConfig.enableSfx !== false} onChange={() => { handleToggle('enableSfx'); sfx.click(); }} className='w-6 h-6 accent-blue-500' />
-              </label>
 
               {safeConfig.enableSfx !== false && (
-                <div className='pt-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-xs' style={{ borderColor: T.border }}>
-                  <span style={{ color: T.inkSoft }}>Testar clique dos botões:</span>
-                  <div className='flex flex-wrap gap-1.5'>
-                    <button type="button" onClick={() => sfx.click()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Clique Padrão
+                <div className="pt-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-xs" style={{ borderColor: T.border }}>
+                  <span style={{ color: T.inkSoft }}>Testar sons:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button type="button" onClick={() => sfx.click()} className="px-2.5 py-1 rounded-lg border text-xs cursor-pointer hover:opacity-80 active:scale-95" style={{ backgroundColor: T.surface, color: T.ink, borderColor: T.border }}>
+                      Clique
                     </button>
-                    <button type="button" onClick={() => sfx.pop()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Pop Suave
+                    <button type="button" onClick={() => sfx.pop()} className="px-2.5 py-1 rounded-lg border text-xs cursor-pointer hover:opacity-80 active:scale-95" style={{ backgroundColor: T.surface, color: T.ink, borderColor: T.border }}>
+                      Pop
                     </button>
-                    <button type="button" onClick={() => sfx.complete()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Sino Conclusão
+                    <button type="button" onClick={() => sfx.complete()} className="px-2.5 py-1 rounded-lg border text-xs cursor-pointer hover:opacity-80 active:scale-95" style={{ backgroundColor: T.surface, color: T.ink, borderColor: T.border }}>
+                      Sino
                     </button>
-                    <button type="button" onClick={() => sfx.coin()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Moeda Recompensa
+                    <button type="button" onClick={() => sfx.coin()} className="px-2.5 py-1 rounded-lg border text-xs cursor-pointer hover:opacity-80 active:scale-95" style={{ backgroundColor: T.surface, color: T.ink, borderColor: T.border }}>
+                      Moeda
                     </button>
                   </div>
                 </div>
               )}
             </div>
+          </section>
 
-            {/* 12. Alerta Anti-Distração */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><ShieldAlert size={20} className="inline mr-2 -mt-1" /> Alerta Anti-Distração</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Receba uma notificação dura se você mudar de aba enquanto o cronômetro de Foco estiver rodando.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableAntiDistraction !== false} onChange={() => handleToggle('enableAntiDistraction')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 13. Pausas Ativas */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Heart size={20} className="inline mr-2 -mt-1" /> Pausas Ativas</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>A tela escurece e sugere alongamento e hidratação a cada 20 minutos de foco contínuo.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableHealthBreak} onChange={() => handleToggle('enableHealthBreak')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 14. Lousa em Branco */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Edit3 size={20} className="inline mr-2 -mt-1" /> Lousa em Branco</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Um bloco de notas simples na aba Secretaria para rascunhos rápidos.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableScratchpad} onChange={() => handleToggle('enableScratchpad')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 15. Coruja Sincera */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Bird size={20} className="inline mr-2 -mt-1" /> Coruja Sincera</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Balões de fala com dicas e avisos sobre o seu foco e progresso.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableSincereOwl} onChange={() => handleToggle('enableSincereOwl')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 16. Animações de Conclusão */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><PartyPopper size={20} className="inline mr-2 -mt-1" /> Animações de Conclusão</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Disparar confetes ao marcar tarefas como concluídas.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableConfetti} onChange={() => handleToggle('enableConfetti')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 17. Dashboard de Análises */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><BarChart size={20} className="inline mr-2 -mt-1" /> Dashboard de Análises</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Gráficos semanais e horários de pico na aba Desempenho.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableAnalytics} onChange={() => handleToggle('enableAnalytics')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 18. Modo Férias */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.brand + '22' }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Palmtree size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Modo Férias (Burnout)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Pausa streaks e zera metas para você descansar sem culpa.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.vacationMode} onChange={() => handleToggle('vacationMode')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 19. Mostrar Arquivados */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Archive size={20} className="inline mr-2 -mt-1" /> Mostrar Arquivados (Baú)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exibir notas e compromissos que contêm a tag #arquivado. Útil para consultar semestres passados.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.showArchived} onChange={() => handleToggle('showArchived')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 20. Sincronizar Calendário */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Calendar size={20} className="inline mr-2 -mt-1" /> Sincronizar Calendário (Google/Apple)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para exportar arquivos .ics da Rotina.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableCalendar} onChange={() => handleToggle('enableCalendar')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 21. Gerar PDF da Rotina */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><FileText size={20} className="inline mr-2 -mt-1" /> Gerar PDF da Rotina</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Botão para baixar a Tabela de Horários em PDF.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enablePdf} onChange={() => handleToggle('enablePdf')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 22. Batalhas de RPG no Foco (Boss Fight) */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Swords size={20} className="inline mr-2 -mt-1 text-rose-500" /> Batalhas de RPG no Foco (Boss Fight)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Enfrente chefes da procrastinação durante as sessões de foco com barra de HP interativa e recompensas épicas.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableBossFight !== false} onChange={() => handleToggle('enableBossFight')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 23. Bloqueio de Privacidade & Biometria */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Fingerprint size={20} className="inline mr-2 -mt-1 text-cyan-400" /> Bloqueio de Privacidade & Biometria (WebAuthn / PIN)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exige autenticação por biometria (Windows Hello, Face ID, Touch ID) ou PIN numérico para abrir o app.</div>
-              </div>
-              <input type='checkbox' checked={Boolean(safeConfig.enableBiometricLock)} onChange={() => handleToggle('enableBiometricLock')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 24. Mapas Mentais 2D (Constelação) */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Brain size={20} className="inline mr-2 -mt-1 text-indigo-400" /> Mapas Mentais 2D Interativos</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Visualizador em teia/grafo conectando matérias, resumos, anotações e compromissos na Biblioteca.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableMindMap !== false} onChange={() => handleToggle('enableMindMap')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 25. Hub Comunitário de Resumos */}
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Globe size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Hub Comunitário de Resumos & Leaderboard</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feed público para compartilhar resumos de IA, baixar anotações de colegas e comparar streaks.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableCommunityHub !== false} onChange={() => handleToggle('enableCommunityHub')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            {/* 26. Backup Completo (.md) */}
-            <div className='flex items-center justify-between p-4 rounded-xl border' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Download size={20} className="inline mr-2 -mt-1" /> Backup Completo (Markdown)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exportar todas as suas anotações, compromissos e resumos em um único arquivo de texto legível.</div>
-              </div>
-              <GhostButton onClick={() => {
-                const blob = new Blob([generateMarkdownBackup(commitments, notes, summaries)], { type: 'text/markdown' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `backup_omnia_${todayISO()}.md`;
-                a.click();
-              }}>Baixar .md</GhostButton>
+          {/* Subgrupo 3: Gamificação & Recompensas */}
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: T.border }}>
+              <Gamepad2 size={18} style={{ color: T.brand }} />
+              <h3 className="font-bold text-base" style={{ color: T.ink }}>Gamificação & Recompensas</h3>
             </div>
-          </div>
-        </section>
-
-      
-        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-          <div className='flex items-center gap-3 mb-4'>
-            <Paperclip className='w-6 h-6' style={{ color: T.brand }} />
-            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Extensão do Chrome & Web Clipper Oficial</h3>
-          </div>
-          <p className='mb-4 text-sm' style={{ color: T.inkSoft }}>
-            Tenha o bloqueador de distrações (YouTube, Instagram, TikTok) e o Web Clipper de 1 clique direto no seu navegador.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl border flex flex-col justify-between" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-              <div>
-                <div className="font-bold text-sm mb-1" style={{ color: T.ink }}>1. Bookmarklet Inteligente</div>
-                <div className="text-xs mb-3" style={{ color: T.inkSoft }}>Arraste para a barra de favoritos para capturar textos de qualquer página sem instalar extensões.</div>
-              </div>
-              <div className="flex justify-center">
-                <a 
-                  href="javascript:(function(){const sel=window.getSelection().toString();const text=sel?sel:document.body.innerText;const title=document.title;const url=window.location.href;const target='https://omnia-unio.vercel.app/?clipperTitle='+encodeURIComponent(title)+'&clipperUrl='+encodeURIComponent(url)+'&clipperText='+encodeURIComponent(text.substring(0,3000));window.open(target,'_blank');})();"
-                  className="px-4 py-2 font-bold text-white rounded-full shadow cursor-grab active:cursor-grabbing text-xs"
-                  style={{ backgroundColor: T.brand }}
-                  title="Arraste para a barra de favoritos"
-                  onClick={e => e.preventDefault()}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Bookmark size={13} />
-                    <span>Omnia Clipper (Favorito)</span>
-                  </span>
-                </a>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ToggleRow
+                icon={Sparkles} iconColor="#f59e0b"
+                title="Mascotes & Sprites de Foco"
+                desc="Avatares interativos, loja de skins e falas animadas"
+                checked={safeConfig.enablePet !== false}
+                onChange={() => handleToggle('enablePet')}
+              />
+              <ToggleRow
+                icon={Swords} iconColor="#ef4444"
+                title="Batalhas RPG de Foco (Boss)"
+                desc="Chefes da procrastinação com barra de HP em tempo real"
+                checked={safeConfig.enableBossFight !== false}
+                onChange={() => handleToggle('enableBossFight')}
+              />
+              <ToggleRow
+                icon={Gamepad2} iconColor="#8b5cf6"
+                title="Gamificação Completa"
+                desc="XP, Níveis, Streaks e ranking na aba Desempenho"
+                checked={Boolean(safeConfig.enableGamification)}
+                onChange={() => handleToggle('enableGamification')}
+              />
+              <ToggleRow
+                icon={PartyPopper} iconColor="#ec4899"
+                title="Animações de Conclusão"
+                desc="Chuva de confetes comemorativos ao concluir tarefas"
+                checked={Boolean(safeConfig.enableConfetti)}
+                onChange={() => handleToggle('enableConfetti')}
+              />
+              <ToggleRow
+                icon={Bird} iconColor="#06b6d4"
+                title="Coruja Sincera"
+                desc="Dicas, avisos e feedbacks sobre seu ritmo de estudo"
+                checked={Boolean(safeConfig.enableSincereOwl)}
+                onChange={() => handleToggle('enableSincereOwl')}
+              />
+              <ToggleRow
+                icon={BarChart} iconColor="#3b82f6"
+                title="Dashboard de Análises"
+                desc="Gráficos semanais e horários de pico de estudo"
+                checked={Boolean(safeConfig.enableAnalytics)}
+                onChange={() => handleToggle('enableAnalytics')}
+              />
+              <ToggleRow
+                icon={Palmtree} iconColor="#10b981"
+                title="Modo Férias (Anti-Burnout)"
+                desc="Congela streaks e zera metas para descanso sem culpa"
+                checked={Boolean(safeConfig.vacationMode)}
+                onChange={() => handleToggle('vacationMode')}
+              />
             </div>
-
-            <div className="p-4 rounded-xl border flex flex-col justify-between" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-              <div>
-                <div className="font-bold text-sm mb-1" style={{ color: T.ink }}>2. Extensão Oficial (Bloqueador + Clipper)</div>
-                <div className="text-xs mb-3" style={{ color: T.inkSoft }}>Bloqueia sites viciantes durante o foco e adiciona o ícone oficial da coruja na barra do Chrome.</div>
-              </div>
-              <GhostButton
-                onClick={async () => {
-                  try {
-                    sfx.complete();
-                    const zip = new JSZip();
-                    const mResp = await fetch('/extension/manifest.json');
-                    const bResp = await fetch('/extension/background.js');
-                    const pResp = await fetch('/extension/popup.html');
-                    const jResp = await fetch('/extension/popup.js');
-                    zip.file('manifest.json', await mResp.text());
-                    zip.file('background.js', await bResp.text());
-                    zip.file('popup.html', await pResp.text());
-                    zip.file('popup.js', await jResp.text());
-                    const blob = await zip.generateAsync({ type: 'blob' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = 'omnia-chrome-extension.zip';
-                    a.click();
-                  } catch (e) {
-                    alert('Erro ao empacotar extensão.');
-                  }
-                }}
-                className="text-xs py-2 w-full flex items-center justify-center gap-1.5"
-              >
-                <Download size={14} /> Baixar Extensão do Chrome (.zip)
-              </GhostButton>
-            </div>
-          </div>
-        </section>
-
-        <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-          <div className='flex items-center gap-3 mb-4'>
-            <h3 className='text-xl font-bold' style={{ color: T.ink }}><Key size={20} className="inline mr-2 -mt-1" /> Inteligência Artificial</h3>
+          </section>
         </div>
-        <p className='mb-4 text-sm' style={{ color: T.inkSoft }}>Insira sua própria chave de API da Groq para ter limite de uso individual, independente dos outros usuários. Deixe em branco para usar a chave padrão do Omnia.</p>
-        <a href='https://console.groq.com/keys' target='_blank' rel='noopener noreferrer' className='text-xs underline mb-4 block' style={{ color: T.brand }}>→ Criar chave gratuita em console.groq.com/keys</a>
-        <input
-          type='password'
-          placeholder='gsk_...'
-          value={safeConfig.groqApiKey || ''}
-          onChange={(e) => updateConfig({ ...safeConfig, groqApiKey: e.target.value })}
-          className='w-full p-3 rounded-xl text-sm'
-          style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
-        />
-        {safeConfig.groqApiKey && <p className='text-xs mt-2' style={{ color: T.brand }}><Check size={14} className="inline mr-1 -mt-0.5" /> Chave pessoal configurada</p>}
-      </section>
+      )}
 
-      {/* Central de Autoteste E2E e Diagnóstico Anti-Bug Geral */}
-      <QAAutomatedSystem userId={userId} />
+      {/* ---------------- 3. ABA DADOS & PRIVACIDADE ---------------- */}
+      {activeCategory === 'dados' && (
+        <div className="space-y-6">
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: T.border }}>
+              <Download size={18} style={{ color: T.brand }} />
+              <h3 className="font-bold text-base" style={{ color: T.ink }}>Backup & Exportação</h3>
+            </div>
+            
+            <div className="p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+              <div>
+                <div className="font-bold text-sm" style={{ color: T.ink }}>Backup Completo em Markdown (.md)</div>
+                <div className="text-xs mt-0.5" style={{ color: T.inkSoft }}>Exporta todas as suas anotações, compromissos e resumos de forma limpa</div>
+              </div>
+              <PrimaryButton
+                onClick={() => {
+                  sfx.complete();
+                  const blob = new Blob([generateMarkdownBackup(commitments, notes, summaries)], { type: 'text/markdown' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `backup_omnia_${todayISO()}.md`;
+                  a.click();
+                }}
+                className="text-xs py-2 px-4 shadow-sm shrink-0"
+              >
+                <Download size={14} className="mr-1.5" /> Baixar .md
+              </PrimaryButton>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ToggleRow
+                icon={Calendar} iconColor="#3b82f6"
+                title="Sincronizar Calendário (.ics)"
+                desc="Exportação para Google Calendar, Apple e Outlook"
+                checked={Boolean(safeConfig.enableCalendar)}
+                onChange={() => handleToggle('enableCalendar')}
+              />
+              <ToggleRow
+                icon={FileText} iconColor="#10b981"
+                title="Exportar PDF da Rotina"
+                desc="Download da grade horária semanal formatada"
+                checked={Boolean(safeConfig.enablePdf)}
+                onChange={() => handleToggle('enablePdf')}
+              />
+            </div>
+          </section>
+
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b" style={{ borderColor: T.border }}>
+              <Shield size={18} style={{ color: T.brand }} />
+              <h3 className="font-bold text-base" style={{ color: T.ink }}>Segurança & Arquivamento</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <ToggleRow
+                icon={Fingerprint} iconColor="#06b6d4"
+                title="Bloqueio Biométrico / PIN"
+                desc="Exige Windows Hello, Face ID, Touch ID ou PIN"
+                checked={Boolean(safeConfig.enableBiometricLock)}
+                onChange={() => handleToggle('enableBiometricLock')}
+              />
+              <ToggleRow
+                icon={Archive} iconColor="#8b5cf6"
+                title="Mostrar Itens Arquivados"
+                desc="Exibir notas e matérias com tag #arquivado"
+                checked={Boolean(safeConfig.showArchived)}
+                onChange={() => handleToggle('showArchived')}
+              />
+              <ToggleRow
+                icon={Globe} iconColor="#10b981"
+                title="Hub Comunitário de Resumos"
+                desc="Acesso ao feed público e compartilhamento cooperativo"
+                checked={safeConfig.enableCommunityHub !== false}
+                onChange={() => handleToggle('enableCommunityHub')}
+              />
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* ---------------- 4. ABA IA & FERRAMENTAS ---------------- */}
+      {activeCategory === 'integracoes' && (
+        <div className="space-y-6">
+          {/* Chave de API Groq */}
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className='flex items-center gap-3 mb-2'>
+              <Key className='w-5 h-5' style={{ color: T.brand }} />
+              <h3 className='text-lg font-bold' style={{ color: T.ink }}>Inteligência Artificial Pessoal</h3>
+            </div>
+            <p className='mb-3 text-xs sm:text-sm' style={{ color: T.inkSoft }}>
+              Insira sua chave de API pessoal da Groq para obter limite de IA exclusivo e velocidade máxima. Se deixar em branco, o Omnia utilizará a infraestrutura padrão.
+            </p>
+            <a href='https://console.groq.com/keys' target='_blank' rel='noopener noreferrer' className='text-xs underline mb-3 inline-block font-semibold' style={{ color: T.brand }}>
+              → Obter chave gratuita em console.groq.com/keys
+            </a>
+            <input
+              type='password'
+              placeholder='gsk_...'
+              value={safeConfig.groqApiKey || ''}
+              onChange={(e) => updateConfig({ ...safeConfig, groqApiKey: e.target.value })}
+              className='w-full p-3 rounded-xl text-sm font-mono'
+              style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
+            />
+            {safeConfig.groqApiKey && (
+              <p className='text-xs mt-2 font-medium flex items-center gap-1 text-emerald-400'>
+                <Check size={14} /> Chave pessoal configurada e ativa
+              </p>
+            )}
+          </section>
+
+          {/* Web Clipper & Extensão do Chrome */}
+          <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className='flex items-center gap-3 mb-2'>
+              <Paperclip className='w-5 h-5' style={{ color: T.brand }} />
+              <h3 className='text-lg font-bold' style={{ color: T.ink }}>Extensão & Web Clipper Oficial</h3>
+            </div>
+            <p className='mb-4 text-xs sm:text-sm' style={{ color: T.inkSoft }}>
+              Capture materiais, textos de artigos e bloqueie sites que roubam seu foco direto no Chrome ou Edge.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl border flex flex-col justify-between" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+                <div>
+                  <div className="font-bold text-sm mb-1" style={{ color: T.ink }}>1. Bookmarklet Inteligente</div>
+                  <div className="text-xs mb-3" style={{ color: T.inkSoft }}>Arraste para sua barra de favoritos para capturar textos de qualquer página sem precisar instalar extensões.</div>
+                </div>
+                <div className="flex justify-center pt-2">
+                  <a 
+                    href="javascript:(function(){const sel=window.getSelection().toString();const text=sel?sel:document.body.innerText;const title=document.title;const url=window.location.href;const target='https://omnia-unio.vercel.app/?clipperTitle='+encodeURIComponent(title)+'&clipperUrl='+encodeURIComponent(url)+'&clipperText='+encodeURIComponent(text.substring(0,3000));window.open(target,'_blank');})();"
+                    className="px-4 py-2 font-bold text-white rounded-full shadow cursor-grab active:cursor-grabbing text-xs"
+                    style={{ backgroundColor: T.brand }}
+                    title="Arraste para a barra de favoritos"
+                    onClick={e => e.preventDefault()}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Bookmark size={13} />
+                      <span>Omnia Clipper (Favorito)</span>
+                    </span>
+                  </a>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl border flex flex-col justify-between" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+                <div>
+                  <div className="font-bold text-sm mb-1" style={{ color: T.ink }}>2. Extensão do Navegador (.zip)</div>
+                  <div className="text-xs mb-3" style={{ color: T.inkSoft }}>Bloqueia sites viciantes durante as sessões e adiciona o ícone oficial da coruja ao Chrome.</div>
+                </div>
+                <GhostButton
+                  onClick={async () => {
+                    try {
+                      sfx.complete();
+                      const zip = new JSZip();
+                      const mResp = await fetch('/extension/manifest.json');
+                      const bResp = await fetch('/extension/background.js');
+                      const pResp = await fetch('/extension/popup.html');
+                      const jResp = await fetch('/extension/popup.js');
+                      zip.file('manifest.json', await mResp.text());
+                      zip.file('background.js', await bResp.text());
+                      zip.file('popup.html', await pResp.text());
+                      zip.file('popup.js', await jResp.text());
+                      const blob = await zip.generateAsync({ type: 'blob' });
+                      const a = document.createElement('a');
+                      a.href = URL.createObjectURL(blob);
+                      a.download = 'omnia-chrome-extension.zip';
+                      a.click();
+                    } catch (e) {
+                      alert('Erro ao empacotar extensão.');
+                    }
+                  }}
+                  className="text-xs py-2 w-full flex items-center justify-center gap-1.5"
+                >
+                  <Download size={14} /> Baixar Extensão (.zip)
+                </GhostButton>
+              </div>
+            </div>
+          </section>
+
+          {/* Central de Autoteste & Diagnóstico QA */}
+          <QAAutomatedSystem userId={userId} />
+        </div>
+      )}
     </div>
   );
 }
