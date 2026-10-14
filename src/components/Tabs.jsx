@@ -8202,7 +8202,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
           {Object.keys(THEMES).map(t => (
             <button key={t} onClick={() => applyTheme(t)} className='flex items-center justify-between p-4 rounded-xl border hover:opacity-80 transition-opacity'
               style={{ backgroundColor: THEMES[t].bg, borderColor: THEMES[t].border }}>
-              <span className='font-bold capitalize' style={{ color: THEMES[t].ink }}>{t === 'dark' ? 'Omnia Dark' : t === 'light' ? 'Omnia Light' : t === 'cyberpunk' ? 'Cyberpunk Neon' : t === 'hacker' ? 'Modo Hacker (Matrix)' : t === 'aiko' ? '🌸 Aiko Kawaii (Rôseo)' : 'Lo-Fi Café'}</span>
+              <span className='font-bold capitalize' style={{ color: THEMES[t].ink }}>{t === 'dark' ? 'Omnia Dark' : t === 'light' ? 'Omnia Light' : t === 'cyberpunk' ? 'Cyberpunk Neon' : t === 'hacker' ? 'Modo Hacker (Matrix)' : t === 'aiko' ? 'Aiko' : 'Lo-Fi Café'}</span>
               <div className='flex gap-2'>
                 <div className='w-5 h-5 rounded-full shadow-sm' style={{ backgroundColor: THEMES[t].brand }}></div>
                 <div className='w-5 h-5 rounded-full shadow-sm' style={{ backgroundColor: THEMES[t].surface }}></div>
