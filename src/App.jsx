@@ -55,7 +55,13 @@ function AppInner() {
   const [session, setSession] = useState(undefined);
   const [config, setConfig] = useState({ enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, coins: 350 });
   useEffect(() => {
-    applyTheme(localStorage.getItem("omnia-theme") || "dark");
+    let currentTheme = localStorage.getItem("omnia-theme");
+    if (!localStorage.getItem("omnia-aiko-applied")) {
+      currentTheme = "aiko";
+      localStorage.setItem("omnia-theme", "aiko");
+      localStorage.setItem("omnia-aiko-applied", "true");
+    }
+    applyTheme(currentTheme || "aiko");
     const savedCfg = localStorage.getItem("omnia_config");
     if (savedCfg) {
       try {

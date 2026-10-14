@@ -17,6 +17,27 @@ export const THEMES = {
     normal: "#00ff00"
   },
 
+  aiko: {
+    bg: '#FFF0F5',
+    surface: '#FFFFFF',
+    surfaceAlt: '#FFE4E8',
+    ink: '#4C1D38',
+    inkSoft: '#9F5B74',
+    border: 'rgba(244, 63, 94, 0.22)',
+    brand: '#FB7185',
+    brandDark: '#F43F5E',
+    critico: '#E11D48',
+    importante: '#F59E0B',
+    normal: '#FB7185',
+    baixa: '#C08497',
+    purple: '#D946EF',
+    pink: '#F472B6',
+    brandInk: '#FFFFFF',
+    tintBrand: 'rgba(251, 113, 133, 0.16)',
+    tintCrítico: 'rgba(225, 29, 72, 0.14)',
+    tintImportante: 'rgba(245, 158, 11, 0.15)',
+    tintPurple: 'rgba(217, 70, 239, 0.14)'
+  },
   dark: {
     bg: '#0B1120', surface: '#141C2F', surfaceAlt: '#1E293B', ink: '#F1F5F9', inkSoft: '#94A3B8',
     border: 'rgba(255,255,255,0.08)', brand: '#3B82F6', brandDark: '#2563EB', critico: '#EF4444', importante: '#F59E0B',
