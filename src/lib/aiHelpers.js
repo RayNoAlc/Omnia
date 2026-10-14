@@ -63,23 +63,17 @@ export async function aiGenerateSummary(disciplina, sourceTexts) {
 
 
 export async function aiGenerateFlashcards(disciplina, textos) {
-  const prompt = `Você é um professor criando flashcards de memorização (curva de esquecimento).
+  const sys = `Você é um professor criando flashcards de memorização (curva de esquecimento).
 Baseado no material fornecido da disciplina "${disciplina}", crie de 5 a 8 flashcards diretos e curtos.
-Responda ESTRITAMENTE em formato JSON (sem markdown, sem backticks, comece com [), como neste exemplo:
-[
-  {"frente": "Qual a principal causa da cárie?", "verso": "Bactéria Streptococcus mutans associada a carboidratos."}
-]
-
-Material:
-${textos}
-`;
+Responda APENAS com um array JSON, sem markdown e sem texto antes ou depois, no formato exato:
+[{"frente": "termo ou pergunta curta", "verso": "definição ou resposta curta e direta"}]`;
+  const user = textos && textos.trim() ? textos : `Conceitos centrais de ${disciplina}`;
   try {
-    const resp = await callAIWithTools([{ role: "user", content: prompt }]);
-    const jsonStr = resp.replace(/```json/g, "").replace(/```/g, "").trim();
-    return JSON.parse(jsonStr);
+    const res = await callAI(sys, user, { json: true });
+    return Array.isArray(res) ? res : [];
   } catch (e) {
     console.error("Erro Flashcards:", e);
-    return null;
+    return [];
   }
 }
 

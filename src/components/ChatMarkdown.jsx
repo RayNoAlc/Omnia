@@ -26,7 +26,7 @@ export function ChatMarkdown({ text }) {
             <a href={href} target="_blank" rel="noreferrer" style={{ color: T.brand, textDecoration: "underline" }}>{children}</a>
           ),
           table: ({ children }) => (
-            <div className="overflow-x-auto my-2 rounded-lg" style={{ border: `1px solid ${T.border}` }}>
+            <div className="overflow-x-auto custom-scrollbar my-2 rounded-lg" style={{ border: `1px solid ${T.border}` }}>
               <table className="w-full text-xs border-collapse">{children}</table>
             </div>
           ),

@@ -10,11 +10,13 @@ import {
   Settings, Palette, Wind, Heart,
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
-  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users, Music, Filter
+  Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users, Music, Filter, ChevronDown, ChevronUp,
+  Swords, Apple, Cookie, Shield, User, Fingerprint, Highlighter, Hourglass, FlaskConical, PawPrint, QrCode, Bookmark
 } from 'lucide-react';
 
 import confetti from 'canvas-confetti';
 import html2canvas from 'html2canvas';
+import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import JSZip from 'jszip';
@@ -30,6 +32,7 @@ import { reactiveBgm } from "../lib/reactiveBgm";
 import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
 import { callVision, callAudioTranscription, callAIWithTools, callAI } from "../lib/ai";
 import { runQATour } from "../lib/qaTour";
+import { runFullQASuite, downloadQAReportAsJSON } from "../lib/qaEngine";
 import { ROUTINE_TOOLS, executeRoutineTool } from "../lib/routineTools";
 import { PRESETS } from "../lib/useFocusTimer";
 import { extractPdfText } from "../lib/pdf";
@@ -41,6 +44,10 @@ import {
   uploadMaterialFile, addMaterial, getMaterialSignedUrl, deleteMaterial,
   addNote, deleteNote,
 } from "../lib/db";
+import { MindMapModal } from "./MindMapModal";
+import { PdfViewerModal } from "./PdfViewerModal";
+import { CommunitySummariesModal } from "./CommunitySummariesModal";
+import { isBiometricsAvailable, registerBiometrics, setSecurityPin } from "../lib/biometrics";
 
 const MAX_FILE_MB = 8;
 
@@ -121,7 +128,7 @@ export function Header({ onLogout }) {
 
 export function TabNav({ tab, setTab }) {
   return (
-    <nav className="flex md:justify-center gap-1 overflow-x-auto mb-6 pb-1 -mx-1 px-1 custom-scrollbar" style={{ borderBottom: `1px solid ${T.border}` }}>
+    <nav className="flex md:justify-center gap-1 overflow-x-auto mb-6 pb-2 -mx-1 px-1 custom-scrollbar" style={{ borderBottom: `1px solid ${T.border}` }}>
       {TABS.map((t) => {
         const Icon = t.icon;
         const active = tab === t.id;
@@ -739,7 +746,7 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
   };
 
   const items = [
-    ...routineItemsHoje.map((r) => ({ ...r, isRoutine: true, sortKey: r.horaInicio || "99:99" })),
+    ...(config?.enableRoutine !== false ? routineItemsHoje.map((r) => ({ ...r, isRoutine: true, sortKey: r.horaInicio || "99:99" })) : []),
     ...blocksHoje.map((b) => ({ ...b, sortKey: { manha: "09:00", tarde: "15:00", noite: "19:00" }[b.periodo] || "12:00" })),
     ...commitmentsHoje.map((c) => ({ ...c, isCommitment: true, sortKey: "23:59" })),
   ];
@@ -749,7 +756,7 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
     <div className="space-y-6 max-w-[1400px] mx-auto pt-2">
 
         {/* Revisão Espaçada (Ideia 11) */}
-        {(() => {
+        {config?.enableSpacedRepetition !== false && (() => {
           const hoje = new Date(todayISO() + "T12:00:00Z");
           const revs = (notes||[]).filter(n => {
             if (!n.created_at || n.disciplina === "Diário de Bordo") return false;
@@ -762,7 +769,7 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
             <Card style={{ borderColor: T.brand, backgroundColor: T.brand + '11' }} className="mb-6">
               <SectionLabel><RotateCcw size={16} className="inline mr-2 -mt-0.5" /> Revisão Espaçada (Curva de Esquecimento)</SectionLabel>
               <p className="text-xs mb-3" style={{ color: T.inkSoft }}>A IA separou estas anotações (de 1, 7, 30 ou 90 dias atrás) para você revisar hoje e fixar o conteúdo a longo prazo!</p>
-              <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+              <div className="flex gap-3 overflow-x-auto custom-scrollbar pb-2 snap-x">
                 {revs.map(r => {
                   const d = new Date(r.created_at);
                   const daysAgo = Math.floor(Math.abs(hoje - d) / (1000 * 60 * 60 * 24));
@@ -867,8 +874,12 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
             )}
           </Card>
           
-          <MetaHojeCard blocksHoje={blocksHoje} routine={routine} metaHoje={metaHoje} onSetMeta={onSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} config={config} />
+          {config?.enableStudyGoals !== false && (
+            <MetaHojeCard blocksHoje={blocksHoje} routine={routine} metaHoje={metaHoje} onSetMeta={onSetMeta} minutosEstudadosHoje={minutosEstudadosHoje} config={config} />
+          )}
+          {config?.enableHabits !== false && (
             <DailyHabits T={T} config={config} updateConfig={updateConfig} />
+          )}
           </div>
 
         {/* COLUNA DIREITA: Checklist e Prazos */}
@@ -1331,7 +1342,7 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
 
         
         {viewMode === "calendario" ? (
-          <div className="w-full overflow-x-auto pb-4">
+          <div className="w-full overflow-x-auto custom-scrollbar pb-4">
             <div className="min-w-[700px] grid grid-cols-7 gap-2">
               {Array.from({ length: 7 }, (_, i) => {
                 const d = addDays(hoje, i);
@@ -1372,7 +1383,7 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
           </div>
         ) : viewMode === "kanban" ? (
 
-          <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-4 items-start">
+          <div className="flex flex-col md:flex-row gap-4 overflow-x-auto custom-scrollbar pb-4 items-start">
             {["A Fazer", "Atrasados", "Concluídos"].map(col => {
               let items = [];
               if (col === "A Fazer") items = commitments.filter(c => !c.concluido && (!c.prazo || c.prazo >= hoje));
@@ -1537,30 +1548,94 @@ export function getPetSprite(petId = 'none', state = 'happy') {
     return `/owl_${state}.png`;
   }
   if (['gato', 'shiba', 'panda', 'raposa', 'coelho'].includes(petId)) {
-    return `/pet_${petId}_${state}.png`;
+    return `/pet_${petId}_${state}_v3.png`;
   }
   if (petId.startsWith('pet_')) {
-    return `/${petId}_${state}.png`;
+    return `/${petId}_${state}_v3.png`;
   }
   return `/owl_${petId}_${state}.png`;
 }
 
 export const STUDY_PETS = [
   { id: 'none', name: 'Coruja Omnia', desc: 'Guardiã clássica da rotina e sabedoria acadêmica', title: 'Mestre da Rotina', price: 0, preview: '/owl_happy.png' },
-  { id: 'gato', name: 'Gato Mochi', desc: 'Companheiro zen, aconchegante e leitor voraz', title: 'Guardião da Calma', price: 60, preview: '/pet_gato_happy.png' },
-  { id: 'shiba', name: 'Shiba Bento', desc: 'Leal, animado e sempre pronto para mais um pomodoro', title: 'Foco e Lealdade', price: 90, preview: '/pet_shiba_happy.png' },
-  { id: 'panda', name: 'Panda Bamboo', desc: 'Serenidade pura e foco sem pressa nem ansiedade', title: 'Mestre da Serenidade', price: 120, preview: '/pet_panda_happy.png' },
-  { id: 'raposa', name: 'Raposa Kitsune', desc: 'Astuta, veloz nas matérias difíceis e curiosa', title: 'Sábia e Astuta', price: 150, preview: '/pet_raposa_happy.png' },
-  { id: 'coelho', name: 'Coelho Pipoca', desc: 'Ágil nos prazos, focado e cheio de energia para revisar', title: 'Veloz nos Prazos', price: 180, preview: '/pet_coelho_happy.png' },
+  { id: 'gato', name: 'Gato Mochi', desc: 'Companheiro zen, aconchegante e leitor voraz', title: 'Guardião da Calma', price: 60, preview: '/pet_gato_happy_v3.png' },
+  { id: 'shiba', name: 'Shiba Bento', desc: 'Leal, animado e sempre pronto para mais um pomodoro', title: 'Foco e Lealdade', price: 90, preview: '/pet_shiba_happy_v3.png' },
+  { id: 'panda', name: 'Panda Bamboo', desc: 'Serenidade pura e foco sem pressa nem ansiedade', title: 'Mestre da Serenidade', price: 120, preview: '/pet_panda_happy_v3.png' },
+  { id: 'raposa', name: 'Raposa Kitsune', desc: 'Astuta, veloz nas matérias difíceis e curiosa', title: 'Sábia e Astuta', price: 150, preview: '/pet_raposa_happy_v3.png' },
+  { id: 'coelho', name: 'Coelho Pipoca', desc: 'Ágil nos prazos, focado e cheio de energia para revisar', title: 'Veloz nos Prazos', price: 180, preview: '/pet_coelho_happy_v3.png' },
 ];
 
 export const OWL_SKINS = STUDY_PETS;
+
+export const PET_SNACKS = [
+  { id: 'maca', name: 'Maçã de Foco', icon: Apple, cost: 15, energy: 20, xp: 25, desc: 'Fruta fresca que renova a mente e alivia a preguiça.' },
+  { id: 'biscoito', name: 'Biscoito Crocante', icon: Cookie, cost: 30, energy: 35, xp: 55, desc: 'Com gotas de chocolate e determinação acadêmica.' },
+  { id: 'cafe', name: 'Café Expresso Turbo', icon: Coffee, cost: 50, energy: 50, xp: 95, desc: 'Dose forte de cafeína para sessões intensas de estudo.' },
+  { id: 'pocao', name: 'Poção Estelar', icon: FlaskConical, cost: 80, energy: 100, xp: 180, desc: 'Elixir misterioso que restaura a energia máxima e inspiração!' },
+];
+
+export const BOSS_ROSTER = [
+  {
+    id: 'procrastinacao',
+    name: 'Gólem da Procrastinação',
+    title: 'Devorador de Minutos',
+    icon: Hourglass,
+    maxHp: 1000,
+    weakness: 'Blocos contínuos de foco',
+    desc: 'Alimenta-se de notificações e vídeos curtos. Foco contínuo quebra sua carapaça de pedra!',
+    themeColor: '#f59e0b',
+  },
+  {
+    id: 'materia_acumulada',
+    name: 'Dragão dos Prazos Atrasados',
+    title: 'Incendiário Semestral',
+    icon: Flame,
+    maxHp: 1800,
+    weakness: 'Revisão ativa e resumos',
+    desc: 'Um réptil gigante que cospe pilhas de PDFs não lidos. Cada minuto de foco extingue suas chamas!',
+    themeColor: '#ef4444',
+  },
+  {
+    id: 'burnout',
+    name: 'Espectro da Exaustão Mental',
+    title: 'Lorde da Névoa Cerebral',
+    icon: Skull,
+    maxHp: 2500,
+    weakness: 'Pomodoro com pausas conscientes',
+    desc: 'Tenta fazer você desistir pelo cansaço. Mantenha o ritmo calmo para dissipá-lo!',
+    themeColor: '#8b5cf6',
+  },
+  {
+    id: 'tcc_final',
+    name: 'Titã da Prova Final',
+    title: 'Chefe Supremo do Semestre',
+    icon: Swords,
+    maxHp: 3600,
+    weakness: 'Sessão profunda acima de 45 min',
+    desc: 'O desafio definitivo de todo universitário. Derrubá-lo garante lenda e glória acadêmica!',
+    themeColor: '#ec4899',
+  }
+];
 
 function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = [], commitments = [], config = {} }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sharingStory, setSharingStory] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const storyCardRef = useRef(null);
+
+  useEffect(() => {
+    QRCode.toDataURL("https://omnia-unio.vercel.app", {
+      margin: 1,
+      width: 180,
+      color: {
+        dark: "#070d1e",
+        light: "#ffffff",
+      },
+    })
+      .then((url) => setQrCodeUrl(url))
+      .catch((err) => console.error("Erro ao gerar QR Code:", err));
+  }, []);
 
   const [currentSkinId, setCurrentSkinId] = useState(() => {
     try {
@@ -1594,6 +1669,7 @@ function OmniaWrapped({ sessions = [], quizAttempts = [], professorAttempts = []
     discMap[d] = (discMap[d] || 0) + (Number(s.minutos) || 0);
   });
   const topDisc = Object.keys(discMap).sort((a, b) => discMap[b] - discMap[a])[0] || "Livre";
+  const displayTopDisc = topDisc && topDisc.length > 18 ? topDisc.slice(0, 16) + "…" : topDisc;
   const topDiscMin = discMap[topDisc] || 0;
   const pctTop = totalMinutos > 0 ? Math.round((topDiscMin / totalMinutos) * 100) : 100;
 
@@ -1674,17 +1750,78 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
 
   const handleShareStory = async () => {
     sfx.click();
-    if (!storyCardRef.current) return;
+    const cardEl = storyCardRef.current;
+    if (!cardEl) return;
     setSharingStory(true);
     try {
-      await new Promise((r) => setTimeout(r, 120));
-      const canvas = await html2canvas(storyCardRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#0b1120",
-        logging: false,
-      });
+      let qr = qrCodeUrl;
+      if (!qr) {
+        try {
+          qr = await QRCode.toDataURL("https://omnia-unio.vercel.app", {
+            margin: 1,
+            width: 180,
+            color: { dark: "#070d1e", light: "#ffffff" },
+          });
+          setQrCodeUrl(qr);
+        } catch (e) {
+          console.error("QR Code error:", e);
+        }
+      }
+
+      // Sincroniza imagem do QR Code
+      const qrImgEl = document.getElementById("omnia-story-qr-img");
+      if (qrImgEl && qr) {
+        qrImgEl.src = qr;
+      }
+
+      // Torna o card temporariamente visível no topo da viewport para renderização perfeita no html2canvas
+      cardEl.style.left = "0px";
+      cardEl.style.top = "0px";
+      cardEl.style.zIndex = "999999";
+      cardEl.style.opacity = "1";
+      cardEl.style.visibility = "visible";
+
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      await new Promise((r) => setTimeout(r, 250));
+
+      // Injeta override temporário para impedir que o Tailwind (img { display: block })
+      // quebre o cálculo de baseline de fontes no FontMetrics do html2canvas
+      const styleFix = document.createElement("style");
+      styleFix.id = "h2c-fontmetrics-fix";
+      styleFix.innerHTML = "img { display: inline !important; }";
+      document.head.appendChild(styleFix);
+
+      let canvas;
+      try {
+        canvas = await html2canvas(cardEl, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#070d1e",
+          logging: false,
+          width: 450,
+          height: 800,
+          x: 0,
+          y: 0,
+          scrollX: 0,
+          scrollY: 0,
+          onclone: (clonedDoc) => {
+            const cloneStyle = clonedDoc.createElement("style");
+            cloneStyle.innerHTML = "img { display: inline !important; }";
+            clonedDoc.head.appendChild(cloneStyle);
+          },
+        });
+      } finally {
+        styleFix.remove();
+      }
+
+      // Retorna para o estado oculto
+      cardEl.style.left = "-9999px";
+      cardEl.style.opacity = "0";
+      cardEl.style.zIndex = "-9999";
+      cardEl.style.visibility = "hidden";
 
       canvas.toBlob(async (blob) => {
         if (!blob) {
@@ -1721,10 +1858,16 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
           );
         } catch (e) {}
 
-        alert("Imagem do Story pronta e baixada! Abra o Instagram para postar nos seus Stories com a sua coruja.");
+        alert("Imagem do Story pronta e baixada com sucesso! Você já pode postar nos seus Stories.");
         setSharingStory(false);
       }, "image/png", 0.95);
     } catch (err) {
+      if (cardEl) {
+        cardEl.style.left = "-9999px";
+        cardEl.style.opacity = "0";
+        cardEl.style.zIndex = "-9999";
+        cardEl.style.visibility = "hidden";
+      }
       console.error("Erro ao gerar Story:", err);
       alert("Não foi possível gerar a imagem automaticamente. Você pode usar o botão 'Copiar Resumo'!");
       setSharingStory(false);
@@ -1846,10 +1989,10 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Disciplina Favorita */}
                 <div
-                  className="p-4 rounded-2xl border flex flex-col justify-between"
+                  className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
                   style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
                 >
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center gap-2 mb-2">
                     <div
                       className="w-7 h-7 rounded-lg flex items-center justify-center border"
                       style={{ backgroundColor: TINT.purple, color: T.purple, borderColor: T.border }}
@@ -1861,7 +2004,7 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
                     </span>
                   </div>
                   <div className="my-1">
-                    <div className="text-lg font-black truncate" style={{ color: T.ink }} title={topDisc}>
+                    <div className="text-lg font-black truncate max-w-full" style={{ color: T.ink }} title={topDisc}>
                       {topDisc}
                     </div>
                     <div className="text-xs mt-0.5" style={{ color: T.inkSoft }}>
@@ -1872,10 +2015,10 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
 
                 {/* Ofensiva / Constância */}
                 <div
-                  className="p-4 rounded-2xl border flex flex-col justify-between"
+                  className="p-4 rounded-2xl border flex flex-col items-center justify-center text-center"
                   style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
                 >
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center gap-2 mb-2">
                     <div
                       className="w-7 h-7 rounded-lg flex items-center justify-center border"
                       style={{ backgroundColor: TINT.importante, color: T.importante, borderColor: T.border }}
@@ -1994,6 +2137,7 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
 
       {/* Template de Instagram Story (9:16 - 450x800px) */}
       <div
+        id="omnia-story-card"
         ref={storyCardRef}
         style={{
           position: "fixed",
@@ -2003,13 +2147,16 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
           height: "800px",
           background: "linear-gradient(160deg, #070d1e 0%, #151638 45%, #050814 100%)",
           color: "#ffffff",
-          fontFamily: "'Inter', sans-serif",
-          padding: "36px 28px",
+          fontFamily: "'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          padding: "32px 24px",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
           boxSizing: "border-box",
           overflow: "hidden",
+          zIndex: "-9999",
+          opacity: 0,
+          visibility: "hidden",
         }}
       >
         {/* Glow ambient background effects */}
@@ -2018,91 +2165,150 @@ Plataforma: Omnia (omnia-unio.vercel.app)`;
         <div style={{ position: "absolute", top: "40%", right: "-40px", width: "180px", height: "180px", borderRadius: "50%", background: "#8b5cf6", filter: "blur(70px)", opacity: 0.3, pointerEvents: "none" }} />
 
         {/* Top Header */}
-        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", paddingBottom: "2px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(59, 130, 246, 0.2)", border: "1px solid rgba(59, 130, 246, 0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(59, 130, 246, 0.2)", border: "1px solid rgba(59, 130, 246, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Sparkles size={18} color="#60a5fa" />
             </div>
             <div>
-              <div style={{ fontSize: "16px", fontWeight: "900", letterSpacing: "-0.5px" }}>OMNIA WRAPPED</div>
-              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "1px" }}>Retrospectiva Acadêmica</div>
+              <div style={{ fontSize: "16px", fontWeight: "900", letterSpacing: "-0.5px", lineHeight: "1.2" }}>OMNIA WRAPPED</div>
+              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "1px", lineHeight: "1.2", marginTop: "2px" }}>Retrospectiva Acadêmica</div>
             </div>
           </div>
-          <div style={{ padding: "4px 12px", borderRadius: "999px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", fontSize: "11px", fontWeight: "700" }}>
+          <div style={{ display: "inline-block", padding: "5px 14px", borderRadius: "999px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", fontSize: "11px", fontWeight: "800", lineHeight: "1", textAlign: "center" }}>
             2026
           </div>
         </div>
 
         {/* Hero: Mascote da Coruja na cor equipada */}
-        <div style={{ position: "relative", zIndex: 10, textAlign: "center", margin: "14px 0" }}>
-          <div style={{ width: "125px", height: "125px", margin: "0 auto", borderRadius: "30px", background: "rgba(255, 255, 255, 0.06)", border: "1px solid rgba(255, 255, 255, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(10px)", boxShadow: "0 12px 30px rgba(0,0,0,0.5)" }}>
+        <div style={{ position: "relative", zIndex: 10, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%" }}>
+          <div style={{ width: "130px", height: "130px", margin: "0 auto", borderRadius: "28px", background: "rgba(255, 255, 255, 0.06)", border: "1px solid rgba(255, 255, 255, 0.16)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(12px)", boxShadow: "0 14px 32px rgba(0,0,0,0.45)" }}>
             <img
               src={mascotSrc}
               alt={activeSkin.name}
-              style={{ width: "100px", height: "100px", objectFit: "contain", imageRendering: "pixelated" }}
+              style={{ width: "105px", height: "105px", objectFit: "contain", imageRendering: "pixelated", display: "block" }}
             />
           </div>
-          <div style={{ marginTop: "12px", display: "inline-block", padding: "4px 14px", borderRadius: "999px", background: "rgba(96, 165, 250, 0.2)", border: "1px solid rgba(96, 165, 250, 0.4)", fontSize: "11px", fontWeight: "800", color: "#93c5fd" }}>
+          <div style={{ marginTop: "12px", display: "inline-block", padding: "5px 16px", borderRadius: "999px", background: "rgba(96, 165, 250, 0.18)", border: "1px solid rgba(96, 165, 250, 0.35)", fontSize: "11px", fontWeight: "800", color: "#93c5fd", lineHeight: "1", textAlign: "center" }}>
             {activeSkin.name}
           </div>
-          <div style={{ marginTop: "6px", fontSize: "20px", fontWeight: "900", color: "#ffffff" }}>
+          <div style={{ marginTop: "10px", width: "100%", fontSize: "22px", fontWeight: "900", color: "#ffffff", lineHeight: "1.2", textAlign: "center", letterSpacing: "-0.3px" }}>
             {perfilTitulo}
           </div>
-          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.65)", maxWidth: "340px", margin: "4px auto 0", lineHeight: "1.4" }}>
+          <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.68)", maxWidth: "330px", margin: "4px auto 0", lineHeight: "1.4", textAlign: "center", width: "100%" }}>
             {perfilDesc}
           </div>
         </div>
 
-        {/* Big Highlights: Stats */}
-        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", gap: "10px" }}>
-          {/* Main Stat Card */}
-          <div style={{ background: "rgba(255, 255, 255, 0.07)", border: "1px solid rgba(255, 255, 255, 0.12)", borderRadius: "20px", padding: "16px", textAlign: "center", backdropFilter: "blur(10px)" }}>
-            <div style={{ fontSize: "10px", textTransform: "uppercase", fontWeight: "700", letterSpacing: "1px", color: "#93c5fd", marginBottom: "4px" }}>
+        {/* Big Highlights: Stats com alinhamento rigorosamente simétrico e centralização perfeita */}
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+          {/* Main Stat Card com centralização vertical e horizontal perfeita */}
+          <div style={{
+            background: "rgba(255, 255, 255, 0.07)",
+            border: "1px solid rgba(255, 255, 255, 0.14)",
+            borderRadius: "22px",
+            padding: "16px 20px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            boxSizing: "border-box",
+            width: "100%",
+            minHeight: "116px",
+            boxShadow: "0 8px 24px rgba(0,0,0,0.25)"
+          }}>
+            <div style={{ width: "100%", textAlign: "center", fontSize: "11px", textTransform: "uppercase", fontWeight: "800", letterSpacing: "1px", color: "#93c5fa", lineHeight: "1.2", margin: "0 0 4px 0", padding: 0 }}>
               Tempo Total Dedicado
             </div>
-            <div style={{ fontSize: "42px", fontWeight: "900", letterSpacing: "-1px", color: "#60a5fa" }}>
+            <div style={{ width: "100%", textAlign: "center", fontSize: "40px", fontWeight: "900", letterSpacing: "-1px", color: "#60a5fa", lineHeight: "1.1", margin: "0 0 4px 0", padding: 0 }}>
               {tempoStr}
             </div>
-            <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+            <div style={{ width: "100%", textAlign: "center", fontSize: "11px", color: "rgba(255,255,255,0.65)", lineHeight: "1.2", margin: 0, padding: 0 }}>
               {totalSessoes} sessões de foco • média de ~{mediaMinutos} min
             </div>
           </div>
 
-          {/* 2-Column Stats Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            <div style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "18px", padding: "12px 14px" }}>
-              <div style={{ fontSize: "9px", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.5px", color: "#c084fc", marginBottom: "4px" }}>
+          {/* 2-Column Stats Grid com centralização vertical balanceada */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", width: "100%" }}>
+            <div style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "20px",
+              padding: "14px 12px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              boxSizing: "border-box",
+              width: "100%",
+              minHeight: "96px",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.2)"
+            }}>
+              <div style={{ width: "100%", textAlign: "center", fontSize: "10px", textTransform: "uppercase", fontWeight: "800", letterSpacing: "0.5px", color: "#c084fc", lineHeight: "1.2", margin: "0 0 4px 0", padding: 0 }}>
                 Top Disciplina
               </div>
-              <div style={{ fontSize: "15px", fontWeight: "900", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                {topDisc}
+              <div style={{ width: "100%", textAlign: "center", fontSize: "17px", fontWeight: "900", color: "#ffffff", lineHeight: "1.2", margin: "0 0 4px 0", padding: 0, overflow: "visible" }} title={topDisc}>
+                {displayTopDisc}
               </div>
-              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+              <div style={{ width: "100%", textAlign: "center", fontSize: "10px", color: "rgba(255,255,255,0.65)", lineHeight: "1.2", margin: 0, padding: 0 }}>
                 {pctTop}% do foco total
               </div>
             </div>
 
-            <div style={{ background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "18px", padding: "12px 14px" }}>
-              <div style={{ fontSize: "9px", textTransform: "uppercase", fontWeight: "700", letterSpacing: "0.5px", color: "#fb923c", marginBottom: "4px" }}>
+            <div style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "20px",
+              padding: "14px 12px",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              boxSizing: "border-box",
+              width: "100%",
+              minHeight: "96px",
+              boxShadow: "0 6px 18px rgba(0,0,0,0.2)"
+            }}>
+              <div style={{ width: "100%", textAlign: "center", fontSize: "10px", textTransform: "uppercase", fontWeight: "800", letterSpacing: "0.5px", color: "#fb923c", lineHeight: "1.2", margin: "0 0 4px 0", padding: 0 }}>
                 Ofensiva Diária
               </div>
-              <div style={{ fontSize: "15px", fontWeight: "900", color: "#ffffff" }}>
+              <div style={{ width: "100%", textAlign: "center", fontSize: "17px", fontWeight: "900", color: "#ffffff", lineHeight: "1.2", margin: "0 0 4px 0", padding: 0, overflow: "visible" }}>
                 {streak > 0 ? `${streak} Dias Seguidos` : `${totalSessoes} Sessões`}
               </div>
-              <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+              <div style={{ width: "100%", textAlign: "center", fontSize: "10px", color: "rgba(255,255,255,0.65)", lineHeight: "1.2", margin: 0, padding: 0 }}>
                 Turno: {topPeriodo}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid rgba(255, 255, 255, 0.1)", paddingTop: "14px" }}>
-          <div style={{ fontSize: "11px", fontWeight: "700", color: "rgba(255,255,255,0.8)" }}>
-            Minha vida em um app 🦉
+        {/* Footer com QR Code para acessar o site (Apenas no story gerado) */}
+        <div style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid rgba(255, 255, 255, 0.12)", paddingTop: "14px", width: "100%", boxSizing: "border-box" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "52px", height: "52px", borderRadius: "12px", background: "#ffffff", padding: "4px", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(0,0,0,0.4)", flexShrink: 0 }}>
+              <img
+                id="omnia-story-qr-img"
+                src={qrCodeUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44'></svg>"}
+                alt="QR Code omnia-unio.vercel.app"
+                style={{ width: "44px", height: "44px", display: "block" }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ fontSize: "12px", fontWeight: "800", color: "#ffffff", letterSpacing: "-0.2px", lineHeight: "1.2" }}>
+                Acesse a plataforma
+              </div>
+              <div style={{ fontSize: "10px", fontWeight: "600", color: "#93c5fd", letterSpacing: "0.2px", marginTop: "2px", lineHeight: "1.2" }}>
+                omnia-unio.vercel.app
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: "10px", fontWeight: "600", color: "rgba(255,255,255,0.5)" }}>
-            omnia-unio.vercel.app
+
+          <div style={{ padding: "6px 14px", borderRadius: "999px", background: "rgba(255, 255, 255, 0.08)", border: "1px solid rgba(255, 255, 255, 0.15)", fontSize: "10px", fontWeight: "700", color: "rgba(255, 255, 255, 0.75)", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px", lineHeight: "1" }}>
+            <QrCode size={13} style={{ flexShrink: 0 }} />
+            <span>Escaneie o QR</span>
           </div>
         </div>
       </div>
@@ -2342,7 +2548,7 @@ export function DesempenhoTab({ commitments, sessions, quizAttempts, professorAt
 /* ---------------------------------------------------------------------- */
 /* Aba: Biblioteca                                                          */
 /* ---------------------------------------------------------------------- */
-function MaterialsList({ materiaisDisc, onDeleteMaterial }) {
+function MaterialsList({ materiaisDisc, onDeleteMaterial, onOpenPdfViewer }) {
   const [urls, setUrls] = useState({});
 
   async function handleOpen(m) {
@@ -2359,11 +2565,29 @@ function MaterialsList({ materiaisDisc, onDeleteMaterial }) {
     }
   }
 
+  async function handleOpenPdfHighlight(m) {
+    try {
+      let url = urls[m.id];
+      if (!url) {
+        url = await getMaterialSignedUrl(m.storagePath);
+        setUrls((prev) => ({ ...prev, [m.id]: url }));
+      }
+      if (onOpenPdfViewer) {
+        onOpenPdfViewer({ url, title: m.nomeArquivo, id: m.id, disciplina: m.disciplina });
+      } else {
+        window.open(url, "_blank");
+      }
+    } catch {
+      // fallback
+    }
+  }
+
   if (materiaisDisc.length === 0) return null;
 
   return (
     <div className="space-y-1.5 mb-2">
       {materiaisDisc.map((m) => {
+        const isPdf = m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf");
         const meta = TIPO_ARQUIVO_META[m.tipoArquivo] || TIPO_ARQUIVO_META.pdf;
         const Icon = meta.icon;
         return (
@@ -2375,6 +2599,17 @@ function MaterialsList({ materiaisDisc, onDeleteMaterial }) {
             <Icon className="w-3.5 h-3.5 shrink-0" />
             <button onClick={() => handleOpen(m)} className="flex-1 truncate text-left">{m.nomeArquivo}</button>
             <span className="text-[10px] font-mono uppercase" style={{ color: T.inkSoft }}>{meta.label}</span>
+            {isPdf && onOpenPdfViewer && (
+              <button
+                type="button"
+                onClick={() => handleOpenPdfHighlight(m)}
+                title="Abrir no Leitor com Grifador"
+                className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 hover:opacity-85 transition-opacity"
+                style={{ backgroundColor: TINT.brand, color: T.brand }}
+              >
+                <Highlighter className="w-3 h-3" /> Grifar
+              </button>
+            )}
             <button onClick={() => handleOpen(m)} title="Abrir"><Download className="w-3.5 h-3.5 shrink-0" /></button>
             {onDeleteMaterial && (
               <button onClick={() => onDeleteMaterial(m)} title="Excluir"><Trash2 className="w-3.5 h-3.5 shrink-0" /></button>
@@ -2650,7 +2885,7 @@ function QuizPanel({ disciplina, sourceTexts, userId, commitmentId, setQuizAttem
   );
 }
 
-function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDisc, onDeleteNote, onDeleteMaterial, onOpenCommitment, onDeleteCommitment, summaries, setSummaries, setQuizAttempts, setProfessorAttempts, setCommitments }) {
+function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDisc, onDeleteNote, onDeleteMaterial, onOpenCommitment, onDeleteCommitment, summaries, setSummaries, setQuizAttempts, setProfessorAttempts, setCommitments, onOpenPdfViewer }) {
   const [panel, setPanel] = useState(null);
   const [resumoLoading, setResumoLoading] = useState(false);
   const [resumoDraft, setResumoDraft] = useState("");
@@ -2781,7 +3016,7 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
         </div>
       </div>
 
-      <MaterialsList materiaisDisc={materiaisDisc} onDeleteMaterial={onDeleteMaterial} />
+      <MaterialsList materiaisDisc={materiaisDisc} onDeleteMaterial={onDeleteMaterial} onOpenPdfViewer={onOpenPdfViewer} />
 
       <div className="space-y-2 mb-2">
         {compromissosDisc.map((c) => (
@@ -2926,6 +3161,7 @@ function CompromissoWorkspaceContent({
 }) {
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
+  const [viewingPdfModal, setViewingPdfModal] = useState(null);
 
   const [panel, setPanel] = useState(null);
   const [resumoLoading, setResumoLoading] = useState(false);
@@ -3150,12 +3386,29 @@ function CompromissoWorkspaceContent({
         ) : (
           <div className="space-y-1.5">
             {materiaisC.map((m) => {
+              const isPdf = m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf");
               const meta = TIPO_ARQUIVO_META[m.tipoArquivo] || TIPO_ARQUIVO_META.pdf;
               const Icon = meta.icon;
               return (
                 <div key={m.id} className="flex items-center gap-2 text-xs rounded-md p-2" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
                   <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: T.inkSoft }} />
                   <button onClick={() => handleOpenMaterial(m)} className="flex-1 truncate text-left" style={{ color: T.ink }}>{m.nomeArquivo}</button>
+                  {isPdf && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const url = await getMaterialSignedUrl(m.storagePath);
+                          setViewingPdfModal({ url, title: m.nomeArquivo, id: m.id, disciplina: commitment?.disciplina || "Geral" });
+                        } catch {}
+                      }}
+                      title="Abrir no Leitor com Grifador"
+                      className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 hover:opacity-85 transition-opacity"
+                      style={{ backgroundColor: TINT.brand, color: T.brand }}
+                    >
+                      <Highlighter className="w-3 h-3" /> Grifar
+                    </button>
+                  )}
                   <button onClick={() => handleDeleteMaterial(m)} style={{ color: T.inkSoft }} className="shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               );
@@ -3274,6 +3527,28 @@ function CompromissoWorkspaceContent({
           </Card>
         )}
       </div>
+
+      {viewingPdfModal && (
+        <PdfViewerModal
+          fileUrl={viewingPdfModal.url}
+          fileName={viewingPdfModal.title}
+          materialId={viewingPdfModal.id}
+          disciplina={viewingPdfModal.disciplina}
+          onClose={() => setViewingPdfModal(null)}
+          onSaveNote={(noteData) => {
+            if (setNotes) {
+              const newN = {
+                id: uid(),
+                disciplina: noteData.disciplina || commitment?.disciplina || "Geral",
+                commitmentId: commitment?.id || null,
+                texto: noteData.texto,
+                created_at: new Date().toISOString()
+              };
+              setNotes(prev => [newN, ...(prev || [])]);
+            }
+          }}
+        />
+      )}
     </>
   );
 }
@@ -3566,6 +3841,9 @@ function MapaMentalModal({ notes, commitments, onClose, T }) {
 export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, notes, commitments, materials, quizAttempts, professorAttempts, onDeleteNote, summaries, setSummaries, setNotes, setMaterials, setQuizAttempts, setProfessorAttempts }) {
   const [openCommitment, setOpenCommitment] = useState(null);
   const [showMapa, setShowMapa] = useState(false);
+  const [showMindMap, setShowMindMap] = useState(false);
+  const [showCommunityHub, setShowCommunityHub] = useState(false);
+  const [viewingPdf, setViewingPdf] = useState(null);
 
   async function handleDeleteMaterialLib(m) {
     await deleteMaterial(m.id, m.storagePath);
@@ -3605,9 +3883,59 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
     <div className="space-y-6">
       
         {showMapa && <MapaMentalModal notes={notasAcademicas} commitments={commitments} onClose={() => setShowMapa(false)} T={T} />}
+        {showMindMap && (
+          <MindMapModal
+            disciplinas={disciplinas}
+            commitments={commitments}
+            notes={notasAcademicas}
+            materials={materials}
+            summaries={summaries}
+            onClose={() => setShowMindMap(false)}
+          />
+        )}
+        {showCommunityHub && (
+          <CommunitySummariesModal
+            summaries={summaries}
+            onClose={() => setShowCommunityHub(false)}
+            onImportSummary={(imported) => {
+              if (setSummaries) {
+                setSummaries(prev => [imported, ...(prev || [])]);
+              }
+            }}
+            T={T}
+          />
+        )}
+        {viewingPdf && (
+          <PdfViewerModal
+            fileUrl={viewingPdf.url}
+            fileName={viewingPdf.title}
+            materialId={viewingPdf.id}
+            disciplina={viewingPdf.disciplina}
+            onClose={() => setViewingPdf(null)}
+            onSaveNote={(noteData) => {
+              if (setNotes) {
+                const newNote = {
+                  id: uid(),
+                  disciplina: noteData.disciplina || "Geral",
+                  texto: noteData.texto,
+                  created_at: new Date().toISOString()
+                };
+                setNotes(prev => [newNote, ...(prev || [])]);
+              }
+            }}
+          />
+        )}
+
         <div className="flex flex-wrap gap-2 justify-between items-center">
           <ExportarBiblioteca userId={userId} commitments={commitments} notes={notasAcademicas} materials={materials} summaries={summaries} disciplinas={disciplinas} semestres={semestres.filter((s) => s !== "Sem data")} />
-          <PrimaryButton onClick={() => setShowMapa(true)}><Network className="w-4 h-4 mr-2" /> Árvore de Conhecimento</PrimaryButton>
+          <div className="flex items-center gap-2 flex-wrap">
+            <PrimaryButton onClick={() => setShowMindMap(true)}>
+              <Brain className="w-4 h-4 mr-1.5 text-cyan-400" /> Mapa Mental
+            </PrimaryButton>
+            <GhostButton onClick={() => setShowCommunityHub(true)}>
+              <Globe className="w-4 h-4 mr-1.5 text-emerald-400" /> Hub Comunitário
+            </GhostButton>
+          </div>
         </div>
 
 
@@ -3655,6 +3983,7 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
               setSummaries={setSummaries}
               setQuizAttempts={setQuizAttempts}
               setProfessorAttempts={setProfessorAttempts}
+              onOpenPdfViewer={setViewingPdf}
             />
           ))}
         </div>
@@ -3690,7 +4019,18 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
 function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig, phase, remaining }) {
   const [editing, setEditing] = useState(false);
   const [showStore, setShowStore] = useState(false);
+  const [storeTab, setStoreTab] = useState('pets'); // 'pets' | 'snacks'
   const [feedback, setFeedback] = useState(null);
+  const [eatingEffect, setEatingEffect] = useState(null);
+
+  const [petEnergy, setPetEnergy] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      return typeof saved.petEnergy === 'number' ? saved.petEnergy : 80;
+    } catch {
+      return 80;
+    }
+  });
 
   // Estado local sincronizado imediatamente para responsividade sem engasgos
   const [localOwned, setLocalOwned] = useState(() => {
@@ -3859,6 +4199,47 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
     }
   };
 
+  const feedPet = (snack) => {
+    if (localCoins < snack.cost) {
+      sfx.bump?.() || sfx.click?.();
+      setFeedback(`Faltam ${snack.cost - localCoins} moedas para comprar ${snack.name}.`);
+      setTimeout(() => setFeedback(null), 3000);
+      return;
+    }
+    sfx.coin?.() || sfx.pop?.();
+    if (typeof confetti === 'function') {
+      confetti({ particleCount: 35, spread: 60, origin: { y: 0.6 } });
+    }
+    const newCoins = localCoins - snack.cost;
+    const newEnergy = Math.min(100, petEnergy + snack.energy);
+    setLocalCoins(newCoins);
+    setPetEnergy(newEnergy);
+    setEatingEffect(`${snack.icon} +${snack.energy}%`);
+    setTimeout(() => setEatingEffect(null), 2500);
+
+    const happyPhrases = [
+      `Nhac! Que ${snack.name} saborosa! 😋`,
+      `Obrigado! Minha energia subiu para ${newEnergy}%! ⚡`,
+      `Estou com foco total abastecido! 🚀`,
+      `Delícia! Pronto para estudar com você! ✨`
+    ];
+    setBubble(happyPhrases[Math.floor(Math.random() * happyPhrases.length)]);
+    setTimeout(() => setBubble(null), 6000);
+
+    setFeedback(`😋 ${activePet.name} adorou o petisco! (+${snack.energy}% energia, +${snack.xp} XP)`);
+    setTimeout(() => setFeedback(null), 3500);
+
+    const nextConfig = { ...config, coins: newCoins, petEnergy: newEnergy };
+    try {
+      const fresh = JSON.parse(localStorage.getItem("omnia_config") || "{}");
+      localStorage.setItem("omnia_config", JSON.stringify({ ...fresh, ...nextConfig }));
+      const curXp = parseInt(localStorage.getItem("omnia_xp") || "0", 10) || 0;
+      localStorage.setItem("omnia_xp", String(curXp + snack.xp));
+      window.dispatchEvent(new Event("storage"));
+    } catch {}
+    if (updateConfig) updateConfig(nextConfig);
+  };
+
   const [bubble, setBubble] = useState(null);
   useEffect(() => {
     if (config?.enableSincereOwl === false) return;
@@ -3914,7 +4295,9 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
           <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-slate-100 dark:border-gray-700">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-amber-500" />
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">Mascotes de Estudo</h4>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">
+                {storeTab === 'pets' ? 'Mascotes de Estudo' : 'Petiscos & Cuidados'}
+              </h4>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -3934,113 +4317,218 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
             </div>
           </div>
 
+          {/* Abas da Loja: Mascotes vs Petiscos */}
+          <div className="flex gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-gray-900 mb-3 border border-slate-200 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setStoreTab('pets')}
+              className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                storeTab === 'pets'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <PawPrint size={13} />
+              <span>Mascotes</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStoreTab('snacks')}
+              className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                storeTab === 'snacks'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <Cookie size={13} />
+              <span>Petiscos & Lanches</span>
+            </button>
+          </div>
+
           {feedback && (
             <div className="mb-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-medium text-center">
               {feedback}
             </div>
           )}
 
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-            {STUDY_PETS.map((pet) => {
-              const owned = localOwned.includes(pet.id);
-              const selected = localSkinId === pet.id;
-              return (
-                <div
-                  key={pet.id}
-                  className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
-                    selected
-                      ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500'
-                      : 'border-slate-200 dark:border-gray-700/80 hover:bg-slate-50 dark:hover:bg-gray-700/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                      <img
-                        src={pet.preview}
-                        alt={pet.name}
-                        className="w-10 h-10 object-contain select-none"
-                        style={{ imageRendering: 'pixelated' }}
-                        onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
-                      />
+          {/* Aba 1: Mascotes */}
+          {storeTab === 'pets' && (
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              {STUDY_PETS.map((pet) => {
+                const owned = localOwned.includes(pet.id);
+                const selected = localSkinId === pet.id;
+                return (
+                  <div
+                    key={pet.id}
+                    className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
+                      selected
+                        ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500'
+                        : 'border-slate-200 dark:border-gray-700/80 hover:bg-slate-50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <img
+                          src={pet.preview}
+                          alt={pet.name}
+                          className="w-10 h-10 object-contain select-none"
+                          style={{ imageRendering: 'pixelated' }}
+                          onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          {pet.name}
+                          {selected && <Check size={12} className="text-blue-500" />}
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                          {pet.desc}
+                        </div>
+                      </div>
                     </div>
+
+                    <div>
+                      {selected ? (
+                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-md bg-blue-100/60 dark:bg-blue-900/40">
+                          Em uso
+                        </span>
+                      ) : owned ? (
+                        <button
+                          type="button"
+                          onClick={() => buySkin(pet)}
+                          className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors"
+                        >
+                          Usar
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => buySkin(pet)}
+                          className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+                            localCoins >= pet.price
+                              ? 'bg-amber-500 hover:bg-amber-600 active:scale-95 text-white shadow-sm cursor-pointer'
+                              : 'bg-amber-500/20 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-300/40 cursor-pointer hover:bg-amber-500/30'
+                          }`}
+                          title={localCoins >= pet.price ? `Desbloquear ${pet.name}` : `Faltam ${pet.price - localCoins} moedas`}
+                        >
+                          <Coins size={11} /> {pet.price}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Aba 2: Petiscos e Cuidados */}
+          {storeTab === 'snacks' && (
+            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+              <div className="p-2.5 rounded-xl border mb-2 flex items-center justify-between" style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+                <div className="flex items-center gap-2">
+                  <Zap size={16} className="text-emerald-500" />
+                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Energia de {activePet.name}:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-2 rounded-full bg-slate-200 dark:bg-gray-700 overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${petEnergy}%` }} />
+                  </div>
+                  <span className="text-xs font-bold font-mono text-emerald-500">{petEnergy}%</span>
+                </div>
+              </div>
+
+              {PET_SNACKS.map((snack) => (
+                <div
+                  key={snack.id}
+                  className="flex items-center justify-between p-2 rounded-xl border border-slate-200 dark:border-gray-700/80 hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 flex items-center justify-center w-10 h-10 select-none text-emerald-500">
+                      {React.createElement(snack.icon, { size: 18 })}
+                    </span>
                     <div>
                       <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        {pet.name}
-                        {selected && <Check size={12} className="text-blue-500" />}
+                        {snack.name}
+                        <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-0.5">
+                          +{snack.energy}% <Zap size={10} className="fill-emerald-500" />
+                        </span>
                       </div>
                       <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {pet.desc}
+                        {snack.desc}
                       </div>
                     </div>
                   </div>
 
-                  <div>
-                    {selected ? (
-                      <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-md bg-blue-100/60 dark:bg-blue-900/40">
-                        Em uso
-                      </span>
-                    ) : owned ? (
-                      <button
-                        type="button"
-                        onClick={() => buySkin(pet)}
-                        className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors"
-                      >
-                        Usar
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => buySkin(pet)}
-                        className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
-                          localCoins >= pet.price
-                            ? 'bg-amber-500 hover:bg-amber-600 active:scale-95 text-white shadow-sm cursor-pointer'
-                            : 'bg-amber-500/20 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-300/40 cursor-pointer hover:bg-amber-500/30'
-                        }`}
-                        title={localCoins >= pet.price ? `Desbloquear ${pet.name}` : `Faltam ${pet.price - localCoins} moedas (clique para ver detalhes)`}
-                      >
-                        <Coins size={11} /> {pet.price}
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => feedPet(snack)}
+                    className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+                      localCoins >= snack.cost
+                        ? 'bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white shadow-xs cursor-pointer'
+                        : 'bg-emerald-500/20 text-emerald-600 border border-emerald-300/40 cursor-pointer hover:bg-emerald-500/30'
+                    }`}
+                    title={localCoins >= snack.cost ? `Alimentar ${activePet.name}` : `Faltam ${snack.cost - localCoins} moedas`}
+                  >
+                    <Coins size={11} /> {snack.cost}
+                  </button>
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
 
           <div className="mt-3 pt-2 border-t border-slate-100 dark:border-gray-700 text-center">
             <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
-              <Sparkles size={11} /> Conclua blocos de foco (+25 🪙) para acumular moedas de estudo
+              <Sparkles size={11} /> Conclua blocos de foco (+25 moedas) para acumular moedas de estudo
             </span>
           </div>
         </div>
       )}
 
-      {bubble && (
-        <div className="absolute bottom-[80px] bg-white dark:bg-gray-800 border shadow-lg rounded-xl px-3 py-2 text-sm z-10 animate-bounce">
-          {bubble}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-white dark:border-t-gray-800"></div>
-        </div>
-      )}
+      {/* Avatar do Mascote com Balão de Fala no Ápice Superior */}
+      <div className="relative">
+        {eatingEffect && (
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-xs shadow-lg animate-bounce z-40 whitespace-nowrap">
+            {eatingEffect}
+          </div>
+        )}
 
-      <div
-        className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer group shadow-sm flex items-center justify-center p-1"
-        style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}
-        onClick={() => setShowStore(!showStore)}
-        title="Clique para escolher seu mascote de estudo"
-      >
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
-          <span className="text-white text-xs font-bold flex items-center gap-1"><Sparkles size={12} /> Mascotes</span>
+        {bubble && (
+          <div
+            className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white dark:bg-gray-800 border shadow-lg rounded-xl px-3 py-1.5 text-xs font-semibold z-30 animate-bounce pointer-events-none"
+            style={{ borderColor: T.border, color: T.ink }}
+          >
+            {bubble}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-white dark:border-t-gray-800" />
+          </div>
+        )}
+
+        <div
+          className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer shadow-sm flex items-center justify-center p-1 transition-all hover:scale-105 hover:shadow-md hover:border-blue-400 active:scale-95"
+          style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}
+          onClick={() => setShowStore(!showStore)}
+          title="Clique para escolher seu mascote de estudo ou alimentá-lo"
+        >
+          <img
+            key={currentSrc}
+            src={currentSrc}
+            alt={status}
+            className={`w-20 h-20 object-contain select-none filter drop-shadow-md ${animClass}`}
+            style={{ imageRendering: 'pixelated' }}
+            onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
+          />
         </div>
-        <img
-          key={currentSrc}
-          src={currentSrc}
-          alt={status}
-          className={`w-20 h-20 object-contain select-none filter drop-shadow-md ${animClass}`}
-          style={{ imageRendering: 'pixelated' }}
-          onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
-        />
+
+        {/* Botão de personalização sutil no canto do avatar sem cobrir o pet */}
+        <button
+          type="button"
+          onClick={() => setShowStore(!showStore)}
+          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-md flex items-center justify-center transition-transform hover:scale-110 active:scale-90 z-20 cursor-pointer"
+          title="Personalizar mascote e petiscos"
+        >
+          <Sparkles size={12} />
+        </button>
       </div>
-      <div className="text-center">
+      <div className="text-center flex flex-col items-center">
         {editing ? (
           <input
             autoFocus
@@ -4057,6 +4545,23 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
           </div>
         )}
         <div className="text-[10px]" style={{ color: T.inkSoft }}>{status}</div>
+
+        {/* Pílula de Energia do Pet */}
+        <button
+          type="button"
+          onClick={() => { setShowStore(true); setStoreTab('snacks'); }}
+          className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border cursor-pointer hover:opacity-85 transition-opacity mt-1.5"
+          style={{
+            backgroundColor: petEnergy > 60 ? 'rgba(16, 185, 129, 0.1)' : petEnergy > 30 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            borderColor: petEnergy > 60 ? 'rgba(16, 185, 129, 0.3)' : petEnergy > 30 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(239, 68, 68, 0.3)',
+            color: petEnergy > 60 ? '#10b981' : petEnergy > 30 ? '#f59e0b' : '#ef4444'
+          }}
+          title="Energia do mascote. Clique para alimentá-lo com petiscos!"
+        >
+          <Zap size={11} className={petEnergy > 60 ? "fill-emerald-400 text-emerald-400" : ""} />
+          <span>Energia: {petEnergy}%</span>
+          <span className="opacity-70">• {petEnergy > 70 ? 'Saciado' : petEnergy > 30 ? 'Fome leve' : 'Com fome'}</span>
+        </button>
       </div>
     </div>
   );
@@ -4101,8 +4606,10 @@ function BreathingModal({ onClose, T }) {
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:opacity-70 transition-opacity"
+          className="absolute top-4 right-4 p-2 rounded-full hover:opacity-70 transition-opacity cursor-pointer"
           style={{ color: T.inkSoft }}
+          title="Fechar"
+          aria-label="Fechar"
         >
           <X className="w-5 h-5" />
         </button>
@@ -4252,12 +4759,23 @@ export function FocoTab(props) {
   const [lofiSrc, setLofiSrc] = useState(null);
   const [lofiOn, setLofiOn] = useState(false);
   const [soundVolume, setSoundVolume] = useState(0.7);
+  const [activeMasterMenu, setActiveMasterMenu] = useState(null); // 'actions' | 'audio' | 'room' | null
+  const [activePrepAccessory, setActivePrepAccessory] = useState(null); // 'pet' | 'room' | null
   const audioRef = useRef(null);
 
   const [musicInput, setMusicInput] = useState("");
   const [musicError, setMusicError] = useState(null);
 
+  const isAudioEnabled = props.config?.enableMusic !== false && props.config?.enableLofi !== false;
+  useEffect(() => {
+    if (!isAudioEnabled) {
+      if (lofiSrc) setLofiSrc(null);
+      if (lofiOn) setLofiOn(false);
+    }
+  }, [isAudioEnabled]);
+
   const activeMusic = useMemo(() => {
+    if (!isAudioEnabled) return null;
     if (props.config?.musicUrl) {
       const isSpotify = props.config.musicType === 'spotify' || props.config.musicUrl.includes('spotify.com');
       return {
@@ -4274,7 +4792,27 @@ export function FocoTab(props) {
       };
     }
     return null;
-  }, [props.config?.musicUrl, props.config?.musicType, props.config?.musicLabel, props.config?.spotifyUrl]);
+  }, [isAudioEnabled, props.config?.musicUrl, props.config?.musicType, props.config?.musicLabel, props.config?.spotifyUrl]);
+
+  const activeAudioInfo = useMemo(() => {
+    if (lofiSrc) {
+      const soundMap = {
+        "https://stream.zeno.fm/f3wvbbqmdg8uv": "Lo-Fi",
+        "/sounds/chuva.mp3": "Chuva",
+        "/sounds/cafe.mp3": "Café",
+        "/sounds/fogueira.mp3": "Fogueira",
+      };
+      const name = soundMap[lofiSrc] || "Ambiente";
+      return { active: true, label: `${name} (${Math.round(soundVolume * 100)}%)`, type: 'ambient' };
+    }
+    if (activeMusic) {
+      return { active: true, label: activeMusic.label, type: 'music' };
+    }
+    if (lofiOn) {
+      return { active: true, label: "Rádio Lo-Fi Girl", type: 'radio' };
+    }
+    return { active: false, label: "Sons & Música", type: 'none' };
+  }, [lofiSrc, soundVolume, activeMusic, lofiOn]);
 
   const handleAddMusic = (rawUrl) => {
     const val = (rawUrl !== undefined ? rawUrl : musicInput || "").trim();
@@ -4338,11 +4876,51 @@ export function FocoTab(props) {
   const [showRoom, setShowRoom] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [showBreathing, setShowBreathing] = useState(false);
+  const [bossFightActive, setBossFightActive] = useState(() => {
+    try {
+      const saved = localStorage.getItem("omnia_boss_active");
+      return saved !== null ? saved === "true" : true;
+    } catch { return true; }
+  });
+  const [selectedBossId, setSelectedBossId] = useState(() => {
+    try {
+      return localStorage.getItem("omnia_selected_boss") || BOSS_ROSTER[0].id;
+    } catch { return BOSS_ROSTER[0].id; }
+  });
+
+  const selectedBoss = useMemo(() => {
+    return BOSS_ROSTER.find(b => b.id === selectedBossId) || BOSS_ROSTER[0];
+  }, [selectedBossId]);
+
+  const selectBoss = (id) => {
+    setSelectedBossId(id);
+    try { localStorage.setItem("omnia_selected_boss", id); } catch {}
+  };
+
+  const toggleBossMode = () => {
+    setBossFightActive(prev => {
+      const next = !prev;
+      try { localStorage.setItem("omnia_boss_active", String(next)); } catch {}
+      return next;
+    });
+  };
+
   useEffect(() => {
     const handler = () => setShowBreathing(true);
     window.addEventListener("openBreathing", handler);
     return () => window.removeEventListener("openBreathing", handler);
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        if (activePrepAccessory) setActivePrepAccessory(null);
+        if (showBreathing) setShowBreathing(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activePrepAccessory, showBreathing]);
 
     useEffect(() => {
       const handleFsChange = () => {
@@ -4471,11 +5049,28 @@ export function FocoTab(props) {
 
   const compromissosOrdenados = [...commitments].sort((a, b) => (a.prazo || "9999-99-99").localeCompare(b.prazo || "9999-99-99"));
 
+  const totalDuration = workSeconds || 1500;
+  const elapsedSeconds = Math.max(0, totalDuration - remaining);
+  const progressRatio = Math.min(1, Math.max(0, elapsedSeconds / Math.max(1, totalDuration)));
+  const bossCurrentHp = Math.max(0, Math.round(selectedBoss.maxHp * (1 - progressRatio)));
+  const bossDamageDealt = selectedBoss.maxHp - bossCurrentHp;
+  const bossHpPct = Math.round((bossCurrentHp / selectedBoss.maxHp) * 100);
+
   /* ------------------------- Modo imersivo (sessão ativa) ------------------------- */
   if (phase !== "idle") {
     return (
       <div className="space-y-5">
-        <Card className="text-center py-8 relative overflow-hidden">
+        {lofiSrc && (
+          <audio
+            key={lofiSrc}
+            ref={audioRef}
+            src={lofiSrc}
+            autoPlay
+            loop
+            playsInline
+          />
+        )}
+        <Card className="text-center py-7 relative overflow-hidden">
           <div
             className="absolute top-0 left-4 px-2 py-0.5 text-[10px] font-mono uppercase tracking-widest rounded-b"
             style={{ backgroundColor: T.brand, color: T.brandInk }}
@@ -4492,259 +5087,603 @@ export function FocoTab(props) {
               <span className="opacity-70 font-semibold">• {isHost ? "Host" : "Convidado"}</span>
             </div>
           )}
-          <div className="text-[11px] font-mono uppercase tracking-widest mb-2 mt-2" style={{ color: T.inkSoft }}>
+          <div className="text-[11px] font-mono uppercase tracking-widest mb-1.5 mt-2" style={{ color: T.inkSoft }}>
             {phase === "work" ? (running ? "Foco" : "Pausado") : "Pausa"}
           </div>
           {selectedCommitment && (
-            <div className="text-sm font-medium mb-1" style={{ color: T.ink }}>
+            <div className="text-sm font-medium mb-1 truncate px-4" style={{ color: T.ink }}>
               {selectedCommitment.disciplina} — {selectedCommitment.assunto}
             </div>
           )}
-          <div className="text-5xl font-mono font-semibold tabular-nums mb-4" style={{ color: T.ink }}>{mins}:{secs}</div>
-          <div className="flex items-center justify-center gap-2 flex-wrap">
-            {roomId && !isHost ? (
-              <>
-                <GhostButton onClick={handleLeaveRoom}><LogOut className="w-4 h-4 text-rose-500" /> Sair da Sala</GhostButton>
-                <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar meu foco</GhostButton>
-              </>
+          <div className="text-5xl font-mono font-semibold tabular-nums my-3" style={{ color: T.ink }}>{mins}:{secs}</div>
+
+          {/* Botão de Ação Primária */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            {running ? (
+              <button
+                type="button"
+                onClick={() => { sfx.click(); pausar(); }}
+                className="px-6 py-2 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all active:scale-95 border cursor-pointer hover:opacity-90"
+                style={{
+                  backgroundColor: T.surfaceAlt,
+                  borderColor: T.border,
+                  color: T.ink,
+                }}
+              >
+                <Pause className="w-4 h-4 text-amber-500" />
+                <span>Pausar</span>
+              </button>
             ) : (
-              <>
-                {running ? (
-                  <GhostButton onClick={pausar}><Pause className="w-4 h-4" /> Pausar</GhostButton>
-                ) : (
-                  <PrimaryButton onClick={continuar}><Play className="w-4 h-4" /> Continuar</PrimaryButton>
-                )}
-                <GhostButton onClick={reiniciarCiclo}><RotateCcw className="w-4 h-4" /> Reiniciar ciclo</GhostButton>
-                <GhostButton onClick={encerrar}><X className="w-4 h-4" /> Encerrar sessão</GhostButton>
-              </>
+              <button
+                type="button"
+                onClick={() => { sfx.click(); continuar(); }}
+                className="px-6 py-2 rounded-xl font-semibold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer hover:opacity-95"
+                style={{
+                  backgroundColor: T.brand,
+                  color: T.brandInk,
+                }}
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Continuar</span>
+              </button>
             )}
-            <GhostButton onClick={toggleZen} style={{ color: isZen ? T.brand : T.inkSoft }}><Maximize className="w-4 h-4" /> {isZen ? "Sair do Zen" : "Modo Zen"}</GhostButton>
           </div>
-          {roomId && (
-            <div className="mt-4 pt-3 border-t max-w-sm mx-auto flex flex-col items-center gap-1.5" style={{ borderColor: T.border }}>
-              <div className="text-[11px] font-medium flex items-center gap-1.5" style={{ color: T.inkSoft }}>
-                <Users className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Estudando juntos nesta sala ({members && members.length > 0 ? members.length : 1})</span>
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
-                  const skinImg = getPetSprite(m.skin, 'happy');
-                  return (
-                    <div
-                      key={m.joinedAt || idx}
-                      className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] border"
-                      style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
-                    >
-                      <img src={skinImg} alt="" className="w-3.5 h-3.5 rounded-full object-cover" onError={(e) => { e.currentTarget.src = '/owl_happy.png'; }} />
-                      <span className="font-medium truncate max-w-[100px]">{m.name || "Colega"}</span>
-                      {m.isHost && <Crown className="w-2.5 h-2.5 text-amber-500 ml-0.5" />}
-                    </div>
-                  );
-                })}
-              </div>
+
+          {/* Mascote de Foco */}
+          {config?.enablePet !== false && (
+            <div className="my-2">
+              <FocusPet
+                timerOn={phase === "work" && running}
+                streak={streak}
+                petName={config?.petName}
+                onNameChange={(n) => updateConfig({...config, petName: n})}
+                config={config}
+                updateConfig={updateConfig}
+                phase={phase}
+              />
             </div>
           )}
-          <FocusPet timerOn={phase === "work" && running} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase={phase} />
-            
-              {props.config?.enableLofi !== false && (
-              <div className="flex flex-col items-center justify-center gap-3 mt-6 w-full max-w-sm mx-auto">
-                {lofiSrc && (
-                  <audio
-                    key={lofiSrc}
-                    ref={audioRef}
-                    src={lofiSrc}
-                    autoPlay
-                    loop
-                    playsInline
-                  />
-                )}
-                  <div className="text-xs uppercase font-bold opacity-50 mb-1" style={{ color: T.ink }}>Sons de Foco</div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {[
-                      { id: null, label: "Silêncio", icon: VolumeX },
-                      { id: "https://stream.zeno.fm/f3wvbbqmdg8uv", label: "Lo-Fi", icon: Headphones },
-                      { id: "/sounds/chuva.mp3", label: "Chuva", icon: CloudRain },
-                      { id: "/sounds/cafe.mp3", label: "Café", icon: Coffee },
-                      { id: "/sounds/fogueira.mp3", label: "Fogueira", icon: Flame }
-                    ].map(s => {
-                      const IconCmp = s.icon;
-                      const active = lofiSrc === s.id;
-                      return (
-                        <button
-                          key={s.label}
-                          onClick={() => setLofiSrc(s.id)}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-full transition-all flex items-center gap-1.5 ${active ? "shadow-md scale-105" : "opacity-60 hover:opacity-100"}`}
-                          style={{
-                            backgroundColor: active ? T.brand : T.surfaceAlt,
-                            color: active ? T.brandInk : T.ink,
-                            border: `1px solid ${active ? T.brand : T.border}`
-                          }}
-                        >
-                          <IconCmp className="w-3.5 h-3.5" />
-                          <span>{s.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
 
-                  {lofiSrc && (
-                    <div className="flex items-center gap-2.5 w-full max-w-xs px-3 py-1.5 rounded-full border shadow-sm transition-all" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-                      {soundVolume === 0 ? (
-                        <VolumeX size={14} style={{ color: T.inkSoft }} />
-                      ) : (
-                        <Volume2 size={14} style={{ color: T.brand }} />
-                      )}
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                        value={soundVolume}
-                        onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
-                        className="w-full accent-blue-500 h-1.5 cursor-pointer"
-                        title="Volume do Som Ambiente"
-                      />
-                      <span className="text-[10px] font-mono w-7 text-right font-medium" style={{ color: T.inkSoft }}>
-                        {Math.round(soundVolume * 100)}%
+          {/* Batalha RPG contra o Chefe */}
+          {config?.enableBossFight !== false && bossFightActive && selectedBoss && phase === "work" && (
+            <div
+              className="my-3 mx-auto max-w-md p-3.5 rounded-2xl border transition-all relative overflow-hidden"
+              style={{
+                backgroundColor: T.surfaceAlt,
+                borderColor: selectedBoss.themeColor || T.border,
+                boxShadow: running ? `0 0 16px ${selectedBoss.themeColor}33` : "none",
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2.5 text-left min-w-0">
+                  <div
+                    className={`p-2 rounded-xl shrink-0 flex items-center justify-center ${running ? "animate-bounce" : ""}`}
+                    style={{ backgroundColor: `${selectedBoss.themeColor}22`, color: selectedBoss.themeColor }}
+                  >
+                    {React.createElement(selectedBoss.icon || Swords, { size: 20 })}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold flex items-center gap-1.5 truncate" style={{ color: T.ink }}>
+                      <span className="truncate">{selectedBoss.name}</span>
+                      <span
+                        className="text-[9px] px-1.5 py-0.2 rounded-full font-mono uppercase font-bold shrink-0"
+                        style={{ backgroundColor: `${selectedBoss.themeColor}22`, color: selectedBoss.themeColor, border: `1px solid ${selectedBoss.themeColor}44` }}
+                      >
+                        Chefe RPG
                       </span>
                     </div>
-                  )}
-                
-                {/* Player de Música Integrado: Spotify & YouTube Music */}
-                <div className="w-full">
-                  {!activeMusic ? (
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="relative flex-1">
-                          <input
-                            type="text"
-                            placeholder="Link do Spotify ou YouTube Music..."
-                            value={musicInput}
-                            onChange={(e) => {
-                              setMusicInput(e.target.value);
-                              if (musicError) setMusicError(null);
-                            }}
-                            className="w-full text-xs sm:text-sm p-2 sm:p-2.5 rounded-lg outline-none transition-all"
-                            style={{
-                              backgroundColor: T.surfaceAlt,
-                              color: T.ink,
-                              border: `1px solid ${musicError ? '#ef4444' : T.border}`,
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleAddMusic(e.target.value);
-                              }
-                            }}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleAddMusic()}
-                          disabled={!musicInput.trim()}
-                          className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all ${
-                            musicInput.trim()
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-sm active:scale-95'
-                              : 'bg-slate-200 dark:bg-gray-800 text-slate-400 dark:text-gray-500 cursor-not-allowed opacity-60'
-                          }`}
-                          title="Carregar player de música"
-                        >
-                          <Music size={13} />
-                          <span>Tocar</span>
-                        </button>
-                      </div>
-
-                      {musicError && (
-                        <div className="text-[11px] text-rose-500 dark:text-rose-400 px-1 font-medium">
-                          {musicError}
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between text-[11px] px-1" style={{ color: T.inkSoft }}>
-                        <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-1 font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                            Spotify
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
-                            YouTube Music
-                          </span>
-                        </div>
-                        <GhostButton
-                          className="text-xs py-1 px-2.5"
-                          onClick={() => setLofiOn(!lofiOn)}
-                          style={{ color: lofiOn ? T.brand : T.inkSoft }}
-                        >
-                          <Headphones className="w-3.5 h-3.5 mr-1" />
-                          {lofiOn ? 'Rádio Lo-Fi Ativa' : 'Ligar Rádio Lo-Fi'}
-                        </GhostButton>
-                      </div>
+                    <div className="text-[10px] truncate" style={{ color: T.inkSoft }}>
+                      {selectedBoss.title}
                     </div>
-                  ) : (
-                    <div className="relative group w-full flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between px-1 text-xs font-medium" style={{ color: T.inkSoft }}>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              activeMusic.type === 'spotify' ? 'bg-emerald-500' : 'bg-red-500'
-                            } animate-pulse`}
-                          />
-                          <span className="font-semibold" style={{ color: T.ink }}>
-                            {activeMusic.label}
-                          </span>
-                          <span className="text-[10px] opacity-70">conectado</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleRemoveMusic}
-                          className="text-[11px] text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 cursor-pointer"
-                          title="Trocar ou remover playlist"
-                        >
-                          <X size={12} /> Trocar playlist
-                        </button>
-                      </div>
+                  </div>
+                </div>
 
-                      <div className="relative rounded-xl overflow-hidden border shadow-sm" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
-                        {activeMusic.type === 'spotify' ? (
-                          <iframe
-                            style={{ borderRadius: '12px' }}
-                            src={activeMusic.embedUrl}
-                            width="100%"
-                            height="152"
-                            frameBorder="0"
-                            allowFullScreen=""
-                            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                            loading="lazy"
-                            title="Spotify Player"
-                          />
-                        ) : (
-                          <iframe
-                            style={{ borderRadius: '12px' }}
-                            src={activeMusic.embedUrl}
-                            width="100%"
-                            height="180"
-                            frameBorder="0"
-                            allowFullScreen=""
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            loading="lazy"
-                            title="YouTube Music Player"
-                          />
-                        )}
-                      </div>
-                    </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs font-mono font-bold" style={{ color: selectedBoss.themeColor }}>
+                    {bossCurrentHp} / {selectedBoss.maxHp} HP
+                  </div>
+                  <div className="text-[10px]" style={{ color: T.inkSoft }}>
+                    {bossHpPct}% restante
+                  </div>
+                </div>
+              </div>
+
+              {/* Barra de Vida do Boss */}
+              <div className="w-full h-3 rounded-full overflow-hidden bg-slate-800 border border-slate-700/60 relative">
+                <div
+                  className="h-full transition-all duration-300 relative rounded-full"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, bossHpPct))}%`,
+                    backgroundColor: selectedBoss.themeColor || "#ef4444",
+                  }}
+                >
+                  {running && (
+                    <div className="absolute inset-0 bg-white/20 animate-pulse" />
                   )}
                 </div>
               </div>
+
+              <div className="mt-2 flex items-center justify-between text-[11px]" style={{ color: T.inkSoft }}>
+                <span className="flex items-center gap-1">
+                  <Swords size={12} className="text-rose-400" />
+                  <span>Dano no chefe: <strong className="font-mono text-emerald-400">-{bossDamageDealt} HP</strong></span>
+                </span>
+                <span className="truncate max-w-[190px] text-right flex items-center gap-1" title={selectedBoss.weakness}>
+                  <Target size={11} className="text-amber-400 shrink-0" />
+                  <span>{selectedBoss.weakness}</span>
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Barra de Botões Mestres */}
+          <div className="mt-5 pt-4 border-t max-w-md mx-auto" style={{ borderColor: T.border }}>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {/* Botão Mestre 1: Ações */}
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.click();
+                  setActiveMasterMenu(prev => prev === 'actions' ? null : 'actions');
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activeMasterMenu === 'actions'
+                    ? 'shadow-sm scale-[1.03]'
+                    : 'opacity-75 hover:opacity-100 hover:scale-[1.01]'
+                }`}
+                style={{
+                  backgroundColor: activeMasterMenu === 'actions' ? T.brand : T.surfaceAlt,
+                  color: activeMasterMenu === 'actions' ? T.brandInk : T.ink,
+                  border: `1px solid ${activeMasterMenu === 'actions' ? T.brand : T.border}`,
+                }}
+                title="Ações da sessão"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>Ações</span>
+                {activeMasterMenu === 'actions' ? (
+                  <ChevronUp className="w-3 h-3 opacity-80" />
+                ) : (
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                )}
+              </button>
+
+              {/* Botão Mestre 2: Sons & Música */}
+              {isAudioEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.click();
+                    setActiveMasterMenu(prev => prev === 'audio' ? null : 'audio');
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeMasterMenu === 'audio'
+                      ? 'shadow-sm scale-[1.03]'
+                      : 'opacity-75 hover:opacity-100 hover:scale-[1.01]'
+                  }`}
+                  style={{
+                    backgroundColor: activeMasterMenu === 'audio' ? T.brand : T.surfaceAlt,
+                    color: activeMasterMenu === 'audio' ? T.brandInk : T.ink,
+                    border: `1px solid ${activeMasterMenu === 'audio' ? T.brand : T.border}`,
+                  }}
+                  title="Configurar sons ambiente e músicas"
+                >
+                  <Headphones className="w-3.5 h-3.5" />
+                  <span>{activeAudioInfo.label}</span>
+                  {activeAudioInfo.active && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+                  )}
+                  {activeMasterMenu === 'audio' ? (
+                    <ChevronUp className="w-3 h-3 opacity-80" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  )}
+                </button>
               )}
 
-            {lofiOn && (
-  <div className="mt-6 flex justify-center">
-    <iframe width="280" height="157" src="https://www.youtube.com/embed/lTRiuFIWV54?autoplay=1" title="Lofi Girl" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen className="rounded-lg shadow-md" />
-  </div>
-)}
+              {/* Botão Mestre 3: Modo Zen */}
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.click();
+                  toggleZen();
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isZen ? 'shadow-sm scale-[1.03]' : 'opacity-75 hover:opacity-100 hover:scale-[1.01]'
+                }`}
+                style={{
+                  backgroundColor: isZen ? TINT.brand : T.surfaceAlt,
+                  color: isZen ? T.brand : T.ink,
+                  border: `1px solid ${isZen ? T.brand : T.border}`,
+                }}
+                title={isZen ? "Sair da tela cheia" : "Tela cheia imersiva"}
+              >
+                <Maximize className="w-3.5 h-3.5" />
+                <span>{isZen ? "Sair do Zen" : "Modo Zen"}</span>
+              </button>
 
+              {/* Botão Mestre 4: Sala (se sala ativa) */}
+              {config?.enableMultiplayer !== false && roomId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.click();
+                    setActiveMasterMenu(prev => prev === 'room' ? null : 'room');
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeMasterMenu === 'room'
+                      ? 'shadow-sm scale-[1.03]'
+                      : 'opacity-75 hover:opacity-100 hover:scale-[1.01]'
+                  }`}
+                  style={{
+                    backgroundColor: activeMasterMenu === 'room' ? T.brand : T.surfaceAlt,
+                    color: activeMasterMenu === 'room' ? T.brandInk : T.ink,
+                    border: `1px solid ${activeMasterMenu === 'room' ? T.brand : T.border}`,
+                  }}
+                  title="Ver colegas na sala"
+                >
+                  <Users className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Sala ({members && members.length > 0 ? members.length : 1})</span>
+                  {activeMasterMenu === 'room' ? (
+                    <ChevronUp className="w-3 h-3 opacity-80" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Gavetas de Acessórios (Collapsible Drawers) */}
+            {/* Drawer 1: Ações da Sessão */}
+            {activeMasterMenu === 'actions' && (
+              <div
+                className="mt-3.5 p-3.5 rounded-2xl border text-left transition-all animate-in fade-in slide-in-from-top-1 duration-150"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+              >
+                <div className="flex items-center justify-between pb-2 mb-2.5 border-b" style={{ borderColor: T.border }}>
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: T.ink }}>
+                    <SlidersHorizontal className="w-3.5 h-3.5" style={{ color: T.brand }} />
+                    <span>Ações da Sessão</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMasterMenu(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(!roomId || isHost) && (
+                    <button
+                      type="button"
+                      onClick={() => { sfx.click(); reiniciarCiclo(); }}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 transition-all opacity-85 hover:opacity-100 active:scale-95 cursor-pointer"
+                      style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Reiniciar ciclo</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { sfx.click(); encerrar(); }}
+                    className="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 transition-all text-rose-500 border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 active:scale-95 cursor-pointer"
+                    style={{ backgroundColor: T.surface }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>{roomId && !isHost ? "Encerrar meu foco" : "Encerrar sessão"}</span>
+                  </button>
+                  {roomId && !isHost && (
+                    <button
+                      type="button"
+                      onClick={() => { sfx.click(); handleLeaveRoom(); }}
+                      className="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-xs font-medium border flex items-center justify-center gap-1.5 transition-all text-rose-500 border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/30 active:scale-95 cursor-pointer"
+                      style={{ backgroundColor: T.surface }}
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sair da Sala</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Drawer 2: Sons & Trilha Sonora */}
+            {isAudioEnabled && activeMasterMenu === 'audio' && (
+              <div
+                className="mt-3.5 p-3.5 rounded-2xl border text-left transition-all animate-in fade-in slide-in-from-top-1 duration-150"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+              >
+              <div className="flex items-center justify-between pb-2 mb-3 border-b" style={{ borderColor: T.border }}>
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: T.ink }}>
+                  <Headphones className="w-3.5 h-3.5" style={{ color: T.brand }} />
+                  <span>Sons de Foco & Música</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMasterMenu(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Ruídos Ambiente */}
+              <div className="space-y-2 mb-3.5">
+                <div className="text-[10px] font-mono uppercase tracking-wider opacity-70" style={{ color: T.inkSoft }}>
+                  Ruídos Ambientes
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: null, label: "Silêncio", icon: VolumeX },
+                    { id: "https://stream.zeno.fm/f3wvbbqmdg8uv", label: "Lo-Fi", icon: Headphones },
+                    { id: "/sounds/chuva.mp3", label: "Chuva", icon: CloudRain },
+                    { id: "/sounds/cafe.mp3", label: "Café", icon: Coffee },
+                    { id: "/sounds/fogueira.mp3", label: "Fogueira", icon: Flame }
+                  ].map((s) => {
+                    const IconCmp = s.icon;
+                    const active = lofiSrc === s.id;
+                    return (
+                      <button
+                        key={s.label}
+                        type="button"
+                        onClick={() => { sfx.click(); setLofiSrc(s.id); }}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                          active ? "shadow-sm font-semibold" : "opacity-70 hover:opacity-100"
+                        }`}
+                        style={{
+                          backgroundColor: active ? T.brand : T.surface,
+                          color: active ? T.brandInk : T.ink,
+                          border: `1px solid ${active ? T.brand : T.border}`
+                        }}
+                      >
+                        <IconCmp className="w-3.5 h-3.5" />
+                        <span>{s.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {lofiSrc && (
+                  <div className="flex items-center gap-2.5 mt-2 px-3 py-1.5 rounded-xl border shadow-2xs" style={{ backgroundColor: T.surface, borderColor: T.border }}>
+                    {soundVolume === 0 ? (
+                      <VolumeX size={14} style={{ color: T.inkSoft }} />
+                    ) : (
+                      <Volume2 size={14} style={{ color: T.brand }} />
+                    )}
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={soundVolume}
+                      onChange={(e) => setSoundVolume(parseFloat(e.target.value))}
+                      className="w-full accent-blue-500 h-1.5 cursor-pointer"
+                      title="Volume do Som Ambiente"
+                    />
+                    <span className="text-[10px] font-mono w-7 text-right font-medium" style={{ color: T.inkSoft }}>
+                      {Math.round(soundVolume * 100)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Player Spotify & YouTube Music */}
+              <div className="pt-3 border-t space-y-2" style={{ borderColor: T.border }}>
+                <div className="text-[10px] font-mono uppercase tracking-wider opacity-70" style={{ color: T.inkSoft }}>
+                  Música (Spotify & YouTube)
+                </div>
+
+                {!activeMusic ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Link do Spotify ou YouTube Music..."
+                        value={musicInput}
+                        onChange={(e) => {
+                          setMusicInput(e.target.value);
+                          if (musicError) setMusicError(null);
+                        }}
+                        className="w-full text-xs p-2 rounded-lg outline-none transition-all"
+                        style={{
+                          backgroundColor: T.surface,
+                          color: T.ink,
+                          border: `1px solid ${musicError ? '#ef4444' : T.border}`,
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddMusic(e.target.value);
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddMusic()}
+                        disabled={!musicInput.trim()}
+                        className={`px-3 py-2 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all ${
+                          musicInput.trim()
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-sm active:scale-95'
+                            : 'bg-slate-200 dark:bg-gray-800 text-slate-400 dark:text-gray-500 cursor-not-allowed opacity-60'
+                        }`}
+                      >
+                        <Music size={13} />
+                        <span>Tocar</span>
+                      </button>
+                    </div>
+
+                    {musicError && (
+                      <div className="text-[11px] text-rose-500 dark:text-rose-400 px-1 font-medium">
+                        {musicError}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between text-[11px] px-1" style={{ color: T.inkSoft }}>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                          Spotify
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 font-medium">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+                          YouTube Music
+                        </span>
+                      </div>
+                      <GhostButton
+                        className="text-xs py-1 px-2.5"
+                        onClick={() => setLofiOn(!lofiOn)}
+                        style={{ color: lofiOn ? T.brand : T.inkSoft }}
+                      >
+                        <Headphones className="w-3.5 h-3.5 mr-1" />
+                        {lofiOn ? 'Rádio Lo-Fi Ativa' : 'Ligar Rádio Lo-Fi'}
+                      </GhostButton>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative group w-full flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between px-1 text-xs font-medium" style={{ color: T.inkSoft }}>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            activeMusic.type === 'spotify' ? 'bg-emerald-500' : 'bg-red-500'
+                          } animate-pulse`}
+                        />
+                        <span className="font-semibold" style={{ color: T.ink }}>
+                          {activeMusic.label}
+                        </span>
+                        <span className="text-[10px] opacity-70">conectado</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveMusic}
+                        className="text-[11px] text-slate-400 hover:text-rose-500 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="Trocar ou remover playlist"
+                      >
+                        <X size={12} /> Trocar playlist
+                      </button>
+                    </div>
+
+                    <div className="relative rounded-xl overflow-hidden border shadow-sm" style={{ borderColor: T.border, backgroundColor: T.surface }}>
+                      {activeMusic.type === 'spotify' ? (
+                        <iframe
+                          style={{ borderRadius: '12px' }}
+                          src={activeMusic.embedUrl}
+                          width="100%"
+                          height="152"
+                          frameBorder="0"
+                          allowFullScreen=""
+                          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                          loading="lazy"
+                          title="Spotify Player"
+                        />
+                      ) : (
+                        <iframe
+                          style={{ borderRadius: '12px' }}
+                          src={activeMusic.embedUrl}
+                          width="100%"
+                          height="180"
+                          frameBorder="0"
+                          allowFullScreen=""
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          loading="lazy"
+                          title="YouTube Music Player"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Rádio Lo-Fi Girl */}
+              {lofiOn && (
+                <div className="pt-3 border-t flex flex-col items-center" style={{ borderColor: T.border }}>
+                  <div className="flex items-center justify-between w-full mb-1.5 px-1 text-xs" style={{ color: T.inkSoft }}>
+                    <span className="font-medium">Rádio Lo-Fi Girl</span>
+                    <button
+                      type="button"
+                      onClick={() => setLofiOn(false)}
+                      className="text-rose-500 hover:underline text-[11px] cursor-pointer"
+                    >
+                      Desligar
+                    </button>
+                  </div>
+                  <iframe
+                    width="280"
+                    height="157"
+                    src="https://www.youtube.com/embed/lTRiuFIWV54?autoplay=1"
+                    title="Lofi Girl"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="rounded-lg shadow-md"
+                  />
+                </div>
+              )}
+            </div>
+            )}
+
+            {/* Drawer 3: Sala de Estudos */}
+            {config?.enableMultiplayer !== false && activeMasterMenu === 'room' && roomId && (
+              <div
+                className="mt-3.5 p-3.5 rounded-2xl border text-left transition-all animate-in fade-in slide-in-from-top-1 duration-150"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+              >
+                <div className="flex items-center justify-between pb-2 mb-2.5 border-b" style={{ borderColor: T.border }}>
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: T.ink }}>
+                    <Users className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Estudando Juntos ({members && members.length > 0 ? members.length : 1})</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMasterMenu(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
+                    const skinImg = getPetSprite(m.skin, 'happy');
+                    return (
+                      <div
+                        key={m.joinedAt || idx}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border shadow-2xs"
+                        style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+                      >
+                        <img src={skinImg} alt="" className="w-4 h-4 rounded-full object-cover" onError={(e) => { e.currentTarget.src = '/owl_happy.png'; }} />
+                        <span className="font-medium truncate max-w-[110px]">{m.name || "Colega"}</span>
+                        {m.isHost && <Crown className="w-3 h-3 text-amber-500 ml-0.5" />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: T.border }}>
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium border flex items-center justify-center gap-1.5 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                    style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>{copiedType === 'code' ? 'Copiado!' : 'Copiar Código'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex-1 py-1.5 px-2.5 rounded-lg text-xs font-medium border flex items-center justify-center gap-1.5 transition-all cursor-pointer opacity-90 hover:opacity-100"
+                    style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>{copiedType === 'link' ? 'Link Copiado!' : 'Copiar Link'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </Card>
 
         {phase === "rest" && ultimaSessao && (
@@ -4822,14 +5761,14 @@ export function FocoTab(props) {
 
       <Card>
         <SectionLabel>Duração</SectionLabel>
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div data-tour="foco-presets" className="flex flex-wrap gap-2 mb-3">
           {PRESETS.map((p, i) => (
-            <button key={p.label} onClick={() => { setUseCustom(false); setPresetIdx(i); }} className="px-3 py-1.5 rounded-md text-sm"
+            <button key={p.label} data-preset={p.label} onClick={() => { setUseCustom(false); setPresetIdx(i); }} className="px-3 py-1.5 rounded-md text-sm cursor-pointer transition-all active:scale-95"
               style={{ backgroundColor: !useCustom && presetIdx === i ? T.brand : T.surfaceAlt, color: !useCustom && presetIdx === i ? T.brandInk : T.ink, border: `1px solid ${T.border}` }}>
               {p.label}
             </button>
           ))}
-          <button onClick={() => setUseCustom(true)} className="px-3 py-1.5 rounded-md text-sm flex items-center gap-1"
+          <button onClick={() => setUseCustom(true)} className="px-3 py-1.5 rounded-md text-sm flex items-center gap-1 cursor-pointer transition-all active:scale-95"
             style={{ backgroundColor: useCustom ? T.brand : T.surfaceAlt, color: useCustom ? T.brandInk : T.ink, border: `1px solid ${T.border}` }}>
             Personalizado
           </button>
@@ -4842,178 +5781,367 @@ export function FocoTab(props) {
             Aguardando o Anfitrião iniciar a sessão para a sala #{roomId}...
           </div>
         ) : (
-          <PrimaryButton onClick={iniciar} className="w-full">
+          <PrimaryButton data-tour="foco-start" onClick={iniciar} className="w-full">
             <Play className="w-4 h-4" /> {roomId ? "Iniciar foco para toda a sala" : "Iniciar sessão de foco"}
           </PrimaryButton>
         )}
       </Card>
 
-      <Card>
-        <div className="flex flex-col gap-3">
-          <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase="idle" />
-          
-          <div className="border-t pt-3 mt-1 w-full max-w-sm mx-auto" style={{ borderColor: T.border }}>
-            <GhostButton className="w-full text-xs flex justify-center py-2" onClick={() => window.dispatchEvent(new Event('openBreathing'))}>
-              <Wind className="w-4 h-4 mr-2" /> Técnica de Respiração (Ansiedade)
-            </GhostButton>
+      {(config?.enablePet !== false || config?.enableBreathing !== false || config?.enableMultiplayer !== false || config?.enableBossFight !== false) && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            {config?.enablePet !== false && (
+              <button
+                type="button"
+                data-tour="foco-pet"
+                onClick={() => {
+                  sfx.click();
+                  setActivePrepAccessory(prev => prev === 'pet' ? null : 'pet');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activePrepAccessory === 'pet' ? 'shadow-sm scale-[1.02]' : 'opacity-80 hover:opacity-100 hover:scale-[1.01]'
+                }`}
+                style={{
+                  backgroundColor: activePrepAccessory === 'pet' ? T.brand : T.surfaceAlt,
+                  color: activePrepAccessory === 'pet' ? T.brandInk : T.ink,
+                  border: `1px solid ${activePrepAccessory === 'pet' ? T.brand : T.border}`,
+                }}
+                title="Personalizar mascote de estudo"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Mascote ({config?.petName || "Pet"})</span>
+                {activePrepAccessory === 'pet' ? <ChevronUp className="w-3 h-3 opacity-80" /> : <ChevronDown className="w-3 h-3 opacity-60" />}
+              </button>
+            )}
+
+            {config?.enableBreathing !== false && (
+              <button
+                type="button"
+                data-tour="foco-breathing"
+                onClick={() => {
+                  sfx.pop();
+                  setShowBreathing(true);
+                }}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer opacity-80 hover:opacity-100 hover:scale-[1.01]"
+                style={{
+                  backgroundColor: T.surfaceAlt,
+                  color: T.ink,
+                  border: `1px solid ${T.border}`,
+                }}
+                title="Exercício guiado de respiração 4x4"
+              >
+                <Wind className="w-3.5 h-3.5 text-sky-400" />
+                <span>Exercício de Respiração</span>
+              </button>
+            )}
+
+            {config?.enableMultiplayer !== false && (
+              <button
+                type="button"
+                data-tour="foco-room"
+                onClick={() => {
+                  sfx.click();
+                  setActivePrepAccessory(prev => prev === 'room' ? null : 'room');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activePrepAccessory === 'room' ? 'shadow-sm scale-[1.02]' : 'opacity-80 hover:opacity-100 hover:scale-[1.01]'
+                }`}
+                style={{
+                  backgroundColor: activePrepAccessory === 'room' ? T.brand : T.surfaceAlt,
+                  color: activePrepAccessory === 'room' ? T.brandInk : T.ink,
+                  border: `1px solid ${activePrepAccessory === 'room' ? T.brand : T.border}`,
+                }}
+                title="Estudo em grupo ao vivo"
+              >
+                <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                <span>{roomId ? `Sala #${roomId}` : "Sala de Estudos"}</span>
+                {activePrepAccessory === 'room' ? <ChevronUp className="w-3 h-3 opacity-80" /> : <ChevronDown className="w-3 h-3 opacity-60" />}
+              </button>
+            )}
+
+            {config?.enableBossFight !== false && (
+              <button
+                type="button"
+                data-tour="foco-boss"
+                onClick={() => {
+                  sfx.click();
+                  setActivePrepAccessory(prev => prev === 'boss' ? null : 'boss');
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  activePrepAccessory === 'boss' ? 'shadow-sm scale-[1.02]' : 'opacity-80 hover:opacity-100 hover:scale-[1.01]'
+                }`}
+                style={{
+                  backgroundColor: activePrepAccessory === 'boss' ? T.brand : T.surfaceAlt,
+                  color: activePrepAccessory === 'boss' ? T.brandInk : T.ink,
+                  border: `1px solid ${activePrepAccessory === 'boss' ? T.brand : T.border}`,
+                }}
+                title="Desafiar Chefe de Foco RPG"
+              >
+                <Swords className="w-3.5 h-3.5 text-rose-500" />
+                <span>{bossFightActive ? `Chefe (${selectedBoss.name.split(' ')[0]})` : "Batalha RPG"}</span>
+                {activePrepAccessory === 'boss' ? <ChevronUp className="w-3 h-3 opacity-80" /> : <ChevronDown className="w-3 h-3 opacity-60" />}
+              </button>
+            )}
           </div>
 
-          <div className="border-t pt-3 mt-1" style={{ borderColor: T.border }}>
-            <div
-              className="flex justify-between items-center cursor-pointer select-none py-1"
-              onClick={() => setShowRoom(!showRoom)}
-            >
-              <SectionLabel className="mb-0 flex items-center gap-2">
-                <Globe size={18} className="text-emerald-500" />
-                <span>Modo Multiplayer {roomId ? `(#${roomId})` : ""}</span>
-              </SectionLabel>
-              <div className="flex items-center gap-2">
-                {roomId && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                )}
-                <span className="text-xs font-semibold" style={{ color: T.brand }}>
-                  {showRoom ? "Esconder" : (roomId ? "Ver sala" : "Conectar")}
-                </span>
+          {/* Gaveta do Mascote */}
+          {config?.enablePet !== false && activePrepAccessory === 'pet' && (
+            <Card className="animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b" style={{ borderColor: T.border }}>
+                <SectionLabel className="mb-0 flex items-center gap-1.5">
+                  <Sparkles size={16} className="text-amber-500" />
+                  <span>Mascote de Foco & Companhia</span>
+                </SectionLabel>
+                <button
+                  type="button"
+                  onClick={() => setActivePrepAccessory(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  title="Fechar"
+                  aria-label="Fechar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
-            </div>
+              <FocusPet timerOn={false} streak={streak} petName={config?.petName} onNameChange={(n) => updateConfig({...config, petName: n})} config={config} updateConfig={updateConfig} phase="idle" />
+            </Card>
+          )}
 
-            {showRoom && (
-              <div className="mt-3 flex flex-col gap-3">
-                {roomId ? (
-                  <div className="p-3.5 rounded-xl border flex flex-col gap-3" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex h-2.5 w-2.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                        </span>
-                        <div>
-                          <div className="text-xs font-mono font-bold tracking-wider" style={{ color: T.ink }}>
-                            SALA #{roomId}
+          {/* Gaveta da Sala Multiplayer */}
+          {config?.enableMultiplayer !== false && activePrepAccessory === 'room' && (
+            <Card className="animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b" style={{ borderColor: T.border }}>
+                <SectionLabel className="mb-0 flex items-center gap-1.5">
+                  <Globe size={16} className="text-emerald-500" />
+                  <span>Modo Multiplayer {roomId ? `(#${roomId})` : ""}</span>
+                </SectionLabel>
+                <button
+                  type="button"
+                  onClick={() => setActivePrepAccessory(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors cursor-pointer"
+                  title="Fechar"
+                  aria-label="Fechar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {roomId ? (
+                <div className="p-3.5 rounded-xl border flex flex-col gap-3" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </span>
+                      <div>
+                        <div className="text-xs font-mono font-bold tracking-wider" style={{ color: T.ink }}>
+                          SALA #{roomId}
+                        </div>
+                        <div className="text-[10px]" style={{ color: T.inkSoft }}>
+                          {isHost ? "Você é o Anfitrião" : "Conectado como Convidado"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <span
+                      className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1"
+                      style={{
+                        backgroundColor: isHost ? (TINT.amber || TINT.brand) : TINT.brand,
+                        color: isHost ? (T.amber || T.brand) : T.brand,
+                        border: `1px solid ${T.border}`
+                      }}
+                    >
+                      {isHost ? <Crown size={12} className="text-amber-500" /> : <Users size={12} />}
+                      {isHost ? "Host" : "Convidado"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <GhostButton
+                      onClick={handleCopyCode}
+                      className="text-xs py-2 flex items-center justify-center gap-1.5"
+                    >
+                      {copiedType === 'code' ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                      <span>{copiedType === 'code' ? "Copiado!" : "Copiar código"}</span>
+                    </GhostButton>
+
+                    <GhostButton
+                      onClick={handleCopyLink}
+                      className="text-xs py-2 flex items-center justify-center gap-1.5"
+                    >
+                      {copiedType === 'link' ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
+                      <span>{copiedType === 'link' ? "Copiado!" : "Copiar link"}</span>
+                    </GhostButton>
+                  </div>
+
+                  <div className="border-t pt-2.5" style={{ borderColor: T.border }}>
+                    <div className="text-[11px] font-semibold flex items-center justify-between mb-2" style={{ color: T.inkSoft }}>
+                      <span className="flex items-center gap-1">
+                        <Users size={13} /> Presentes na sala ({members && members.length > 0 ? members.length : 1})
+                      </span>
+                      <span className="text-[10px] opacity-70">Ao vivo</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
+                      {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
+                        const skinImg = getPetSprite(m.skin, 'happy');
+                        return (
+                          <div
+                            key={m.joinedAt || idx}
+                            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs"
+                            style={{ backgroundColor: T.surface, borderColor: T.border }}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <img
+                                src={skinImg}
+                                alt=""
+                                className="w-5 h-5 rounded-full object-cover border flex-shrink-0"
+                                style={{ borderColor: T.border }}
+                                onError={(e) => { e.currentTarget.src = '/owl_happy.png'; }}
+                              />
+                              <span className="font-medium truncate" style={{ color: T.ink }}>{m.name || "Colega"}</span>
+                            </div>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {m.isHost && (
+                                <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-500">
+                                  <Crown size={11} /> Host
+                                </span>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-[10px]" style={{ color: T.inkSoft }}>
-                            {isHost ? "Você é o Anfitrião" : "Conectado como Convidado"}
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <GhostButton
+                    onClick={handleLeaveRoom}
+                    className="w-full text-xs text-rose-500 hover:text-rose-600 border-rose-200 mt-1 flex items-center justify-center gap-1"
+                  >
+                    <LogOut size={13} /> Sair da Sala
+                  </GhostButton>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  <PrimaryButton onClick={handleCreateRoom} className="w-full text-xs py-2.5">
+                    <Plus size={14} className="mr-1" /> Criar Sala de Estudos
+                  </PrimaryButton>
+
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t" style={{ borderColor: T.border }}></div>
+                    <span className="flex-shrink mx-2 text-[10px] uppercase font-semibold" style={{ color: T.inkSoft }}>ou entrar em sala</span>
+                    <div className="flex-grow border-t" style={{ borderColor: T.border }}></div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      value={roomCode}
+                      onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                      placeholder="CÓDIGO (EX: A9K2F)"
+                      maxLength={8}
+                      className="flex-1 rounded-lg p-2 text-xs font-mono font-semibold tracking-wider text-center uppercase"
+                      style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleJoinRoom(); }}
+                    />
+                    <GhostButton
+                      onClick={handleJoinRoom}
+                      className="text-xs px-4"
+                      disabled={!roomCode.trim()}
+                    >
+                      Entrar
+                    </GhostButton>
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Gaveta da Batalha RPG (Boss Fight) */}
+          {config?.enableBossFight !== false && activePrepAccessory === 'boss' && (
+            <Card className="animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="flex items-center justify-between pb-2 mb-3 border-b" style={{ borderColor: T.border }}>
+                <SectionLabel className="mb-0 flex items-center gap-1.5">
+                  <Swords size={16} className="text-rose-500" />
+                  <span>Batalha RPG no Foco — Escolha seu Desafio</span>
+                </SectionLabel>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { sfx.click(); toggleBossMode(); }}
+                    className="text-xs px-2.5 py-1 rounded-lg border font-medium cursor-pointer transition-colors flex items-center gap-1.5"
+                    style={{
+                      borderColor: bossFightActive ? T.brand : T.border,
+                      backgroundColor: bossFightActive ? TINT.brand : T.surfaceAlt,
+                      color: bossFightActive ? T.brand : T.inkSoft
+                    }}
+                  >
+                    <Swords size={13} className={bossFightActive ? "text-blue-400" : "opacity-60"} />
+                    <span>{bossFightActive ? "Modo Ativo" : "Desativado"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActivePrepAccessory(null)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                    title="Fechar"
+                    aria-label="Fechar"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {BOSS_ROSTER.map((boss) => {
+                  const isSelected = selectedBossId === boss.id;
+                  return (
+                    <button
+                      key={boss.id}
+                      type="button"
+                      onClick={() => { sfx.pop(); selectBoss(boss.id); }}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden ${
+                        isSelected ? "shadow-sm scale-[1.01]" : "opacity-80 hover:opacity-100"
+                      }`}
+                      style={{
+                        backgroundColor: isSelected ? TINT.brand : T.surfaceAlt,
+                        borderColor: isSelected ? (boss.themeColor || T.brand) : T.border,
+                      }}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div
+                          className="p-2.5 rounded-xl shrink-0 flex items-center justify-center"
+                          style={{ backgroundColor: `${boss.themeColor}22`, color: boss.themeColor }}
+                        >
+                          {React.createElement(boss.icon || Swords, { size: 22 })}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold truncate" style={{ color: T.ink }}>
+                            {boss.name}
+                          </div>
+                          <div className="text-[11px] font-medium" style={{ color: boss.themeColor }}>
+                            {boss.title} • {boss.maxHp} HP
+                          </div>
+                          <div className="text-[10px] mt-1 line-clamp-2" style={{ color: T.inkSoft }}>
+                            {boss.desc}
+                          </div>
+                          <div className="text-[10px] mt-1.5 font-medium text-emerald-400 flex items-center gap-1">
+                            <Target size={11} className="shrink-0" />
+                            <span>{boss.weakness}</span>
                           </div>
                         </div>
                       </div>
-
-                      <span
-                        className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1"
-                        style={{
-                          backgroundColor: isHost ? (TINT.amber || TINT.brand) : TINT.brand,
-                          color: isHost ? (T.amber || T.brand) : T.brand,
-                          border: `1px solid ${T.border}`
-                        }}
-                      >
-                        {isHost ? <Crown size={12} className="text-amber-500" /> : <Users size={12} />}
-                        {isHost ? "Host" : "Convidado"}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <GhostButton
-                        onClick={handleCopyCode}
-                        className="text-xs py-2 flex items-center justify-center gap-1.5"
-                      >
-                        {copiedType === 'code' ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                        <span>{copiedType === 'code' ? "Copiado!" : "Copiar código"}</span>
-                      </GhostButton>
-
-                      <GhostButton
-                        onClick={handleCopyLink}
-                        className="text-xs py-2 flex items-center justify-center gap-1.5"
-                      >
-                        {copiedType === 'link' ? <Check size={14} className="text-emerald-500" /> : <Share2 size={14} />}
-                        <span>{copiedType === 'link' ? "Copiado!" : "Copiar link"}</span>
-                      </GhostButton>
-                    </div>
-
-                    <div className="border-t pt-2.5" style={{ borderColor: T.border }}>
-                      <div className="text-[11px] font-semibold flex items-center justify-between mb-2" style={{ color: T.inkSoft }}>
-                        <span className="flex items-center gap-1">
-                          <Users size={13} /> Presentes na sala ({members && members.length > 0 ? members.length : 1})
-                        </span>
-                        <span className="text-[10px] opacity-70">Ao vivo</span>
-                      </div>
-
-                      <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto pr-1">
-                        {(members && members.length > 0 ? members : [{ name: config?.petName || "Você", skin: config?.petSkin || "none", isHost }]).map((m, idx) => {
-                          const skinImg = getPetSprite(m.skin, 'happy');
-                          return (
-                            <div
-                              key={m.joinedAt || idx}
-                              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs"
-                              style={{ backgroundColor: T.surface, borderColor: T.border }}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <img
-                                  src={skinImg}
-                                  alt=""
-                                  className="w-5 h-5 rounded-full object-cover border flex-shrink-0"
-                                  style={{ borderColor: T.border }}
-                                  onError={(e) => { e.currentTarget.src = '/owl_happy.png'; }}
-                                />
-                                <span className="font-medium truncate" style={{ color: T.ink }}>{m.name || "Colega"}</span>
-                              </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                {m.isHost && (
-                                  <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-500">
-                                    <Crown size={11} /> Host
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    <GhostButton
-                      onClick={handleLeaveRoom}
-                      className="w-full text-xs text-rose-500 hover:text-rose-600 border-rose-200 mt-1 flex items-center justify-center gap-1"
-                    >
-                      <LogOut size={13} /> Sair da Sala
-                    </GhostButton>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2.5">
-                    <PrimaryButton onClick={handleCreateRoom} className="w-full text-xs py-2.5">
-                      <Plus size={14} className="mr-1" /> Criar Sala de Estudos
-                    </PrimaryButton>
-
-                    <div className="relative flex py-1 items-center">
-                      <div className="flex-grow border-t" style={{ borderColor: T.border }}></div>
-                      <span className="flex-shrink mx-2 text-[10px] uppercase font-semibold" style={{ color: T.inkSoft }}>ou entrar em sala</span>
-                      <div className="flex-grow border-t" style={{ borderColor: T.border }}></div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <input
-                        value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                        placeholder="CÓDIGO (EX: A9K2F)"
-                        maxLength={8}
-                        className="flex-1 rounded-lg p-2 text-xs font-mono font-semibold tracking-wider text-center uppercase"
-                        style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleJoinRoom(); }}
-                      />
-                      <GhostButton
-                        onClick={handleJoinRoom}
-                        className="text-xs px-4"
-                        disabled={!roomCode.trim()}
-                      >
-                        Entrar
-                      </GhostButton>
-                    </div>
-                  </div>
-                )}
+                      {isSelected && (
+                        <span className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ backgroundColor: boss.themeColor || T.brand }} />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            )}
-          </div>
+            </Card>
+          )}
         </div>
-      </Card>
+      )}
 
-      {showBreathing && <BreathingModal onClose={() => setShowBreathing(false)} T={props.T || T} />}
+      {config?.enableBreathing !== false && showBreathing && <BreathingModal onClose={() => setShowBreathing(false)} T={props.T || T} />}
 
       <Card className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm" style={{ color: T.inkSoft }}><Clock className="w-4 h-4" /> Estudado hoje</div>
@@ -5366,7 +6494,7 @@ export function DiarioTab({
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-semibold" style={{ color: T.inkSoft }}>Perguntas de apoio</span>
               </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 text-xs">
+              <div className="flex gap-1.5 overflow-x-auto custom-scrollbar pb-2 text-xs">
                 {PROMPTS.map((p, idx) => (
                   <button
                     key={idx}
@@ -5463,7 +6591,7 @@ export function DiarioTab({
             </div>
 
             {/* Mood filter pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 mb-4 text-xs">
+            <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-2 mb-4 text-xs">
               <button
                 type="button"
                 onClick={() => { sfx.pop(); setSelectedMoodFilter("all"); }}
@@ -5662,6 +6790,20 @@ Min.estudados hoje: ${minHoje}`;
         {
           role: "assistant",
           text: `⚡ **MODO DESENVOLVEDOR ATIVADO (GOD MODE)** ⚡\n\n\`\`\`text\n[OMNIA DEV CHEAT INJETADO COM SUCESSO]\n💰 Moedas de Estudo:  99.999 liberadas para a Loja!\n⭐ Experiência (XP):  100.000 XP concedidos (Nível Máximo Desbloqueado)!\n🔥 Ofensiva (Streak): 99 Dias consecutivos ativados!\n🐾 Mascotes de Foco:  Todos os 6 pets (Coruja, Gato, Shiba, Panda, Raposa, Coelho) liberados!\n🎓 Arquétipos:        Todas as classes de estudante desbloqueadas!\n\`\`\`\n*Ambiente 100% liberado para seus testes rápidos.*`
+        }
+      ]);
+      setInput("");
+      return;
+    }
+
+    // Comando de QA / Teste rápido
+    if (question.toLowerCase() === "/qa" || question.toLowerCase() === "qa" || question.toLowerCase() === "teste") {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: question },
+        {
+          role: "assistant",
+          text: `🛡️ **CENTRAL DE QA & ANTI-BUG GUARDIAN** 🛡️\n\nO motor de testes contínuos e antibugs da aplicação está ativo e disponível na aba **Configurações**.\n\nEle audita automaticamente:\n- ✅ **CRUD de Compromissos**: Criação, edição e exclusão de compromissos.\n- ✅ **Inteligência Artificial**: Resumos, Quizzes, Flashcards e Avaliação Socrática.\n- ✅ **Secretaria IA**: Processamento de mensagens e ferramentas de rotina.\n- ✅ **Banco de Dados & Storage**: Supabase, WebSockets, LocalStorage e Cache Offline.\n- ✅ **Modais**: Integridade de renderização de todos os modais da aplicação.`
         }
       ]);
       setInput("");
@@ -6466,105 +7608,475 @@ const exportarGrade = () => {
 
 
 
-// Dev QA Component
+// Dev QA & Anti-Bug Guardian System
 function QAAutomatedSystem({ userId }) {
-  const [logs, setLogs] = useState([]);
+  const [report, setReport] = useState(() => {
+    try {
+      const saved = localStorage.getItem("omnia_last_qa_report");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [history, setHistory] = useState(() => {
+    try {
+      const h = localStorage.getItem("omnia_qa_reports_history");
+      return h ? JSON.parse(h) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [running, setRunning] = useState(false);
+  const [runningType, setRunningType] = useState(null); // 'fast' | 'tour'
+  const [progress, setProgress] = useState({ percent: 0, current: 0, total: 12, currentTest: "", status: "idle" });
+  const [filter, setFilter] = useState("all"); // 'all' | 'fail' | 'pass'
+  const [showHistory, setShowHistory] = useState(false);
+  const [expandedTest, setExpandedTest] = useState(null);
 
-  const addLog = (msg, type = "info") => setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), msg, type }]);
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail) {
+        setReport(e.detail);
+        try {
+          const h = localStorage.getItem("omnia_qa_reports_history");
+          if (h) setHistory(JSON.parse(h));
+        } catch {}
+      }
+    };
+    window.addEventListener("omnia:qa-report-updated", handler);
+    return () => window.removeEventListener("omnia:qa-report-updated", handler);
+  }, []);
 
-  
-  <div className='flex items-center justify-between p-4 rounded-xl border mt-4 mb-4' style={{ borderColor: T.border, backgroundColor: T.brand + '22' }}>
-    <div>
-      <div className='font-bold flex items-center gap-2' style={{ color: T.ink }}><Activity size={20} /> Teste E2E Visual (Tour QA)</div>
-      <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Inicia um robô invisível que clica na tela e faz um tour por todas as abas.</div>
-    </div>
-    <PrimaryButton onClick={() => runQATour()}>Rodar Tour</PrimaryButton>
-
-            
-
-  </div>
-
-
-  async function runAllTests() {
+  const handleRunFast = async () => {
+    if (running) return;
     setRunning(true);
-    setLogs([]);
-    addLog("Iniciando bateria de testes automatizados QA...", "info");
-
-    // 1. Storage Test
+    setRunningType("fast");
+    sfx.click();
     try {
-      addLog("Testando LocalStorage e IndexedDB...", "info");
-      localStorage.setItem("qa_test", "ok");
-      if (localStorage.getItem("qa_test") !== "ok") throw new Error("LocalStorage falhou");
-      localStorage.removeItem("qa_test");
-      addLog("Storage OK.", "success");
-    } catch(e) { addLog("Erro Storage: " + e.message, "error"); }
-
-    // 2. Database CRUD Test
-    try {
-      addLog("Testando Supabase CRUD...", "info");
-      const tempId = "qa-" + Math.random().toString(36).substr(2, 5);
-      
-      const c = await addCommitment(userId, { tipo: 'outro', disciplina: 'QA_TEST', assunto: 'Teste Automatizado', prazo: '2099-12-31', concluido: false });
-      if (!c || !c.id) throw new Error("Falha ao inserir compromisso.");
-      await deleteCommitment(c.id);
-      addLog("Supabase CRUD OK.", "success");
-    } catch(e) { addLog("Erro Supabase: " + e.message, "error"); }
-
-    // 3. AI Connection Test
-    try {
-      addLog("Testando conexão Groq (callAI)...", "info");
-      
-      const res = await callAI("Responda apenas 'OK'", "Teste de QA", { json: false });
-      if (!res.includes("OK")) throw new Error("Resposta da IA inesperada: " + res);
-      addLog("Conexão Groq OK.", "success");
-    } catch(e) { addLog("Erro Groq IA: " + e.message, "error"); }
-
-    // 4. Supabase Realtime
-    try {
-      addLog("Testando Supabase Realtime WebSockets...", "info");
-      
-      const channel = supabase.channel('qa_test_channel');
-      await new Promise((resolve, reject) => {
-        channel.subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            await supabase.removeChannel(channel);
-            resolve();
-          } else if (status === 'CHANNEL_ERROR') {
-            reject(new Error("Falha ao assinar canal"));
-          }
-        });
-        setTimeout(() => reject(new Error("Timeout no WebSocket")), 5000);
+      const rep = await runFullQASuite({
+        userId,
+        mode: "fast",
+        onProgress: (p) => setProgress(p),
       });
-      addLog("Supabase Realtime OK.", "success");
-    } catch(e) { addLog("Erro Realtime: " + e.message, "error"); }
+      setReport(rep);
+      if (rep.failed === 0) sfx.levelUp();
+    } catch (err) {
+      console.error("Erro na execução do QA:", err);
+    } finally {
+      setRunning(false);
+      setRunningType(null);
+    }
+  };
 
-    addLog("Bateria de testes finalizada.", "info");
-    setRunning(false);
-  }
+  const handleRunTour = async () => {
+    if (running) return;
+    setRunning(true);
+    setRunningType("tour");
+    sfx.click();
+    try {
+      const rep = await runQATour({
+        userId,
+        onProgress: (msg) => {
+          setProgress((prev) => ({ ...prev, currentTest: msg }));
+        },
+      });
+      if (rep) setReport(rep);
+    } catch (err) {
+      console.error("Erro no QA Tour:", err);
+    } finally {
+      setRunning(false);
+      setRunningType(null);
+    }
+  };
+
+  useEffect(() => {
+    window.__omniaStartTour = handleRunTour;
+    window.__omniaRunTour = handleRunTour;
+    return () => {
+      delete window.__omniaStartTour;
+      delete window.__omniaRunTour;
+    };
+  }, []);
+
+  const handleDownload = () => {
+    sfx.click();
+    downloadQAReportAsJSON(report);
+  };
+
+  const handleClear = () => {
+    sfx.click();
+    localStorage.removeItem("omnia_last_qa_report");
+    localStorage.removeItem("omnia_qa_reports_history");
+    setReport(null);
+    setHistory([]);
+  };
+
+  const filteredResults = useMemo(() => {
+    if (!report?.results) return [];
+    if (filter === "fail") return report.results.filter((r) => r.status === "FAIL");
+    if (filter === "pass") return report.results.filter((r) => r.status === "PASS");
+    return report.results;
+  }, [report, filter]);
+
+  const healthy = report && report.failed === 0;
+  const defective = report && report.failed > 0;
 
   return (
-    <section className='p-6 rounded-2xl shadow-sm border mt-6' style={{ backgroundColor: T.surface, borderColor: T.importante }}>
-      <div className='flex items-center justify-between mb-4'>
-        <h3 className='text-xl font-bold' style={{ color: T.importante }}><Wrench size={20} className="inline mr-2 -mt-1" /> Painel do Desenvolvedor (QA)</h3>
-        <PrimaryButton onClick={runAllTests} disabled={running}>{running ? "Rodando Testes..." : "Executar Testes QA"}</PrimaryButton>
-      </div>
-      <div className='flex items-center justify-between p-4 rounded-xl border mb-4' style={{ borderColor: '#eab308', backgroundColor: 'rgba(234, 179, 8, 0.1)' }}>
+    <section
+      id="omnia-qa-panel"
+      className="p-5 sm:p-7 rounded-3xl shadow-md border mt-8 transition-all"
+      style={{ backgroundColor: T.surface, borderColor: defective ? "#ef4444" : T.border }}
+    >
+      {/* Cabeçalho do Painel QA */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
         <div>
-          <div className='font-bold flex items-center gap-2' style={{ color: T.ink }}><Sparkles size={18} className="text-amber-500" /> Cheat Dev: Liberar Moedas e XP Máximo</div>
-          <div className='text-xs mt-0.5' style={{ color: T.inkSoft }}>Concede 99.999 moedas, 100.000 XP (Nível Máximo) e 99 dias de streak.</div>
-          <div className='text-[10px] font-mono text-slate-400 mt-0.5'>Comando de chat/busca: <code className="text-amber-400">{OMNIA_SECRET_DEV_COMMAND}</code></div>
-        </div>
-        <PrimaryButton onClick={() => executeGodModeCheat(null, null)}>Ativar Cheat</PrimaryButton>
-      </div>
-      <div className='bg-black p-4 rounded-lg h-64 overflow-y-auto font-mono text-xs shadow-inner'>
-        {logs.length === 0 && <span className="text-gray-500">Aguardando execução...</span>}
-        {logs.map((l, i) => (
-          <div key={i} className={`mb-1 ${l.type === 'error' ? 'text-red-500' : l.type === 'success' ? 'text-green-500' : 'text-blue-300'}`}>
-            <span className="text-gray-600">[{l.time}]</span> {l.msg}
+          <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+            <span
+              className="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border flex items-center gap-1.5 shadow-sm"
+              style={{
+                backgroundColor: defective ? "rgba(239, 68, 68, 0.15)" : healthy ? "rgba(34, 197, 94, 0.15)" : TINT.brand,
+                borderColor: defective ? "#ef4444" : healthy ? "#22c55e" : T.brand,
+                color: defective ? "#ef4444" : healthy ? "#22c55e" : T.brand,
+              }}
+            >
+              <Activity size={14} className={running ? "animate-spin" : ""} />
+              {healthy
+                ? "SISTEMA 100% OPERACIONAL"
+                : defective
+                ? `ALERTA: ${report.failed} FALHA(S) IDENTIFICADA(S)`
+                : "CENTRAL DE AUTOTESTE & ANTIBUGS"}
+            </span>
+
+            {report && (
+              <span className="text-xs text-gray-400 font-mono">
+                Última auditoria: {new Date(report.timestamp).toLocaleTimeString()} ({report.durationMs}ms)
+              </span>
+            )}
           </div>
-        ))}
+
+          <h3 className="text-2xl font-black tracking-tight" style={{ color: T.ink }}>
+            Omnia Anti-Bug Guardian
+          </h3>
+          <p className="text-xs sm:text-sm mt-1 max-w-2xl leading-relaxed" style={{ color: T.inkSoft }}>
+            Motor contínuo de autoteste E2E da aplicação. Audita programaticamente o ciclo de vida de compromissos,
+            banco de dados, cache offline, chamadas de IA (resumos, quizzes, flashcards, professor), secretaria e modais vitais.
+          </p>
+        </div>
+
+        {/* Botões de Ação Principal */}
+        <div className="flex items-center gap-2.5 flex-wrap w-full md:w-auto">
+          <button
+            onClick={handleRunFast}
+            disabled={running}
+            className="flex-1 md:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-sm hover:opacity-95 text-white disabled:opacity-50"
+            style={{ backgroundColor: T.brand, color: T.brandInk }}
+            title="Executa bateria programática rápida de todos os testes em background"
+          >
+            {running && runningType === "fast" ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Testando...
+              </>
+            ) : (
+              <>
+                <Play size={16} /> Diagnóstico Anti-Bug
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={handleRunTour}
+            disabled={running}
+            className="flex-1 md:flex-none px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm border flex items-center justify-center gap-2 transition-transform active:scale-95 hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+            title="Executa robô visual que navega pelas abas e abre modais na tela"
+          >
+            {running && runningType === "tour" ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> No Tour...
+              </>
+            ) : (
+              <>
+                <Activity size={16} className="text-blue-400" /> Tour Visual E2E
+              </>
+            )}
+          </button>
+
+          {report && (
+            <button
+              onClick={handleDownload}
+              className="p-2.5 rounded-xl border flex items-center justify-center transition-colors hover:opacity-90"
+              style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+              title="Baixar Relatório de Diagnóstico (JSON)"
+            >
+              <Download size={16} />
+            </button>
+          )}
+
+          {report && (
+            <button
+              onClick={handleClear}
+              className="p-2.5 rounded-xl border flex items-center justify-center transition-colors hover:opacity-90 text-rose-400"
+              style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+              title="Limpar Relatórios Anteriores"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Barra de Progresso Ativa */}
+      {running && (
+        <div className="mb-6 p-4 rounded-2xl border bg-black/40" style={{ borderColor: T.brand }}>
+          <div className="flex items-center justify-between text-xs font-mono mb-2">
+            <span className="flex items-center gap-2 text-blue-400 font-bold">
+              <Loader2 size={13} className="animate-spin" />
+              Executando: {progress.currentTest || "Varrendo subsistemas..."}
+            </span>
+            <span className="font-bold text-blue-400">
+              {progress.current || 0}/{progress.total || 12} ({progress.percent || 0}%)
+            </span>
+          </div>
+          <div className="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
+            <div
+              className="h-2.5 rounded-full transition-all duration-300"
+              style={{
+                width: `${progress.percent || 5}%`,
+                background: "linear-gradient(90deg, #3b82f6 0%, #22c55e 100%)",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Cards de Métricas do Último Diagnóstico */}
+      {report && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="p-3.5 rounded-2xl border text-center" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Total Auditado</div>
+            <div className="text-2xl font-black mt-0.5" style={{ color: T.ink }}>{report.totalTests}</div>
+            <div className="text-[10px] text-gray-400">testes automatizados</div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl border text-center" style={{ backgroundColor: "rgba(34, 197, 94, 0.08)", borderColor: "rgba(34, 197, 94, 0.3)" }}>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-500">Aprovados</div>
+            <div className="text-2xl font-black mt-0.5 text-emerald-500">{report.passed}</div>
+            <div className="text-[10px] text-emerald-400/80">100% conformes</div>
+          </div>
+
+          <div
+            className="p-3.5 rounded-2xl border text-center"
+            style={{
+              backgroundColor: report.failed > 0 ? "rgba(239, 68, 68, 0.1)" : T.surfaceAlt,
+              borderColor: report.failed > 0 ? "rgba(239, 68, 68, 0.4)" : T.border,
+            }}
+          >
+            <div className="text-[11px] font-bold uppercase tracking-wider" style={{ color: report.failed > 0 ? "#ef4444" : T.inkSoft }}>
+              Falhas
+            </div>
+            <div className="text-2xl font-black mt-0.5" style={{ color: report.failed > 0 ? "#ef4444" : T.ink }}>
+              {report.failed}
+            </div>
+            <div className="text-[10px]" style={{ color: report.failed > 0 ? "#ef4444" : T.inkSoft }}>
+              {report.failed > 0 ? "requer correção" : "zero bugs"}
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl border text-center" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Tempo de Execução</div>
+            <div className="text-2xl font-black mt-0.5" style={{ color: T.brand }}>
+              {report.durationMs < 1000 ? `${report.durationMs}ms` : `${(report.durationMs / 1000).toFixed(1)}s`}
+            </div>
+            <div className="text-[10px] text-gray-400">tempo total</div>
+          </div>
+        </div>
+      )}
+
+      {/* Cheat Dev Card Integrado */}
+      <div
+        className="flex items-center justify-between p-4 rounded-2xl border mb-6"
+        style={{ borderColor: "rgba(234, 179, 8, 0.3)", backgroundColor: "rgba(234, 179, 8, 0.08)" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-500 flex items-center justify-center shrink-0 border border-amber-500/30">
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <div className="font-bold text-sm" style={{ color: T.ink }}>
+              Dev Cheat: Liberar 99.999 Moedas, XP Máximo e Todos os Pets
+            </div>
+            <div className="text-xs mt-0.5 text-gray-400">
+              Desbloqueia os 6 mascotes, todas as classes de arquétipos, 99 dias de streak e moedas ilimitadas para testes.
+            </div>
+          </div>
+        </div>
+        <PrimaryButton onClick={() => executeGodModeCheat(null, null)}>Ativar God Mode</PrimaryButton>
+      </div>
+
+      {/* Resultados dos Testes com Filtros */}
+      {report && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 border-b pb-3" style={{ borderColor: T.border }}>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setFilter("all")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                  filter === "all" ? "bg-blue-600 text-white" : "hover:bg-white/5 text-gray-400"
+                }`}
+              >
+                Todos ({report.results.length})
+              </button>
+              <button
+                onClick={() => setFilter("fail")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                  filter === "fail" ? "bg-rose-600 text-white" : "hover:bg-white/5 text-gray-400"
+                }`}
+              >
+                Falhas ({report.failed})
+              </button>
+              <button
+                onClick={() => setFilter("pass")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                  filter === "pass" ? "bg-emerald-600 text-white" : "hover:bg-white/5 text-gray-400"
+                }`}
+              >
+                Aprovados ({report.passed})
+              </button>
+            </div>
+
+            {history.length > 1 && (
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="text-xs font-bold flex items-center gap-1 text-gray-400 hover:text-white"
+              >
+                <Clock size={13} /> Histórico ({history.length})
+                {showHistory ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+            )}
+          </div>
+
+          {/* Histórico Colapsável */}
+          {showHistory && (
+            <div className="p-3 rounded-xl border bg-black/30 space-y-2 mb-3 text-xs font-mono" style={{ borderColor: T.border }}>
+              <div className="font-bold text-gray-400 uppercase text-[10px]">Últimas Execuções de QA:</div>
+              {history.map((h, idx) => (
+                <div key={h.id || idx} className="flex items-center justify-between py-1 border-b border-gray-800 last:border-none">
+                  <span className="text-gray-400">{new Date(h.timestamp).toLocaleString()}</span>
+                  <span className={h.failed === 0 ? "text-emerald-400 font-bold" : "text-rose-400 font-bold"}>
+                    {h.failed === 0 ? `PASSOU (${h.passed}/${h.passed})` : `FALHOU (${h.failed} erros)`}
+                  </span>
+                  <span className="text-gray-500">{h.durationMs}ms</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Lista de Testes Individuais */}
+          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+            {filteredResults.map((t, idx) => {
+              const isFail = t.status === "FAIL";
+              const isExpanded = expandedTest === idx;
+              return (
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl border transition-all"
+                  style={{
+                    backgroundColor: isFail ? "rgba(239, 68, 68, 0.06)" : T.surfaceAlt,
+                    borderColor: isFail ? "rgba(239, 68, 68, 0.3)" : T.border,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {isFail ? (
+                        <AlertCircle size={17} className="text-rose-500 shrink-0" />
+                      ) : (
+                        <CheckCircle size={17} className="text-emerald-500 shrink-0" />
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border"
+                            style={{
+                              backgroundColor: isFail ? "rgba(239,68,68,0.15)" : "rgba(59,130,246,0.1)",
+                              borderColor: isFail ? "rgba(239,68,68,0.3)" : "rgba(59,130,246,0.3)",
+                              color: isFail ? "#ef4444" : "#60a5fa",
+                            }}
+                          >
+                            {t.suite}
+                          </span>
+                          <span className="font-bold text-xs sm:text-sm" style={{ color: T.ink }}>
+                            {t.name}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0 text-xs font-mono">
+                      <span className="text-gray-400">{t.durationMs}ms</span>
+                      <span
+                        className="font-bold px-2 py-0.5 rounded text-[10px]"
+                        style={{
+                          backgroundColor: isFail ? "#ef4444" : "#22c55e",
+                          color: "#ffffff",
+                        }}
+                      >
+                        {t.status}
+                      </span>
+                      {isFail && (
+                        <button
+                          onClick={() => setExpandedTest(isExpanded ? null : idx)}
+                          className="text-[11px] underline text-rose-400 hover:text-rose-300 ml-1"
+                        >
+                          {isExpanded ? "Ocultar" : "Ver Erro"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Detalhes do Sucesso */}
+                  {!isFail && t.details && (
+                    <div className="text-[11px] text-gray-400 mt-1 pl-7 font-mono">
+                      {t.details}
+                    </div>
+                  )}
+
+                  {/* Caixa de Erro e Diagnóstico Anti-Bug */}
+                  {isFail && (
+                    <div className="mt-2.5 pl-7">
+                      <div className="p-3 rounded-lg bg-black/60 border border-rose-500/30 text-rose-300 font-mono text-xs overflow-x-auto">
+                        <div className="font-bold text-rose-400">Falha: {t.error?.message}</div>
+                        {isExpanded && t.error?.stack && (
+                          <pre className="mt-2 text-[10px] text-gray-400 whitespace-pre-wrap">
+                            {t.error.stack}
+                          </pre>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Estado Vazio Antes de Rodar */}
+      {!report && !running && (
+        <div className="py-8 text-center border rounded-2xl border-dashed" style={{ borderColor: T.border }}>
+          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center mx-auto mb-3 border border-blue-500/20">
+            <Activity size={24} />
+          </div>
+          <div className="font-bold text-base" style={{ color: T.ink }}>
+            Nenhum diagnóstico executado nesta sessão
+          </div>
+          <p className="text-xs max-w-md mx-auto mt-1" style={{ color: T.inkSoft }}>
+            Clique em <strong>"Diagnóstico Anti-Bug"</strong> para testar todas as APIs, banco de dados, IA e modais,
+            ou inicie o <strong>"Tour Visual E2E"</strong> para acompanhar a varredura na tela.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -6619,9 +8131,61 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
   useEffect(() => {
     return reactiveBgm.subscribe((s) => setBgmState({ ...s }));
   }, []);
-  const safeConfig = { enableAnalytics: true, enableHealthBreak: true, enableScratchpad: true, enableSincereOwl: true, enableJournal: true, fontFamily: "Inter, sans-serif", enableConfetti: true, enablePdf: true, enableCalendar: true, enableGamification: true, enableLofi: true, enableSfx: true, ...(config || {}) };
+  const safeConfig = {
+    enableRoutine: true,
+    enableHabits: true,
+    enablePet: true,
+    enableMusic: true,
+    enableLofi: true,
+    enableBgm: true,
+    enableBreathing: true,
+    enableMultiplayer: true,
+    enableSpacedRepetition: true,
+    enableStudyGoals: true,
+    enableAnalytics: true,
+    enableHealthBreak: true,
+    enableScratchpad: true,
+    enableSincereOwl: true,
+    enableJournal: true,
+    fontFamily: "Inter, sans-serif",
+    enableConfetti: true,
+    enablePdf: true,
+    enableCalendar: true,
+    enableGamification: true,
+    enableSfx: true,
+    enableAntiDistraction: true,
+    enableBossFight: true,
+    enableBiometricLock: false,
+    enableMindMap: true,
+    enableCommunityHub: true,
+    showArchived: false,
+    vacationMode: false,
+    ...(config || {})
+  };
   const handleToggle = (key) => {
-    updateConfig({ ...safeConfig, [key]: !safeConfig[key] });
+    const nextVal = !safeConfig[key];
+    if (key === 'enableMusic' || key === 'enableLofi') {
+      updateConfig({ ...safeConfig, enableMusic: nextVal, enableLofi: nextVal });
+      return;
+    }
+    if (key === 'enableBgm' && !nextVal) {
+      if (reactiveBgm.getState().isPlaying) {
+        reactiveBgm.stop();
+      }
+    }
+    if (key === 'enableBiometricLock' && nextVal) {
+      isBiometricsAvailable().then((avail) => {
+        if (avail) {
+          registerBiometrics("Estudante Omnia").catch(() => {});
+        } else {
+          const pin = prompt("Defina um PIN numérico de 4 a 6 dígitos para proteger seus dados:", "1234");
+          if (pin && pin.trim()) {
+            setSecurityPin(pin.trim());
+          }
+        }
+      });
+    }
+    updateConfig({ ...safeConfig, [key]: nextVal });
   };
   return (
     <div className='max-w-3xl mx-auto space-y-6'>
@@ -6704,196 +8268,215 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
         
         
         <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-          <div className='flex items-center gap-3 mb-4'>
+          <div className='flex items-center gap-3 mb-2'>
             <Settings className='w-6 h-6' style={{ color: T.brand }} />
-            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos Opcionais</h3>
+            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Módulos Opcionais e Customização</h3>
           </div>
-          <p className='mb-6' style={{ color: T.inkSoft }}>Ative ou desative funcionalidades secundárias para manter a interface limpa e objetiva.</p>
-          <div className='space-y-4'>
+          <p className='mb-5 text-sm' style={{ color: T.inkSoft }}>
+            Controle a experiência da aplicação. Se você busca foco total sem distrações, pode desativar tudo e manter apenas as ferramentas estritamente essenciais.
+          </p>
 
-            
-            
-            
-            
-
-
-
-<label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><ShieldAlert size={20} className="inline mr-2 -mt-1" /> Alerta Anti-Distração</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Receba uma notificação dura se você mudar de aba enquanto o cronômetro de Foco estiver rodando.</div>
+          {/* Perfis Rápidos de Configuração */}
+          <div className='flex flex-wrap items-center justify-between gap-3 mb-6 p-4 rounded-xl border' style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+            <div>
+              <div className='text-sm font-bold flex items-center gap-1.5' style={{ color: T.ink }}>
+                <SlidersHorizontal size={16} style={{ color: T.brand }} />
+                <span>Perfis Rápidos de Foco</span>
               </div>
-              <input type='checkbox' checked={safeConfig.enableAntiDistraction !== false} onChange={() => handleToggle('enableAntiDistraction')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Archive size={20} className="inline mr-2 -mt-1" /> Mostrar Arquivados (Baú)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exibir notas e compromissos que contêm a tag #arquivado. Útil para consultar semestres passados.</div>
+              <div className='text-xs mt-0.5' style={{ color: T.inkSoft }}>
+                Alterne entre o ambiente ultra minimalista e a experiência completa com 1 clique.
               </div>
-              <input type='checkbox' checked={safeConfig.showArchived} onChange={() => handleToggle('showArchived')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-
-            
-
-
-
-            <div className='flex items-center justify-between p-4 rounded-xl border' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Download size={20} className="inline mr-2 -mt-1" /> Backup Completo (Markdown)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exportar todas as suas anotações, compromissos e resumos em um único arquivo de texto legível.</div>
-              </div>
-              <GhostButton onClick={() => {
-                const blob = new Blob([generateMarkdownBackup(commitments, notes, summaries)], { type: 'text/markdown' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `backup_omnia_${todayISO()}.md`;
-                a.click();
-              }}>Baixar .md</GhostButton>
             </div>
-
-            
-            
-
-
-<label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><BarChart size={20} className="inline mr-2 -mt-1" /> Dashboard de Análises</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Gráficos semanais e horários de pico na aba Desempenho.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableAnalytics} onChange={() => handleToggle('enableAnalytics')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Heart size={20} className="inline mr-2 -mt-1" /> Pausas Ativas</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>A tela escurece e sugere alongamento e hidratação a cada 20 minutos de foco contínuo.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableHealthBreak} onChange={() => handleToggle('enableHealthBreak')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Edit3 size={20} className="inline mr-2 -mt-1" /> Lousa em Branco</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Um bloco de notas simples na aba Secretaria para rascunhos rápidos.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableScratchpad} onChange={() => handleToggle('enableScratchpad')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><BookHeart size={20} className="inline mr-2 -mt-1" /> Diário de Bordo e Humor</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba exclusiva e card rápido no Hoje para registrar seu humor e reflexões diárias.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableJournal} onChange={() => handleToggle('enableJournal')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Bird size={20} className="inline mr-2 -mt-1" /> Coruja Sincera</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Balões de fala com dicas e avisos sobre o seu foco e progresso.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableSincereOwl} onChange={() => handleToggle('enableSincereOwl')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><PartyPopper size={20} className="inline mr-2 -mt-1" /> Animações de Conclusão</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Disparar confetes ao marcar tarefas como concluídas.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableConfetti} onChange={() => handleToggle('enableConfetti')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.brand + '22' }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Palmtree size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Modo Férias (Burnout)</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Pausa streaks e zera metas para você descansar sem culpa.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.vacationMode} onChange={() => handleToggle('vacationMode')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Aba Desempenho, XP, Nível e Streak.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-  
-            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <div>
-                <div className='font-bold' style={{ color: T.ink }}><Headphones size={20} className="inline mr-2 -mt-1" /> Modo Imersivo Lo-Fi</div>
-                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Player de música ambiente integrado na aba Foco.</div>
-              </div>
-              <input type='checkbox' checked={safeConfig.enableLofi} onChange={() => handleToggle('enableLofi')} className='w-6 h-6 accent-blue-500' />
-            </label>
-
-            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: T.border, backgroundColor: T.bg }}>
-              <label className='flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity'>
-                <div>
-                  <div className='font-bold' style={{ color: T.ink }}><Volume2 size={20} className="inline mr-2 -mt-1 text-blue-400" /> Efeitos Sonoros dos Botões (SFX)</div>
-                  <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feedbacks táteis e auditivos em cliques de botões, tarefas, timers e navegação.</div>
-                </div>
-                <input type='checkbox' checked={safeConfig.enableSfx !== false} onChange={() => { handleToggle('enableSfx'); sfx.click(); }} className='w-6 h-6 accent-blue-500' />
-              </label>
-
-              {safeConfig.enableSfx !== false && (
-                <div className='pt-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-xs' style={{ borderColor: T.border }}>
-                  <span style={{ color: T.inkSoft }}>Testar clique dos botões:</span>
-                  <div className='flex flex-wrap gap-1.5'>
-                    <button type="button" onClick={() => sfx.click()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Clique Padrão
-                    </button>
-                    <button type="button" onClick={() => sfx.pop()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Pop Suave
-                    </button>
-                    <button type="button" onClick={() => sfx.complete()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Sino Conclusão
-                    </button>
-                    <button type="button" onClick={() => sfx.coin()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
-                      Moeda Recompensa
-                    </button>
-                  </div>
-                </div>
-              )}
+            <div className='flex flex-wrap gap-2'>
+              <button
+                type='button'
+                onClick={() => {
+                  sfx.click();
+                  if (reactiveBgm.getState().isPlaying) {
+                    reactiveBgm.stop();
+                  }
+                  updateConfig({
+                    ...safeConfig,
+                    enableRoutine: false,
+                    enableHabits: false,
+                    enablePet: false,
+                    enableMusic: false,
+                    enableLofi: false,
+                    enableBgm: false,
+                    enableBreathing: false,
+                    enableMultiplayer: false,
+                    enableSpacedRepetition: false,
+                    enableStudyGoals: false,
+                    enableJournal: false,
+                    enableGamification: false,
+                    enableSfx: false,
+                    enableConfetti: false,
+                    enableHealthBreak: false,
+                    enableAntiDistraction: false,
+                    enableBossFight: false,
+                    enableBiometricLock: false,
+                    enableMindMap: false,
+                    enableCommunityHub: false,
+                    enableScratchpad: false,
+                    enableSincereOwl: false,
+                    enableAnalytics: false,
+                    enableCalendar: false,
+                    enablePdf: false,
+                    vacationMode: false,
+                    showArchived: false,
+                  });
+                }}
+                className='px-3.5 py-2 rounded-xl text-xs font-bold border transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs hover:opacity-90'
+                style={{ backgroundColor: T.surface, borderColor: T.critico, color: T.critico }}
+                title="Desativa hábitos, rotinas, mascotes, músicas, gamificação e extras para máxima simplicidade"
+              >
+                <Zap size={14} /> Desativar Tudo (Modo Ultra Minimalista)
+              </button>
+              <button
+                type='button'
+                onClick={() => {
+                  sfx.complete();
+                  updateConfig({
+                    ...safeConfig,
+                    enableRoutine: true,
+                    enableHabits: true,
+                    enablePet: true,
+                    enableMusic: true,
+                    enableLofi: true,
+                    enableBgm: true,
+                    enableBreathing: true,
+                    enableMultiplayer: true,
+                    enableSpacedRepetition: true,
+                    enableStudyGoals: true,
+                    enableJournal: true,
+                    enableGamification: true,
+                    enableSfx: true,
+                    enableConfetti: true,
+                    enableHealthBreak: true,
+                    enableAntiDistraction: true,
+                    enableBossFight: true,
+                    enableMindMap: true,
+                    enableCommunityHub: true,
+                    enableScratchpad: true,
+                    enableSincereOwl: true,
+                    enableAnalytics: true,
+                    enableCalendar: true,
+                    enablePdf: true,
+                  });
+                }}
+                className='px-3.5 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90'
+                style={{ backgroundColor: T.brand, color: T.brandInk }}
+                title="Ativa todos os módulos e recursos do aplicativo"
+              >
+                <Sparkles size={14} /> Ativar Todos os Módulos
+              </button>
             </div>
+          </div>
 
-            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: bgmState.isPlaying ? T.brand : T.border, backgroundColor: bgmState.isPlaying ? (TINT.brand || T.bg) : T.bg }}>
+          <div className='space-y-3.5'>
+            {/* 0. Grade Semanal de Rotina */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <User size={20} className="inline mr-2 -mt-1 text-indigo-400" /> Grade Semanal e Horários de Rotina
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Aba "Minha Rotina" na barra lateral e blocos automáticos de horários fixos (aulas, trabalho, treinos) no painel Hoje.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableRoutine !== false} onChange={() => handleToggle('enableRoutine')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 1. Rotina de Hábitos */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <CheckCircle2 size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Rotina de Hábitos Diários
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Checklist diário com hábitos recorrentes (água, treino, leitura, sol) no painel Hoje.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableHabits !== false} onChange={() => handleToggle('enableHabits')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 2. Mascotes / Sprites */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <Sparkles size={20} className="inline mr-2 -mt-1 text-amber-400" /> Mascotes e Sprites de Foco
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Avatares interativos dos pets (gato, raposa, panda, shiba, coelho), loja de skins, falas e reações na aba Foco.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enablePet !== false} onChange={() => handleToggle('enablePet')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 3. Player de Músicas & Sons de Foco */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <Headphones size={20} className="inline mr-2 -mt-1 text-blue-400" /> Player de Músicas & Sons Ambiente
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Controles de áudio integrados no Foco: Spotify, YouTube Music, rádio Lo-Fi Girl e ruídos naturais (chuva, café, fogueira).
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableMusic !== false && safeConfig.enableLofi !== false} onChange={() => handleToggle('enableMusic')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 4. Trilha Sonora Reativa (BGM) */}
+            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: (safeConfig.enableBgm !== false && bgmState.isPlaying) ? T.brand : T.border, backgroundColor: (safeConfig.enableBgm !== false && bgmState.isPlaying) ? (TINT.brand || T.bg) : T.bg }}>
               <div className='flex items-center justify-between'>
                 <div>
                   <div className='font-bold flex items-center gap-2' style={{ color: T.ink }}>
-                    <Music size={20} className={bgmState.isPlaying ? "text-emerald-400 animate-pulse" : "text-emerald-500"} />
-                    <span>Música de Fundo Reativa (BGM)</span>
-                    {bgmState.isPlaying && (
+                    <Music size={20} className={(safeConfig.enableBgm !== false && bgmState.isPlaying) ? "text-emerald-400 animate-pulse" : "text-emerald-500"} />
+                    <span>Trilha Sonora Reativa (BGM Procedural)</span>
+                    {safeConfig.enableBgm !== false && bgmState.isPlaying && (
                       <span className='text-[10px] uppercase font-bold px-2 py-0.5 rounded-full' style={{ backgroundColor: T.brand, color: T.brandInk }}>
                         Ao Vivo: {bgmState.name}
                       </span>
                     )}
                   </div>
                   <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
-                    Trilha sonora procedural infinita e relaxante gerada via Web Audio API. Adapta tom, acordes e textura à aba aberta e ações.
+                    Música de fundo sintetizada em tempo real que se adapta à aba aberta e ações. Inclui widget na barra lateral.
                   </div>
                 </div>
                 <input
                   type='checkbox'
-                  checked={bgmState.isPlaying}
-                  onChange={() => {
-                    sfx.toggle(!bgmState.isPlaying);
-                    reactiveBgm.toggle();
-                  }}
+                  checked={safeConfig.enableBgm !== false}
+                  onChange={() => handleToggle('enableBgm')}
                   className='w-6 h-6 accent-blue-500 cursor-pointer'
                 />
               </div>
 
-              {bgmState.isPlaying && (
+              {safeConfig.enableBgm !== false && (
                 <div className='pt-3 border-t flex flex-col gap-3' style={{ borderColor: T.border }}>
+                  <div className='flex items-center justify-between'>
+                    <span className='text-xs font-semibold' style={{ color: T.ink }}>
+                      Status do Som: {bgmState.isPlaying ? 'Tocando no momento' : 'Pausado'}
+                    </span>
+                    <button
+                      type='button'
+                      onClick={() => {
+                        sfx.toggle(!bgmState.isPlaying);
+                        reactiveBgm.toggle();
+                      }}
+                      className='px-3 py-1 rounded-lg text-xs font-semibold border transition-all active:scale-95'
+                      style={{
+                        backgroundColor: bgmState.isPlaying ? T.surfaceAlt : T.brand,
+                        color: bgmState.isPlaying ? T.ink : T.brandInk,
+                        borderColor: T.border,
+                      }}
+                    >
+                      {bgmState.isPlaying ? 'Pausar Áudio' : 'Ouvir Agora'}
+                    </button>
+                  </div>
+
                   <div className='flex items-center justify-between text-xs'>
                     <span className="flex items-center gap-1.5" style={{ color: T.inkSoft }}>
-                      <Volume2 size={14} /> Volume da Música Ambiente
+                      <Volume2 size={14} /> Volume da Trilha Reativa
                     </span>
                     <span className='font-mono font-bold' style={{ color: T.brand }}>{Math.round(bgmState.volume * 100)}%</span>
                   </div>
@@ -6912,8 +8495,8 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
                     <div className='mb-2 font-medium' style={{ color: T.inkSoft }}>Ambiente Sonoro:</div>
                     <div className='flex flex-wrap gap-1.5'>
                       {[
-                        { id: 'auto', label: 'Automático (Reativo por aba)' },
-                        { id: 'foco', label: 'Foco Profundo (Ondas Theta)' },
+                        { id: 'auto', label: 'Automático (Por aba)' },
+                        { id: 'foco', label: 'Foco Profundo' },
                         { id: 'hoje', label: 'Serenidade Matinal' },
                         { id: 'biblioteca', label: 'Santuário de Estudos' },
                         { id: 'secretaria', label: 'Assistente Cósmica' },
@@ -6945,10 +8528,188 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
               )}
             </div>
 
+            {/* 5. Exercícios de Respiração */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <Wind size={20} className="inline mr-2 -mt-1 text-sky-400" /> Exercícios de Respiração (Ansiedade)
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Técnica Box Breathing (4x4) guiada para acalmar a mente antes ou durante os estudos na aba Foco.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableBreathing !== false} onChange={() => handleToggle('enableBreathing')} className='w-6 h-6 accent-blue-500' />
+            </label>
 
-            
+            {/* 6. Salas de Estudo (Multiplayer) */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <Users size={20} className="inline mr-2 -mt-1 text-purple-400" /> Salas de Estudo em Grupo (Multiplayer)
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Criação e entrada em salas ao vivo para sincronizar o cronômetro com amigos via códigos compartilháveis.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableMultiplayer !== false} onChange={() => handleToggle('enableMultiplayer')} className='w-6 h-6 accent-blue-500' />
+            </label>
 
-  
+            {/* 7. Revisão Espaçada */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <RotateCcw size={20} className="inline mr-2 -mt-1 text-amber-400" /> Revisão Espaçada (Curva de Esquecimento)
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Cards no Hoje trazendo anotações de 1, 7, 30 e 90 dias atrás para fixação duradoura da memória.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableSpacedRepetition !== false} onChange={() => handleToggle('enableSpacedRepetition')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 8. Metas Diárias de Estudo */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <Target size={20} className="inline mr-2 -mt-1 text-rose-400" /> Metas Diárias de Estudo
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Definição de meta diária em minutos e barra de progresso no painel Hoje.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableStudyGoals !== false} onChange={() => handleToggle('enableStudyGoals')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 9. Diário de Bordo & Humor */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <BookHeart size={20} className="inline mr-2 -mt-1" /> Diário de Bordo e Humor
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Aba exclusiva e card rápido no Hoje para registrar seu humor e reflexões diárias.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableJournal} onChange={() => handleToggle('enableJournal')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 10. Gamificação Completa */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}>
+                  <Gamepad2 size={20} className="inline mr-2 -mt-1" /> Gamificação Completa
+                </div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>
+                  Aba Desempenho, XP, Níveis, Ranking e contadores de Streak de estudo contínuo.
+                </div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableGamification} onChange={() => handleToggle('enableGamification')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 11. Efeitos Sonoros dos Botões */}
+            <div className='p-4 rounded-xl border flex flex-col gap-3' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <label className='flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity'>
+                <div>
+                  <div className='font-bold' style={{ color: T.ink }}><Volume2 size={20} className="inline mr-2 -mt-1 text-blue-400" /> Efeitos Sonoros dos Botões (SFX)</div>
+                  <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feedbacks táteis e auditivos em cliques de botões, tarefas, timers e navegação.</div>
+                </div>
+                <input type='checkbox' checked={safeConfig.enableSfx !== false} onChange={() => { handleToggle('enableSfx'); sfx.click(); }} className='w-6 h-6 accent-blue-500' />
+              </label>
+
+              {safeConfig.enableSfx !== false && (
+                <div className='pt-2.5 border-t flex flex-wrap items-center justify-between gap-2 text-xs' style={{ borderColor: T.border }}>
+                  <span style={{ color: T.inkSoft }}>Testar clique dos botões:</span>
+                  <div className='flex flex-wrap gap-1.5'>
+                    <button type="button" onClick={() => sfx.click()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Clique Padrão
+                    </button>
+                    <button type="button" onClick={() => sfx.pop()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Pop Suave
+                    </button>
+                    <button type="button" onClick={() => sfx.complete()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Sino Conclusão
+                    </button>
+                    <button type="button" onClick={() => sfx.coin()} className='px-2.5 py-1 rounded-lg border text-xs hover:opacity-80 active:scale-95 transition-all' style={{ backgroundColor: T.surfaceAlt, color: T.ink, borderColor: T.border }}>
+                      Moeda Recompensa
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 12. Alerta Anti-Distração */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><ShieldAlert size={20} className="inline mr-2 -mt-1" /> Alerta Anti-Distração</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Receba uma notificação dura se você mudar de aba enquanto o cronômetro de Foco estiver rodando.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableAntiDistraction !== false} onChange={() => handleToggle('enableAntiDistraction')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 13. Pausas Ativas */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Heart size={20} className="inline mr-2 -mt-1" /> Pausas Ativas</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>A tela escurece e sugere alongamento e hidratação a cada 20 minutos de foco contínuo.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableHealthBreak} onChange={() => handleToggle('enableHealthBreak')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 14. Lousa em Branco */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Edit3 size={20} className="inline mr-2 -mt-1" /> Lousa em Branco</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Um bloco de notas simples na aba Secretaria para rascunhos rápidos.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableScratchpad} onChange={() => handleToggle('enableScratchpad')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 15. Coruja Sincera */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Bird size={20} className="inline mr-2 -mt-1" /> Coruja Sincera</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Balões de fala com dicas e avisos sobre o seu foco e progresso.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableSincereOwl} onChange={() => handleToggle('enableSincereOwl')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 16. Animações de Conclusão */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><PartyPopper size={20} className="inline mr-2 -mt-1" /> Animações de Conclusão</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Disparar confetes ao marcar tarefas como concluídas.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableConfetti} onChange={() => handleToggle('enableConfetti')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 17. Dashboard de Análises */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><BarChart size={20} className="inline mr-2 -mt-1" /> Dashboard de Análises</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Gráficos semanais e horários de pico na aba Desempenho.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableAnalytics} onChange={() => handleToggle('enableAnalytics')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 18. Modo Férias */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.brand + '22' }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Palmtree size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Modo Férias (Burnout)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Pausa streaks e zera metas para você descansar sem culpa.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.vacationMode} onChange={() => handleToggle('vacationMode')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 19. Mostrar Arquivados */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Archive size={20} className="inline mr-2 -mt-1" /> Mostrar Arquivados (Baú)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exibir notas e compromissos que contêm a tag #arquivado. Útil para consultar semestres passados.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.showArchived} onChange={() => handleToggle('showArchived')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 20. Sincronizar Calendário */}
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><Calendar size={20} className="inline mr-2 -mt-1" /> Sincronizar Calendário (Google/Apple)</div>
@@ -6956,7 +8717,8 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
               </div>
               <input type='checkbox' checked={safeConfig.enableCalendar} onChange={() => handleToggle('enableCalendar')} className='w-6 h-6 accent-blue-500' />
             </label>
-  
+
+            {/* 21. Gerar PDF da Rotina */}
             <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
               <div>
                 <div className='font-bold' style={{ color: T.ink }}><FileText size={20} className="inline mr-2 -mt-1" /> Gerar PDF da Rotina</div>
@@ -6964,6 +8726,58 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
               </div>
               <input type='checkbox' checked={safeConfig.enablePdf} onChange={() => handleToggle('enablePdf')} className='w-6 h-6 accent-blue-500' />
             </label>
+
+            {/* 22. Batalhas de RPG no Foco (Boss Fight) */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Swords size={20} className="inline mr-2 -mt-1 text-rose-500" /> Batalhas de RPG no Foco (Boss Fight)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Enfrente chefes da procrastinação durante as sessões de foco com barra de HP interativa e recompensas épicas.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableBossFight !== false} onChange={() => handleToggle('enableBossFight')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 23. Bloqueio de Privacidade & Biometria */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Fingerprint size={20} className="inline mr-2 -mt-1 text-cyan-400" /> Bloqueio de Privacidade & Biometria (WebAuthn / PIN)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exige autenticação por biometria (Windows Hello, Face ID, Touch ID) ou PIN numérico para abrir o app.</div>
+              </div>
+              <input type='checkbox' checked={Boolean(safeConfig.enableBiometricLock)} onChange={() => handleToggle('enableBiometricLock')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 24. Mapas Mentais 2D (Constelação) */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Brain size={20} className="inline mr-2 -mt-1 text-indigo-400" /> Mapas Mentais 2D Interativos</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Visualizador em teia/grafo conectando matérias, resumos, anotações e compromissos na Biblioteca.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableMindMap !== false} onChange={() => handleToggle('enableMindMap')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 25. Hub Comunitário de Resumos */}
+            <label className='flex items-center justify-between p-4 rounded-xl border cursor-pointer hover:opacity-80 transition-opacity' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Globe size={20} className="inline mr-2 -mt-1 text-emerald-400" /> Hub Comunitário de Resumos & Leaderboard</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Feed público para compartilhar resumos de IA, baixar anotações de colegas e comparar streaks.</div>
+              </div>
+              <input type='checkbox' checked={safeConfig.enableCommunityHub !== false} onChange={() => handleToggle('enableCommunityHub')} className='w-6 h-6 accent-blue-500' />
+            </label>
+
+            {/* 26. Backup Completo (.md) */}
+            <div className='flex items-center justify-between p-4 rounded-xl border' style={{ borderColor: T.border, backgroundColor: T.bg }}>
+              <div>
+                <div className='font-bold' style={{ color: T.ink }}><Download size={20} className="inline mr-2 -mt-1" /> Backup Completo (Markdown)</div>
+                <div className='text-sm mt-1' style={{ color: T.inkSoft }}>Exportar todas as suas anotações, compromissos e resumos em um único arquivo de texto legível.</div>
+              </div>
+              <GhostButton onClick={() => {
+                const blob = new Blob([generateMarkdownBackup(commitments, notes, summaries)], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `backup_omnia_${todayISO()}.md`;
+                a.click();
+              }}>Baixar .md</GhostButton>
+            </div>
           </div>
         </section>
 
@@ -6971,19 +8785,66 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
         <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
           <div className='flex items-center gap-3 mb-4'>
             <Paperclip className='w-6 h-6' style={{ color: T.brand }} />
-            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Web Clipper (Favorito)</h3>
+            <h3 className='text-xl font-bold' style={{ color: T.ink }}>Extensão do Chrome & Web Clipper Oficial</h3>
           </div>
-          <p className='mb-4 text-sm' style={{ color: T.inkSoft }}>Arraste o botão abaixo para a barra de favoritos do seu navegador. Quando estiver em qualquer site ou artigo, clique no favorito para enviar o texto automaticamente para a Inbox do Omnia!</p>
-          <div className="p-4 rounded border flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-            <a 
-              href="javascript:(function(){const sel=window.getSelection().toString();const text=sel?sel:document.body.innerText;const title=document.title;const url=window.location.href;const target='https://omnia-unio.vercel.app/?clipperTitle='+encodeURIComponent(title)+'&clipperUrl='+encodeURIComponent(url)+'&clipperText='+encodeURIComponent(text.substring(0,3000));window.open(target,'_blank');})();"
-              className="px-4 py-2 font-bold text-white rounded-full shadow cursor-grab active:cursor-grabbing"
-              style={{ backgroundColor: T.brand }}
-              title="Arraste para a barra de favoritos"
-              onClick={e => e.preventDefault()}
-            >
-              Omnia Clipper
-            </a>
+          <p className='mb-4 text-sm' style={{ color: T.inkSoft }}>
+            Tenha o bloqueador de distrações (YouTube, Instagram, TikTok) e o Web Clipper de 1 clique direto no seu navegador.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl border flex flex-col justify-between" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+              <div>
+                <div className="font-bold text-sm mb-1" style={{ color: T.ink }}>1. Bookmarklet Inteligente</div>
+                <div className="text-xs mb-3" style={{ color: T.inkSoft }}>Arraste para a barra de favoritos para capturar textos de qualquer página sem instalar extensões.</div>
+              </div>
+              <div className="flex justify-center">
+                <a 
+                  href="javascript:(function(){const sel=window.getSelection().toString();const text=sel?sel:document.body.innerText;const title=document.title;const url=window.location.href;const target='https://omnia-unio.vercel.app/?clipperTitle='+encodeURIComponent(title)+'&clipperUrl='+encodeURIComponent(url)+'&clipperText='+encodeURIComponent(text.substring(0,3000));window.open(target,'_blank');})();"
+                  className="px-4 py-2 font-bold text-white rounded-full shadow cursor-grab active:cursor-grabbing text-xs"
+                  style={{ backgroundColor: T.brand }}
+                  title="Arraste para a barra de favoritos"
+                  onClick={e => e.preventDefault()}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Bookmark size={13} />
+                    <span>Omnia Clipper (Favorito)</span>
+                  </span>
+                </a>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl border flex flex-col justify-between" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+              <div>
+                <div className="font-bold text-sm mb-1" style={{ color: T.ink }}>2. Extensão Oficial (Bloqueador + Clipper)</div>
+                <div className="text-xs mb-3" style={{ color: T.inkSoft }}>Bloqueia sites viciantes durante o foco e adiciona o ícone oficial da coruja na barra do Chrome.</div>
+              </div>
+              <GhostButton
+                onClick={async () => {
+                  try {
+                    sfx.complete();
+                    const zip = new JSZip();
+                    const mResp = await fetch('/extension/manifest.json');
+                    const bResp = await fetch('/extension/background.js');
+                    const pResp = await fetch('/extension/popup.html');
+                    const jResp = await fetch('/extension/popup.js');
+                    zip.file('manifest.json', await mResp.text());
+                    zip.file('background.js', await bResp.text());
+                    zip.file('popup.html', await pResp.text());
+                    zip.file('popup.js', await jResp.text());
+                    const blob = await zip.generateAsync({ type: 'blob' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'omnia-chrome-extension.zip';
+                    a.click();
+                  } catch (e) {
+                    alert('Erro ao empacotar extensão.');
+                  }
+                }}
+                className="text-xs py-2 w-full flex items-center justify-center gap-1.5"
+              >
+                <Download size={14} /> Baixar Extensão do Chrome (.zip)
+              </GhostButton>
+            </div>
           </div>
         </section>
 
@@ -7003,7 +8864,9 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
         />
         {safeConfig.groqApiKey && <p className='text-xs mt-2' style={{ color: T.brand }}><Check size={14} className="inline mr-1 -mt-0.5" /> Chave pessoal configurada</p>}
       </section>
-      {isDev && <QAAutomatedSystem userId={userId} />}
+
+      {/* Central de Autoteste E2E e Diagnóstico Anti-Bug Geral */}
+      <QAAutomatedSystem userId={userId} />
     </div>
   );
 }
@@ -7044,6 +8907,32 @@ export function GlobalSearchModal({ onClose, commitments, notes, materials, setT
                   className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow"
                 >
                   Ativar Agora
+                </button>
+              </div>
+            )}
+            {(lowerQ.includes("tour") || lowerQ.includes("tutorial") || lowerQ.includes("guia") || lowerQ.includes("ajuda") || lowerQ.includes("qa") || lowerQ.includes("teste") || lowerQ.includes("antibug") || lowerQ.includes("bug")) && (
+              <div className="p-3 rounded-xl border border-sky-500 bg-sky-500/10 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-sm text-sky-400 flex items-center gap-1.5">
+                    <Activity size={16} /> [TOUR VISUAL] Tour Integrado por Todas as 10 Abas
+                  </div>
+                  <div className="text-xs text-slate-400">Navegação automática, demonstração de recursos e diagnóstico de integridade</div>
+                </div>
+                <button
+                  onClick={() => {
+                    onClose();
+                    if (typeof window.__omniaStartTour === "function") {
+                      window.__omniaStartTour();
+                    } else {
+                      setTab("config");
+                      setTimeout(() => {
+                        if (typeof window.__omniaStartTour === "function") window.__omniaStartTour();
+                      }, 400);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 text-white hover:bg-sky-500 transition-colors shadow flex items-center gap-1.5"
+                >
+                  <Play size={13} fill="currentColor" /> Iniciar Tour
                 </button>
               </div>
             )}

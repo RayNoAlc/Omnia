@@ -7,6 +7,9 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
       includeAssets: ['omnia.png', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
       manifest: {
         name: 'Omnia',
@@ -31,6 +34,29 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
+          }
+        ],
+        shortcuts: [
+          {
+            name: "Iniciar Foco",
+            short_name: "Foco",
+            description: "Abrir cronômetro de foco e pomodoro",
+            url: "/?tab=foco",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+          },
+          {
+            name: "Capturar na Inbox",
+            short_name: "Inbox",
+            description: "Enviar anotação ou PDF rápido",
+            url: "/?tab=inbox",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
+          },
+          {
+            name: "Painel Hoje",
+            short_name: "Hoje",
+            description: "Ver tarefas e horários de hoje",
+            url: "/?tab=hoje",
+            icons: [{ src: "pwa-192x192.png", sizes: "192x192" }]
           }
         ]
       }

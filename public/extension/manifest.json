@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Omnia Focus Shield & Web Clipper",
+  "version": "1.0.0",
+  "description": "Bloqueador de distrações (YouTube, Instagram, TikTok) durante o foco e Web Clipper de 1 clique para o Omnia.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Omnia Focus Companion"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

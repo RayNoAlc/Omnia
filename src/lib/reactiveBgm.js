@@ -470,11 +470,11 @@ class ReactiveBgmEngine {
     osc.frequency.setValueAtTime(noteFreq, now);
     osc2.frequency.setValueAtTime(noteFreq * 2.001, now); // soft harmonic octave
 
-    const noteVol = 0.14 * this.volume;
-    const noteDuration = 1.4;
+    const noteVol = 0.22 * this.volume;
+    const noteDuration = 1.6;
 
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(noteVol, now + 0.02);
+    gain.gain.linearRampToValueAtTime(noteVol, now + 0.025);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + noteDuration);
 
     let panner = null;
@@ -520,7 +520,7 @@ class ReactiveBgmEngine {
       bassOsc.type = "triangle";
       bassOsc.frequency.setValueAtTime(bassFreq, now);
 
-      const bassVol = 0.18 * this.volume;
+      const bassVol = 0.24 * this.volume;
       bassGain.gain.setValueAtTime(0, now);
       bassGain.gain.linearRampToValueAtTime(bassVol, now + fadeTime);
       bassGain.gain.setValueAtTime(bassVol, now + durationSec - fadeTime);
@@ -554,7 +554,7 @@ class ReactiveBgmEngine {
       osc2.frequency.setValueAtTime(freq * 1.0025, now); // detune for rich analog chorus
 
       // Clear, audible pad presence
-      const maxVol = (0.19 / Math.sqrt(frequencies.length)) * this.volume;
+      const maxVol = (0.26 / Math.sqrt(frequencies.length)) * this.volume;
       voiceGain.gain.setValueAtTime(0, now);
       voiceGain.gain.linearRampToValueAtTime(maxVol, now + fadeTime);
       voiceGain.gain.setValueAtTime(maxVol, now + durationSec - fadeTime);
@@ -572,7 +572,7 @@ class ReactiveBgmEngine {
 
       if (this.reverbBus && i % 2 === 0) {
         const reverbSend = ctx.createGain();
-        reverbSend.gain.setValueAtTime(0.25, now);
+        reverbSend.gain.setValueAtTime(0.3, now);
         voiceGain.connect(reverbSend);
         reverbSend.connect(this.reverbBus);
       }
@@ -598,11 +598,15 @@ class ReactiveBgmEngine {
     const env = this.getCurrentSoundscape();
     const now = this.ctx.currentTime;
 
-    // 1. Instantly sweep the filter to the new soundscape's cutoff
+    // 1. Instantly sweep the filter to the new soundscape with audible shimmer
     if (this.filterNode) {
       this.filterNode.frequency.cancelScheduledValues(now);
-      this.filterNode.frequency.setValueAtTime(env.cutoff + 400, now);
-      this.filterNode.frequency.exponentialRampToValueAtTime(env.cutoff, now + 1.2);
+      this.filterNode.frequency.setValueAtTime(env.cutoff + 850, now);
+      this.filterNode.frequency.exponentialRampToValueAtTime(env.cutoff, now + 1.4);
+      if (this.filterNode.Q) {
+        this.filterNode.Q.setValueAtTime(2.2, now);
+        this.filterNode.Q.linearRampToValueAtTime(1.0, now + 1.4);
+      }
     }
 
     // 2. Play immediate welcome chord strike in the new tab's key
@@ -624,21 +628,38 @@ class ReactiveBgmEngine {
     const now = ctx.currentTime;
     const chord = env.chords[0];
 
-    chord.slice(0, 3).forEach((freq, idx) => {
+    chord.slice(0, 4).forEach((freq, idx) => {
       const osc = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq * 1.5, now + idx * 0.04);
 
-      gain.gain.setValueAtTime(0, now + idx * 0.04);
-      gain.gain.linearRampToValueAtTime(0.12 * this.volume, now + idx * 0.04 + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
+      osc.type = idx === 0 ? "triangle" : "sine";
+      osc2.type = "sine";
+
+      const startTime = now + idx * 0.04;
+      osc.frequency.setValueAtTime(freq * 1.5, startTime);
+      osc2.frequency.setValueAtTime(freq * 1.503, startTime);
+
+      const peakVol = (0.24 / Math.sqrt(Math.min(chord.length, 4))) * this.volume;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(peakVol, startTime + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 2.0);
 
       osc.connect(gain);
+      osc2.connect(gain);
       gain.connect(this.masterGain);
 
-      osc.start(now + idx * 0.04);
-      osc.stop(now + 1.7);
+      if (this.reverbBus) {
+        const reverbSend = ctx.createGain();
+        reverbSend.gain.setValueAtTime(0.35, startTime);
+        gain.connect(reverbSend);
+        reverbSend.connect(this.reverbBus);
+      }
+
+      osc.start(startTime);
+      osc2.start(startTime);
+      osc.stop(startTime + 2.1);
+      osc2.stop(startTime + 2.1);
     });
   }
 
@@ -663,7 +684,7 @@ class ReactiveBgmEngine {
           osc.frequency.setValueAtTime(freq, t);
 
           gain.gain.setValueAtTime(0, t);
-          gain.gain.linearRampToValueAtTime(0.16 * this.volume, t + 0.02);
+          gain.gain.linearRampToValueAtTime(0.24 * this.volume, t + 0.02);
           gain.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
 
           osc.connect(gain);
@@ -696,7 +717,7 @@ class ReactiveBgmEngine {
         osc.frequency.exponentialRampToValueAtTime(note * 1.48, now + 0.15);
 
         gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(0.06 * this.volume, now + 0.01);
+        gain.gain.linearRampToValueAtTime(0.12 * this.volume, now + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
 
         osc.connect(gain);

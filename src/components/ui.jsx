@@ -52,10 +52,10 @@ export const applyTheme = (themeName) => {
 };
 
 export const resolveFontFamily = (val) => {
-  if (!val) return "'Inter', sans-serif";
+  if (!val) return "'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif";
   const str = String(val).toLowerCase().trim();
 
-  // 1. Comic / Cursive / Relaxada (testar primeiro porque "Comic Sans" contém "sans")
+  // 1. Comic / Cursive / Relaxada
   if (str.includes("comic") || str.includes("cursive") || str === "casual" || str.includes("relaxada")) {
     return "'Comic Neue', 'Comic Sans MS', cursive, sans-serif";
   }
@@ -65,17 +65,13 @@ export const resolveFontFamily = (val) => {
     return "'JetBrains Mono', monospace";
   }
 
-  // 3. Serifada / Livro / Merriweather / Georgia (atenção: não pode conter "sans", pois "sans-serif" contém "serif")
+  // 3. Serifada / Livro / Merriweather / Georgia
   if (str.includes("georgia") || str.includes("merriweather") || (str.includes("serif") && !str.includes("sans"))) {
     return "'Merriweather', Georgia, serif";
   }
 
-  // 4. Padrão / Sans-serif / Inter
-  if (str.includes("inter") || str.includes("sans") || str === "padrao" || str === "padrão" || str === "default") {
-    return "'Inter', sans-serif";
-  }
-
-  return "'Inter', sans-serif";
+  // 4. Padrão / Sans-serif / Plus Jakarta Sans / Inter
+  return "'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif";
 };
 
 export const applyFont = (fontVal) => {
@@ -174,11 +170,17 @@ export function TypeTag({ tipo }) {
   );
 }
 
-export function Card({ children, className = "", style = {} }) {
+export function Card({ children, className = "", style = {}, onClick, ...props }) {
   return (
     <div
-      className={`rounded-2xl p-4 ${className}`}
-      style={{ backgroundColor: T.surface, border: `1px solid ${T.border}`, ...style }}
+      className={`double-bezel-card rounded-2xl p-4 md:p-5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${onClick ? 'cursor-pointer hover:shadow-lg hover:-translate-y-0.5' : ''} ${className}`}
+      style={{
+        backgroundColor: T.surface,
+        border: `1px solid ${T.border}`,
+        ...style,
+      }}
+      onClick={onClick}
+      {...props}
     >
       {children}
     </div>
@@ -187,16 +189,28 @@ export function Card({ children, className = "", style = {} }) {
 
 export function SectionLabel({ children }) {
   return (
-    <div className="text-[11px] font-mono uppercase tracking-widest mb-2" style={{ color: T.inkSoft }}>
+    <div className="text-[11px] font-semibold uppercase tracking-[0.14em] mb-2.5 flex items-center gap-2" style={{ color: T.inkSoft }}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: T.brand }} />
       {children}
     </div>
   );
 }
 
-export function EmptyState({ text }) {
+export function EmptyState({ text, icon: Icon, action }) {
   return (
-    <div className="w-full px-6 text-sm text-center py-8 rounded-2xl" style={{ color: T.inkSoft, border: `1px dashed ${T.border}` }}>
-      {text}
+    <div
+      className="w-full px-6 py-10 rounded-2xl flex flex-col items-center justify-center text-center transition-all duration-300"
+      style={{ backgroundColor: 'rgba(255,255,255,0.015)', border: `1px dashed ${T.border}` }}
+    >
+      {Icon && (
+        <div className="w-10 h-10 rounded-full flex items-center justify-center mb-3 shadow-inner" style={{ backgroundColor: T.surfaceAlt, color: T.inkSoft }}>
+          <Icon className="w-5 h-5" />
+        </div>
+      )}
+      <p className="text-sm font-medium max-w-sm" style={{ color: T.inkSoft }}>
+        {text}
+      </p>
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
@@ -210,7 +224,7 @@ export function PrimaryButton({ children, onClick, disabled, className = "", sty
     <button
       onClick={handleClick}
       disabled={disabled}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-opacity disabled:opacity-50 ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] active:scale-[0.975] hover:brightness-110 shadow-sm hover:shadow-md disabled:opacity-50 disabled:pointer-events-none ${className}`}
       style={{ backgroundColor: T.brand, color: T.brandInk, ...style }}
       {...props}
     >
@@ -227,7 +241,7 @@ export function GhostButton({ children, onClick, className = "", style = {}, ...
   return (
     <button
       onClick={handleClick}
-      className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:bg-[var(--surfaceAlt)] active:scale-[0.975] ${className}`}
       style={{ color: T.inkSoft, border: `1px solid ${T.border}`, backgroundColor: "transparent", ...style }}
       {...props}
     >

@@ -27,6 +27,7 @@ import { sfx } from "./lib/soundEffects";
 import { reactiveBgm } from "./lib/reactiveBgm";
 import { AppLayout } from "./layouts/AppLayout";
 import { T, TABS, applyTheme, applyFont } from "./components/ui";
+import { BiometricSecurityLock } from "./components/BiometricSecurityLock";
 
 
 class GlobalErrorBoundary extends React.Component {
@@ -88,10 +89,72 @@ function AppInner() {
   const [isZen, setIsZen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(() => {
+    try {
+      return sessionStorage.getItem("omnia_unlocked") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    window.__omniaSetTab = (tabId) => {
+      try {
+        sfx.tab();
+        reactiveBgm.setTab(tabId);
+        setTab(tabId);
+      } catch (err) {
+        console.error("Erro ao setar tab via QA:", err);
+      }
+    };
+    return () => {
+      delete window.__omniaSetTab;
+    };
+  }, []);
 
   useEffect(() => {
     reactiveBgm.setTab(tab);
   }, [tab]);
+
+  // Suporte global para rolagem horizontal com rodinha do mouse (wheel)
+  useEffect(() => {
+    const handleWheel = (e) => {
+      if (e.ctrlKey || e.altKey) return;
+      if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
+
+      let el = e.target;
+      while (el && el !== document.body && el !== document.documentElement) {
+        const computed = window.getComputedStyle(el);
+        const overflowX = computed.overflowX;
+        const overflowY = computed.overflowY;
+        const isScrollableX = (overflowX === "auto" || overflowX === "scroll") && el.scrollWidth > el.clientWidth;
+        const isScrollableY = (overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight;
+
+        if (isScrollableX && !isScrollableY) {
+          const maxScrollLeft = el.scrollWidth - el.clientWidth;
+          const canScroll = (e.deltaY < 0 && el.scrollLeft > 0) || (e.deltaY > 0 && el.scrollLeft < maxScrollLeft);
+
+          if (canScroll) {
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+            return;
+          }
+        }
+        el = el.parentElement;
+      }
+    };
+
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, []);
+
+  useEffect(() => {
+    if (config?.enableMusic === false || config?.enableBgm === false) {
+      if (reactiveBgm.getState().isPlaying) {
+        reactiveBgm.stop();
+      }
+    }
+  }, [config?.enableMusic, config?.enableBgm]);
 
   // --- ATALHOS DE TECLADO ---
   useEffect(() => {
@@ -219,7 +282,7 @@ function AppInner() {
   /* ---------------- Notificacoes ---------------- */
   const notifiedBlocks = useRef(new Set());
   useEffect(() => {
-    if (!dataLoaded || routineBlocks.length === 0) return;
+    if (!dataLoaded || routineBlocks.length === 0 || config?.enableRoutine === false) return;
     
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
@@ -449,6 +512,17 @@ function AppInner() {
   }
   if (!session) return <Auth />;
 
+  if (config?.enableBiometricLock && !isUnlocked) {
+    return (
+      <BiometricSecurityLock
+        onUnlock={() => {
+          try { sessionStorage.setItem("omnia_unlocked", "true"); } catch {}
+          setIsUnlocked(true);
+        }}
+      />
+    );
+  }
+
   const hoje = todayISO();
   const visibleCommitments = config?.showArchived ? commitments : commitments.filter(c => !(c.assunto||"").toLowerCase().includes('#arquivado') && !(c.disciplina||"").toLowerCase().includes('#arquivado'));
   const visibleNotes = config?.showArchived ? notes : notes.filter(n => !(n.texto||"").toLowerCase().includes('#arquivado') && !(n.disciplina||"").toLowerCase().includes('#arquivado'));
@@ -473,12 +547,13 @@ function AppInner() {
 
     
   const visibleTabs = TABS.filter(t => {
-    if (t.id === "desempenho") return config?.enableGamification;
+    if (t.id === "rotina") return config?.enableRoutine !== false;
+    if (t.id === "desempenho") return Boolean(config?.enableGamification);
     if (t.id === "diario") return config?.enableJournal !== false;
     return true;
   });
     return (
-    <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()} isZen={isZen}>
+    <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()} isZen={isZen} config={config}>
       {!dataLoaded ? (
         <div className="py-16 flex justify-center" style={{ color: T.inkSoft }}>
           <Loader2 className="w-5 h-5 animate-spin" />

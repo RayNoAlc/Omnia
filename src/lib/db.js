@@ -206,6 +206,17 @@ export async function addCommitment(userId, commitment) {
   if (error) throw error;
   return rowToCommitment(data);
 }
+export async function updateCommitment(id, patch) {
+  const row = {};
+  if (patch.tipo !== undefined) row.tipo = patch.tipo;
+  if (patch.disciplina !== undefined) row.disciplina = patch.disciplina;
+  if (patch.assunto !== undefined) row.assunto = patch.assunto;
+  if (patch.prazo !== undefined) row.prazo = patch.prazo;
+  if (patch.prioridade !== undefined) row.prioridade = patch.prioridade;
+  const { data, error } = await supabase.from("commitments").update(row).eq("id", id).select().single();
+  if (error) throw error;
+  return rowToCommitment(data);
+}
 export async function deleteCommitment(id) {
   const { error } = await supabase.from("commitments").delete().eq("id", id);
   if (error) throw error;
