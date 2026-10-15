@@ -421,6 +421,24 @@ function AppInner() {
     })();
   }, [session]);
 
+  /* Auto-início do Tutorial Interativo gamificado no primeiro uso (criação de conta / primeiro login) */
+  useEffect(() => {
+    if (!dataLoaded || !session) return;
+    try {
+      const hasSeen = localStorage.getItem("omnia_tutorial_seen");
+      if (!hasSeen) {
+        const timer = setTimeout(() => {
+          if (window.startOmniaTutorial) {
+            window.startOmniaTutorial({ mode: "tour", stepIndex: 0, isFirstUse: true });
+          }
+        }, 900);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // Ignora erro de localStorage caso cookies estejam bloqueados
+    }
+  }, [dataLoaded, session]);
+
   const userId = session?.user?.id;
 
   const focusTimer = useFocusTimer({ userId, commitments, setSessions });

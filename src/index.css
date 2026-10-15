@@ -293,4 +293,42 @@ button, input, optgroup, select, textarea {
   box-shadow: 0 0 10px var(--brand);
 }
 
+/* Interactive Onboarding Quest Target Highlighting */
+@keyframes omnia-quest-glow {
+  0% {
+    box-shadow: 0 0 0 3px #38bdf8, 0 0 15px rgba(56, 189, 248, 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 5px #0284c7, 0 0 30px rgba(56, 189, 248, 0.9), inset 0 0 15px rgba(56, 189, 248, 0.3);
+    transform: scale(1.015);
+  }
+  100% {
+    box-shadow: 0 0 0 3px #38bdf8, 0 0 15px rgba(56, 189, 248, 0.6);
+    transform: scale(1);
+  }
+}
+
+.omnia-quest-target {
+  position: relative !important;
+  z-index: 99980 !important;
+  border-radius: 14px !important;
+  animation: omnia-quest-glow 1.8s ease-in-out infinite !important;
+  transition: all 0.25s ease !important;
+  pointer-events: auto !important;
+}
+
+@keyframes omnia-bounce-indicator {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-omnia-indicator {
+  animation: omnia-bounce-indicator 1.2s ease-in-out infinite;
+}
+
 

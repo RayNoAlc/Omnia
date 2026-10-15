@@ -347,7 +347,7 @@ const getRoutineIcon = (type) => {
     );
 
     return (
-      <Card style={{ marginTop: '1rem' }}>
+      <Card style={{ marginTop: '1rem' }} data-tour="hoje-habitos">
         <div className="flex items-center justify-between mb-3">
           <div className="font-bold flex items-center gap-2" style={{ color: T.ink }}>
             <Sprout className="w-4 h-4 text-emerald-500" /> Rastreador de Hábitos
@@ -582,6 +582,7 @@ const getRoutineIcon = (type) => {
                     return (
                       <button
                         key={h.id}
+                        data-tour="habit-toggle"
                         onClick={() => toggleHabit(h.id)}
                         className="flex items-center gap-2 p-2 rounded-xl text-left transition-all border group"
                         style={{

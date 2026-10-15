@@ -695,3 +695,119 @@ export const OMNIA_MANUAL_SECTIONS = [
     ]
   }
 ];
+
+/**
+ * Interactive Game Quests (Tutorial estilo jogo que força ações reais)
+ */
+export const INTERACTIVE_QUESTS = [
+  {
+    id: 'quest-habits',
+    tab: 'hoje',
+    targetSelector: '[data-tour="hoje-habitos"]',
+    actionSelector: '[data-tour="habit-toggle"], [data-tour="hoje-habitos"] button',
+    actionType: 'click',
+    title: 'Missão 1: Conclua seu Primeiro Hábito',
+    badge: 'MISSÃO 1/7',
+    avatar: '/owl_happy.png',
+    speaker: 'Coruja Omnia',
+    dialogue: 'Bem-vindo ao Omnia, Recruta! Assim como em um RPG, seus hábitos diários constroem seu nível acadêmico. Clique em qualquer hábito da lista para registrar sua primeira vitória e ver o medidor subir!',
+    actionPrompt: 'Clique em qualquer um dos hábitos da lista abaixo para marcar como feito!',
+    successToast: '✨ Primeiro Hábito Registrado! +50 XP',
+    hint: 'Você pode personalizar seus próprios hábitos clicando em "Editar" no card.'
+  },
+  {
+    id: 'quest-nav-foco',
+    tab: 'hoje',
+    destinationTab: 'foco',
+    targetSelector: '[data-tab-nav="foco"]',
+    actionSelector: '[data-tab-nav="foco"]',
+    actionType: 'tab_change',
+    title: 'Missão 2: Teletransporte para o Foco',
+    badge: 'MISSÃO 2/7',
+    avatar: '/owl_happy.png',
+    speaker: 'Coruja Omnia',
+    dialogue: 'Excelente! Agora precisamos entrar na Arena de Concentração. Localize o botão "Foco" no menu de navegação e clique nele para viajar até lá!',
+    actionPrompt: 'Clique na aba "Foco" no menu de navegação!',
+    successToast: '⏱️ Bem-vindo ao Foco! +50 XP',
+    hint: 'Você também pode pressionar a tecla F no teclado para abrir o foco instantaneamente.'
+  },
+  {
+    id: 'quest-start-pomodoro',
+    tab: 'foco',
+    targetSelector: '[data-tour="foco-start"]',
+    actionSelector: '[data-tour="foco-start"]',
+    actionType: 'click',
+    title: 'Missão 3: Ative o Pomodoro de Estudo',
+    badge: 'MISSÃO 3/7',
+    avatar: '/owl_happy.png',
+    speaker: 'Coruja Omnia',
+    dialogue: 'Aqui está seu timer de foco! Você tem presets de 25 min, Deep Work de 50 min e sons da natureza. Dê a partida no cronômetro agora!',
+    actionPrompt: 'Clique no botão "Iniciar" para dar a partida no seu primeiro bloco de foco!',
+    successToast: '🔥 Cronômetro Ativo! +50 XP',
+    hint: 'Ao concluir sessões de foco você ganha moedas de estudo para a loja de mascotes.'
+  },
+  {
+    id: 'quest-boss-fight',
+    tab: 'foco',
+    targetSelector: '[data-tour="foco-boss"]',
+    actionSelector: '[data-tour="foco-boss"]',
+    actionType: 'click',
+    title: 'Missão 4: Invoque o Chefe da Procrastinação',
+    badge: 'MISSÃO 4/7',
+    avatar: '/owl_happy.png',
+    speaker: 'Coruja Omnia',
+    dialogue: 'Atenção! Chefões acadêmicos tentam roubar seu tempo. Cada minuto focado causa dano crítico neles. Abra o combate RPG para ver o monstro em pixel art!',
+    actionPrompt: 'Clique no botão "Batalha RPG de Foco" para revelar o Chefe da Procrastinação!',
+    successToast: '⚔️ Chefe Revelado! Derrote-o com seu foco! +50 XP',
+    hint: 'Existem 4 chefões temáticos com animações em pixel art e barra de HP em tempo real.'
+  },
+  {
+    id: 'quest-nav-biblioteca',
+    tab: 'foco',
+    destinationTab: 'biblioteca',
+    targetSelector: '[data-tab-nav="biblioteca"]',
+    actionSelector: '[data-tab-nav="biblioteca"]',
+    actionType: 'tab_change',
+    title: 'Missão 5: O Cofre de Cadernos e Resumos',
+    badge: 'MISSÃO 5/7',
+    avatar: '/owl_happy.png',
+    speaker: 'Coruja Omnia',
+    dialogue: 'Sensacional! Agora vamos conhecer onde você armazena o conhecimento. Clique na aba "Biblioteca" no menu para ver suas anotações e resumos.',
+    actionPrompt: 'Clique na aba "Biblioteca" no menu de navegação!',
+    successToast: '📚 Biblioteca Desbloqueada! +50 XP',
+    hint: 'Na biblioteca você encontra a Curva do Esquecimento de 1, 7, 30 e 90 dias.'
+  },
+  {
+    id: 'quest-nav-secretaria',
+    tab: 'biblioteca',
+    destinationTab: 'secretaria',
+    targetSelector: '[data-tab-nav="secretaria"]',
+    actionSelector: '[data-tab-nav="secretaria"]',
+    actionType: 'tab_change',
+    title: 'Missão 6: A Assistente Acadêmica com IA',
+    badge: 'MISSÃO 6/7',
+    avatar: '/owl_happy.png',
+    speaker: 'Coruja Omnia',
+    dialogue: 'Precisa tirar dúvidas sobre um artigo, criar flashcards ou montar um cronograma de provas? A Secretária com IA resolve tudo para você.',
+    actionPrompt: 'Clique na aba "Secretária" no menu de navegação!',
+    successToast: '🤖 IA Pronta para Ajudar! +50 XP',
+    hint: 'Você também pode usar a Lousa de Anotações Rápidas (Scratchpad) na Secretária.'
+  },
+  {
+    id: 'quest-nav-config',
+    tab: 'secretaria',
+    destinationTab: 'config',
+    targetSelector: '[data-tab-nav="config"]',
+    actionSelector: '[data-tab-nav="config"]',
+    actionType: 'tab_change',
+    title: 'Missão 7: Sua Base de Configurações',
+    badge: 'MISSÃO 7/7',
+    avatar: '/owl_happy.png',
+    speaker: 'Coruja Omnia',
+    dialogue: 'Última parada do treinamento! Vamos até a aba de Configurações onde você escolhe temas visuais (como o lindo tema Aiko) e onde este guia ficará guardado.',
+    actionPrompt: 'Clique na aba "Configurações" para finalizar seu treinamento!',
+    successToast: '🎓 Treinamento Concluído! +100 XP',
+    hint: 'Em Configurações você pode fazer backup em .md, ligar BGM procedural e alternar temas.'
+  }
+];
+
