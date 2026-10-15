@@ -4032,6 +4032,15 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   const [feedback, setFeedback] = useState(null);
   const [eatingEffect, setEatingEffect] = useState(null);
 
+  useEffect(() => {
+    if (!showStore) return;
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setShowStore(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showStore]);
+
   const [petEnergy, setPetEnergy] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("omnia_config") || "{}");
@@ -4300,195 +4309,303 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
   return (
     <div className="flex flex-col items-center gap-2 relative mt-4">
       {showStore && (
-        <div className="absolute bottom-full mb-3 bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 p-4 rounded-2xl shadow-2xl w-88 max-w-[94vw] z-50">
-          <div className="flex justify-between items-center mb-2.5 pb-2 border-b border-slate-100 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <Sparkles size={16} className="text-amber-500" />
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-100">
-                {storeTab === 'pets' ? 'Mascotes de Estudo' : 'Petiscos & Cuidados'}
-              </h4>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={claimBonus}
-                className="text-[11px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 px-2 py-0.5 rounded-full border border-amber-300 dark:border-amber-700/60 transition-all hover:scale-105 active:scale-95"
-                title="Resgatar moedas de estudo bônus"
-              >
-                <Plus size={11} /> 100 Moedas
-              </button>
-              <span className="text-xs font-mono font-bold text-amber-500 flex items-center gap-1 bg-slate-100 dark:bg-gray-900 px-2 py-0.5 rounded-full border border-slate-200 dark:border-gray-700">
-                <Coins size={12} /> {localCoins}
-              </span>
-              <button onClick={() => setShowStore(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5" title="Fechar">
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-
-          {/* Abas da Loja: Mascotes vs Petiscos */}
-          <div className="flex gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-gray-900 mb-3 border border-slate-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => setStoreTab('pets')}
-              className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                storeTab === 'pets'
-                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              <PawPrint size={13} />
-              <span>Mascotes</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setStoreTab('snacks')}
-              className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                storeTab === 'snacks'
-                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              <Cookie size={13} />
-              <span>Petiscos & Lanches</span>
-            </button>
-          </div>
-
-          {feedback && (
-            <div className="mb-2.5 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-medium text-center">
-              {feedback}
-            </div>
-          )}
-
-          {/* Aba 1: Mascotes */}
-          {storeTab === 'pets' && (
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {STUDY_PETS.map((pet) => {
-                const owned = localOwned.includes(pet.id);
-                const selected = localSkinId === pet.id;
-                return (
-                  <div
-                    key={pet.id}
-                    className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
-                      selected
-                        ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-500'
-                        : 'border-slate-200 dark:border-gray-700/80 hover:bg-slate-50 dark:hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <img
-                          src={pet.preview}
-                          alt={pet.name}
-                          className="w-10 h-10 object-contain select-none"
-                          style={{ imageRendering: 'pixelated' }}
-                          onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
-                        />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                          {pet.name}
-                          {selected && <Check size={12} className="text-blue-500" />}
-                        </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                          {pet.desc}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      {selected ? (
-                        <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 px-2.5 py-1 rounded-md bg-blue-100/60 dark:bg-blue-900/40">
-                          Em uso
-                        </span>
-                      ) : owned ? (
-                        <button
-                          type="button"
-                          onClick={() => buySkin(pet)}
-                          className="text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-blue-600 bg-slate-100 dark:bg-gray-700 hover:bg-slate-200 dark:hover:bg-gray-600 px-2.5 py-1 rounded-md transition-colors"
-                        >
-                          Usar
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => buySkin(pet)}
-                          className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
-                            localCoins >= pet.price
-                              ? 'bg-amber-500 hover:bg-amber-600 active:scale-95 text-white shadow-sm cursor-pointer'
-                              : 'bg-amber-500/20 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-300/40 cursor-pointer hover:bg-amber-500/30'
-                          }`}
-                          title={localCoins >= pet.price ? `Desbloquear ${pet.name}` : `Faltam ${pet.price - localCoins} moedas`}
-                        >
-                          <Coins size={11} /> {pet.price}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Aba 2: Petiscos e Cuidados */}
-          {storeTab === 'snacks' && (
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              <div className="p-2.5 rounded-xl border mb-2 flex items-center justify-between" style={{ backgroundColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                <div className="flex items-center gap-2">
-                  <Zap size={16} className="text-emerald-500" />
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Energia de {activePet.name}:</span>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setShowStore(false)}
+        >
+          <div
+            className="w-full max-w-md p-4 sm:p-5 rounded-3xl shadow-2xl relative border flex flex-col max-h-[85vh] overflow-hidden"
+            style={{
+              backgroundColor: T.surface,
+              borderColor: T.border,
+              color: T.ink,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header da Loja */}
+            <div className="flex justify-between items-center mb-3 pb-3 border-b" style={{ borderColor: T.border }}>
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="p-2 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: TINT.brand || 'rgba(59, 130, 246, 0.15)' }}
+                >
+                  <Sparkles size={18} style={{ color: T.brand }} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-2 rounded-full bg-slate-200 dark:bg-gray-700 overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${petEnergy}%` }} />
-                  </div>
-                  <span className="text-xs font-bold font-mono text-emerald-500">{petEnergy}%</span>
+                <div>
+                  <h4 className="font-bold text-sm leading-tight" style={{ color: T.ink }}>
+                    {storeTab === 'pets' ? 'Mascotes de Estudo' : 'Petiscos & Cuidados'}
+                  </h4>
+                  <p className="text-[11px]" style={{ color: T.inkSoft }}>
+                    {storeTab === 'pets' ? 'Escolha ou desbloqueie seu companheiro' : 'Alimente seu mascote para restaurar energia'}
+                  </p>
                 </div>
               </div>
 
-              {PET_SNACKS.map((snack) => (
-                <div
-                  key={snack.id}
-                  className="flex items-center justify-between p-2 rounded-xl border border-slate-200 dark:border-gray-700/80 hover:bg-slate-50 dark:hover:bg-gray-700/40 transition-all"
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={claimBonus}
+                  className="text-[11px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-full border transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  style={{
+                    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                    color: '#d97706',
+                    borderColor: 'rgba(245, 158, 11, 0.35)',
+                  }}
+                  title="Resgatar +100 moedas de estudo bônus"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-1.5 rounded-lg bg-slate-100 dark:bg-gray-900 border border-slate-200 dark:border-gray-700 flex items-center justify-center w-10 h-10 select-none text-emerald-500">
-                      {React.createElement(snack.icon, { size: 18 })}
-                    </span>
-                    <div>
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                        {snack.name}
-                        <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-0.5">
-                          +{snack.energy}% <Zap size={10} className="fill-emerald-500" />
-                        </span>
+                  <Plus size={11} /> 100
+                </button>
+                <span
+                  className="text-xs font-mono font-bold flex items-center gap-1 px-2.5 py-1 rounded-full border"
+                  style={{
+                    backgroundColor: T.surfaceAlt,
+                    borderColor: T.border,
+                    color: '#f59e0b',
+                  }}
+                >
+                  <Coins size={13} className="text-amber-500 fill-amber-500" /> {localCoins}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowStore(false)}
+                  className="p-1.5 rounded-full hover:opacity-70 transition-opacity cursor-pointer ml-1"
+                  style={{ color: T.inkSoft }}
+                  title="Fechar"
+                  aria-label="Fechar"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Abas da Loja: Mascotes vs Petiscos */}
+            <div
+              className="flex gap-1.5 p-1 rounded-2xl mb-3 border flex-shrink-0"
+              style={{
+                backgroundColor: T.surfaceAlt,
+                borderColor: T.border,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setStoreTab('pets')}
+                className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                style={{
+                  backgroundColor: storeTab === 'pets' ? T.surface : 'transparent',
+                  color: storeTab === 'pets' ? T.brand : T.inkSoft,
+                  border: storeTab === 'pets' ? `1px solid ${T.border}` : '1px solid transparent',
+                }}
+              >
+                <PawPrint size={14} />
+                <span>Mascotes ({STUDY_PETS.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStoreTab('snacks')}
+                className="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                style={{
+                  backgroundColor: storeTab === 'snacks' ? T.surface : 'transparent',
+                  color: storeTab === 'snacks' ? T.brand : T.inkSoft,
+                  border: storeTab === 'snacks' ? `1px solid ${T.border}` : '1px solid transparent',
+                }}
+              >
+                <Cookie size={14} />
+                <span>Petiscos & Lanches</span>
+              </button>
+            </div>
+
+            {feedback && (
+              <div
+                className="mb-3 p-2.5 rounded-xl border text-xs font-semibold text-center animate-in fade-in flex-shrink-0"
+                style={{
+                  backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                  borderColor: 'rgba(245, 158, 11, 0.35)',
+                  color: '#d97706',
+                }}
+              >
+                {feedback}
+              </div>
+            )}
+
+            {/* Aba 1: Mascotes */}
+            {storeTab === 'pets' && (
+              <div className="space-y-2 overflow-y-auto custom-scrollbar pr-1 flex-1 min-h-0">
+                {STUDY_PETS.map((pet) => {
+                  const owned = localOwned.includes(pet.id);
+                  const selected = localSkinId === pet.id;
+                  return (
+                    <div
+                      key={pet.id}
+                      className="flex items-center justify-between p-2.5 rounded-2xl border transition-all"
+                      style={{
+                        backgroundColor: selected
+                          ? (TINT.brand || 'rgba(59, 130, 246, 0.12)')
+                          : T.surfaceAlt,
+                        borderColor: selected ? T.brand : T.border,
+                        boxShadow: selected ? `0 0 12px ${T.brand}33` : 'none',
+                      }}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <div
+                          className="w-12 h-12 rounded-xl border flex items-center justify-center overflow-hidden flex-shrink-0"
+                          style={{
+                            backgroundColor: T.surface,
+                            borderColor: selected ? T.brand : T.border,
+                          }}
+                        >
+                          <img
+                            src={pet.preview}
+                            alt={pet.name}
+                            className="w-10 h-10 object-contain select-none"
+                            style={{ imageRendering: 'pixelated' }}
+                            onError={(e) => { e.currentTarget.src = "/owl_happy.png"; }}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold flex items-center gap-1.5 truncate" style={{ color: T.ink }}>
+                            <span>{pet.name}</span>
+                            {selected && <Check size={14} style={{ color: T.brand }} className="flex-shrink-0" />}
+                          </div>
+                          <div className="text-[10px] truncate" style={{ color: T.inkSoft }}>
+                            {pet.desc}
+                          </div>
+                          <div className="text-[9px] font-medium" style={{ color: T.brand }}>
+                            {pet.title}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
-                        {snack.desc}
+
+                      <div className="flex items-center flex-shrink-0">
+                        {selected ? (
+                          <span
+                            className="text-[11px] font-bold px-3 py-1.5 rounded-xl border shadow-xs"
+                            style={{
+                              backgroundColor: T.brand,
+                              color: T.brandInk || '#ffffff',
+                              borderColor: T.brand,
+                            }}
+                          >
+                            Em uso
+                          </span>
+                        ) : owned ? (
+                          <button
+                            type="button"
+                            onClick={() => buySkin(pet)}
+                            className="text-[11px] font-bold px-3 py-1.5 rounded-xl border transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-xs"
+                            style={{
+                              backgroundColor: T.surface,
+                              color: T.ink,
+                              borderColor: T.border,
+                            }}
+                          >
+                            Usar
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => buySkin(pet)}
+                            className="text-[11px] font-bold flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer border"
+                            style={{
+                              backgroundColor: localCoins >= pet.price ? '#f59e0b' : 'rgba(245, 158, 11, 0.15)',
+                              color: localCoins >= pet.price ? '#ffffff' : '#d97706',
+                              borderColor: localCoins >= pet.price ? '#f59e0b' : 'rgba(245, 158, 11, 0.35)',
+                            }}
+                            title={localCoins >= pet.price ? `Desbloquear ${pet.name}` : `Faltam ${pet.price - localCoins} moedas`}
+                          >
+                            <Coins size={12} className={localCoins >= pet.price ? 'fill-white' : 'fill-amber-500'} /> {pet.price}
+                          </button>
+                        )}
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Aba 2: Petiscos e Cuidados */}
+            {storeTab === 'snacks' && (
+              <div className="space-y-2.5 overflow-y-auto custom-scrollbar pr-1 flex-1 min-h-0">
+                <div
+                  className="p-3 rounded-2xl border mb-2 flex items-center justify-between"
+                  style={{
+                    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                    borderColor: 'rgba(16, 185, 129, 0.25)',
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap size={16} className="text-emerald-500 fill-emerald-500" />
+                    <div>
+                      <span className="text-xs font-bold block" style={{ color: T.ink }}>Energia de {activePet.name}</span>
+                      <span className="text-[10px]" style={{ color: T.inkSoft }}>Mantenha abastecido para ganhar bônus de XP</span>
+                    </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => feedPet(snack)}
-                    className={`text-[11px] font-semibold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
-                      localCoins >= snack.cost
-                        ? 'bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white shadow-xs cursor-pointer'
-                        : 'bg-emerald-500/20 text-emerald-600 border border-emerald-300/40 cursor-pointer hover:bg-emerald-500/30'
-                    }`}
-                    title={localCoins >= snack.cost ? `Alimentar ${activePet.name}` : `Faltam ${snack.cost - localCoins} moedas`}
-                  >
-                    <Coins size={11} /> {snack.cost}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: T.surfaceAlt }}>
+                      <div className="h-full bg-emerald-500 rounded-full transition-all duration-300" style={{ width: `${petEnergy}%` }} />
+                    </div>
+                    <span className="text-xs font-bold font-mono text-emerald-500">{petEnergy}%</span>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
 
-          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-gray-700 text-center">
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1">
-              <Sparkles size={11} /> Conclua blocos de foco (+25 moedas) para acumular moedas de estudo
-            </span>
+                {PET_SNACKS.map((snack) => (
+                  <div
+                    key={snack.id}
+                    className="flex items-center justify-between p-2.5 rounded-2xl border transition-all"
+                    style={{
+                      backgroundColor: T.surfaceAlt,
+                      borderColor: T.border,
+                    }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <span
+                        className="p-2 rounded-xl border flex items-center justify-center w-11 h-11 select-none text-emerald-500 flex-shrink-0"
+                        style={{
+                          backgroundColor: T.surface,
+                          borderColor: T.border,
+                        }}
+                      >
+                        {React.createElement(snack.icon, { size: 20 })}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold flex items-center gap-1.5 truncate" style={{ color: T.ink }}>
+                          <span>{snack.name}</span>
+                          <span className="text-[10px] text-emerald-500 font-semibold flex items-center gap-0.5 flex-shrink-0">
+                            +{snack.energy}% <Zap size={10} className="fill-emerald-500" />
+                          </span>
+                        </div>
+                        <div className="text-[10px] truncate" style={{ color: T.inkSoft }}>
+                          {snack.desc}
+                        </div>
+                        <div className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400">
+                          +{snack.xp} XP de Foco
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => feedPet(snack)}
+                      className="text-[11px] font-bold flex items-center gap-1 px-3 py-1.5 rounded-xl transition-all hover:scale-105 active:scale-95 shadow-xs cursor-pointer border flex-shrink-0"
+                      style={{
+                        backgroundColor: localCoins >= snack.cost ? '#10b981' : 'rgba(16, 185, 129, 0.15)',
+                        color: localCoins >= snack.cost ? '#ffffff' : '#059669',
+                        borderColor: localCoins >= snack.cost ? '#10b981' : 'rgba(16, 185, 129, 0.35)',
+                      }}
+                      title={localCoins >= snack.cost ? `Alimentar ${activePet.name}` : `Faltam ${snack.cost - localCoins} moedas`}
+                    >
+                      <Coins size={12} className={localCoins >= snack.cost ? 'fill-white' : 'fill-emerald-500'} /> {snack.cost}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Footer da Loja */}
+            <div className="mt-3 pt-3 border-t text-center flex-shrink-0" style={{ borderColor: T.border }}>
+              <span className="text-[10px] flex items-center justify-center gap-1" style={{ color: T.inkSoft }}>
+                <Sparkles size={11} style={{ color: T.brand }} /> Conclua blocos de foco (+25 moedas) para acumular moedas de estudo
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -4526,9 +4643,9 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         )}
 
         <div
-          className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer shadow-sm flex items-center justify-center p-1 transition-all hover:scale-105 hover:shadow-md hover:border-blue-400 active:scale-95"
+          className="w-24 h-24 rounded-full overflow-hidden border-2 relative cursor-pointer shadow-sm flex items-center justify-center p-1 transition-all hover:scale-105 hover:shadow-md active:scale-95"
           style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}
-          onClick={() => setShowStore(!showStore)}
+          onClick={() => setShowStore(true)}
           title="Clique para escolher seu mascote de estudo ou alimentá-lo"
         >
           <img
@@ -4544,11 +4661,13 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
         {/* Botão de personalização sutil no canto do avatar sem cobrir o pet */}
         <button
           type="button"
-          onClick={() => setShowStore(!showStore)}
-          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-md flex items-center justify-center transition-transform hover:scale-110 active:scale-90 z-20 cursor-pointer"
+          onClick={() => setShowStore(true)}
+          className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full shadow-md flex items-center justify-center transition-transform hover:scale-110 active:scale-90 z-20 cursor-pointer"
+          style={{ backgroundColor: T.brand }}
           title="Personalizar mascote e petiscos"
+          aria-label="Personalizar mascote e petiscos"
         >
-          <Sparkles size={12} />
+          <Sparkles size={12} style={{ color: T.brandInk || '#ffffff' }} />
         </button>
       </div>
       <div className="text-center flex flex-col items-center">
