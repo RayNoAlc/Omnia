@@ -14,7 +14,11 @@ export const THEMES = {
     brandInk: "#000000",
     critico: "#ff0000",
     importante: "#ffff00",
-    normal: "#00ff00"
+    normal: "#00ff00",
+    scrollbarThumb: "rgba(0, 255, 0, 0.35)",
+    scrollbarThumbHover: "rgba(0, 255, 0, 0.75)",
+    scrollbarThumbActive: "#00ff00",
+    scrollbarTrack: "rgba(0, 51, 0, 0.25)"
   },
 
   aiko: {
@@ -36,31 +40,43 @@ export const THEMES = {
     tintBrand: 'rgba(251, 113, 133, 0.16)',
     tintCrítico: 'rgba(225, 29, 72, 0.14)',
     tintImportante: 'rgba(245, 158, 11, 0.15)',
-    tintPurple: 'rgba(217, 70, 239, 0.14)'
+    tintPurple: 'rgba(217, 70, 239, 0.14)',
+    scrollbarThumb: 'rgba(251, 113, 133, 0.45)',
+    scrollbarThumbHover: 'rgba(244, 63, 94, 0.8)',
+    scrollbarThumbActive: '#F43F5E',
+    scrollbarTrack: 'rgba(251, 113, 133, 0.08)'
   },
   dark: {
     bg: '#0B1120', surface: '#141C2F', surfaceAlt: '#1E293B', ink: '#F1F5F9', inkSoft: '#94A3B8',
     border: 'rgba(255,255,255,0.08)', brand: '#3B82F6', brandDark: '#2563EB', critico: '#EF4444', importante: '#F59E0B',
     normal: '#3B82F6', baixa: '#94A3B8', purple: '#8B5CF6', pink: '#EC4899', brandInk: '#FFFFFF',
-    tintBrand: 'rgba(59, 130, 246, 0.15)', tintCrítico: 'rgba(239, 68, 68, 0.15)', tintImportante: 'rgba(245, 158, 11, 0.15)', tintPurple: 'rgba(139, 92, 246, 0.15)'
+    tintBrand: 'rgba(59, 130, 246, 0.15)', tintCrítico: 'rgba(239, 68, 68, 0.15)', tintImportante: 'rgba(245, 158, 11, 0.15)', tintPurple: 'rgba(139, 92, 246, 0.15)',
+    scrollbarThumb: 'rgba(59, 130, 246, 0.4)', scrollbarThumbHover: 'rgba(59, 130, 246, 0.8)',
+    scrollbarThumbActive: '#3B82F6', scrollbarTrack: 'rgba(255, 255, 255, 0.04)'
   },
   light: {
     bg: '#F8FAFC', surface: '#FFFFFF', surfaceAlt: '#F1F5F9', ink: '#0F172A', inkSoft: '#64748B',
     border: 'rgba(0,0,0,0.1)', brand: '#2563EB', brandDark: '#1D4ED8', critico: '#DC2626', importante: '#D97706',
     normal: '#2563EB', baixa: '#64748B', purple: '#7C3AED', pink: '#DB2777', brandInk: '#FFFFFF',
-    tintBrand: 'rgba(37, 99, 235, 0.1)', tintCrítico: 'rgba(220, 38, 38, 0.1)', tintImportante: 'rgba(217, 119, 6, 0.1)', tintPurple: 'rgba(124, 58, 237, 0.1)'
+    tintBrand: 'rgba(37, 99, 235, 0.1)', tintCrítico: 'rgba(220, 38, 38, 0.1)', tintImportante: 'rgba(217, 119, 6, 0.1)', tintPurple: 'rgba(124, 58, 237, 0.1)',
+    scrollbarThumb: 'rgba(37, 99, 235, 0.35)', scrollbarThumbHover: 'rgba(37, 99, 235, 0.75)',
+    scrollbarThumbActive: '#2563EB', scrollbarTrack: 'rgba(0, 0, 0, 0.04)'
   },
   cyberpunk: {
     bg: '#0D0221', surface: '#1A0B2E', surfaceAlt: '#261447', ink: '#00FFCC', inkSoft: '#FF007F',
     border: '#FF007F', brand: '#00FFCC', brandDark: '#00E5B7', critico: '#FF007F', importante: '#F59E0B',
     normal: '#00FFCC', baixa: '#444444', purple: '#B537F2', pink: '#FF007F', brandInk: '#0D0221',
-    tintBrand: 'rgba(0, 255, 204, 0.2)', tintCrítico: 'rgba(255, 0, 127, 0.2)', tintImportante: 'rgba(245, 158, 11, 0.2)', tintPurple: 'rgba(181, 55, 242, 0.2)'
+    tintBrand: 'rgba(0, 255, 204, 0.2)', tintCrítico: 'rgba(255, 0, 127, 0.2)', tintImportante: 'rgba(245, 158, 11, 0.2)', tintPurple: 'rgba(181, 55, 242, 0.2)',
+    scrollbarThumb: 'rgba(0, 255, 204, 0.45)', scrollbarThumbHover: 'rgba(255, 0, 127, 0.8)',
+    scrollbarThumbActive: '#FF007F', scrollbarTrack: 'rgba(255, 0, 127, 0.1)'
   },
   lofi: {
     bg: '#FDF6E3', surface: '#F4E8D1', surfaceAlt: '#E9DAC1', ink: '#5C4A3D', inkSoft: '#8D7A68',
     border: 'rgba(92, 74, 61, 0.2)', brand: '#D4A373', brandDark: '#B8865C', critico: '#E07A5F', importante: '#F2CC8F',
     normal: '#D4A373', baixa: '#A3A3A3', purple: '#9E8EAB', pink: '#DDA1A8', brandInk: '#4A3B32',
-    tintBrand: 'rgba(212, 163, 115, 0.2)', tintCrítico: 'rgba(224, 122, 95, 0.2)', tintImportante: 'rgba(242, 204, 143, 0.2)', tintPurple: 'rgba(158, 142, 171, 0.2)'
+    tintBrand: 'rgba(212, 163, 115, 0.2)', tintCrítico: 'rgba(224, 122, 95, 0.2)', tintImportante: 'rgba(242, 204, 143, 0.2)', tintPurple: 'rgba(158, 142, 171, 0.2)',
+    scrollbarThumb: 'rgba(212, 163, 115, 0.5)', scrollbarThumbHover: 'rgba(184, 134, 92, 0.85)',
+    scrollbarThumbActive: '#B8865C', scrollbarTrack: 'rgba(92, 74, 61, 0.08)'
   }
 };
 
@@ -69,6 +85,12 @@ export const applyTheme = (themeName) => {
   Object.keys(theme).forEach(key => {
     document.documentElement.style.setProperty('--' + key, theme[key]);
   });
+  if (theme.scrollbarThumb) {
+    document.documentElement.style.setProperty('--scrollbar-thumb', theme.scrollbarThumb);
+    document.documentElement.style.setProperty('--scrollbar-thumb-hover', theme.scrollbarThumbHover);
+    document.documentElement.style.setProperty('--scrollbar-thumb-active', theme.scrollbarThumbActive);
+    document.documentElement.style.setProperty('--scrollbar-track', theme.scrollbarTrack || 'transparent');
+  }
   localStorage.setItem('omnia-theme', themeName);
 };
 

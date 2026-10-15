@@ -125,19 +125,29 @@ button, input, optgroup, select, textarea {
 }
 
 /* ========================================================================== */
-/* BARRAS DE ROLAGEM ELEGANTES & ERGONÔMICAS (CUSTOM SCROLLBARS)              */
+/* BARRAS DE ROLAGEM ELEGANTES & SINTONIZADAS COM O TEMA (THEMED SCROLLBARS)   */
 /* ========================================================================== */
 
-/* Suporte Global a Navegadores Modernos (Firefox) */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) rgba(0, 0, 0, 0.12);
+:root {
+  --scrollbar-thumb: rgba(251, 113, 133, 0.45);
+  --scrollbar-thumb-hover: rgba(244, 63, 94, 0.8);
+  --scrollbar-thumb-active: #F43F5E;
+  --scrollbar-track: transparent;
+}
+
+/* Firefox moderno (Suporte a scrollbar-color com variáveis dinâmicas do tema) */
+@supports (-moz-appearance: none) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
 }
 
 /* Chromium (Chrome, Edge, Opera, Brave) e WebKit (Safari) */
+/* Oculta totalmente as setas/botões nativos do Windows e aplica pílula moderna */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-button {
@@ -147,24 +157,24 @@ button, input, optgroup, select, textarea {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--scrollbar-track);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.45);
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
   background-clip: padding-box;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.75);
+  background: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: rgba(56, 189, 248, 0.9);
+  background: var(--scrollbar-thumb-active);
 }
 
 ::-webkit-scrollbar-corner {
@@ -172,34 +182,77 @@ button, input, optgroup, select, textarea {
 }
 
 /* Classe .custom-scrollbar usada nos componentes */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.45) rgba(0, 0, 0, 0.12);
+@supports (-moz-appearance: none) {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--scrollbar-track);
   border-radius: 9999px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.45);
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
-  border: 1.5px solid transparent;
+  border: 1px solid transparent;
   background-clip: padding-box;
+  transition: background-color 0.2s ease;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.75);
+  background: var(--scrollbar-thumb-hover);
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:active {
-  background: rgba(56, 189, 248, 0.9);
+  background: var(--scrollbar-thumb-active);
+}
+
+/* Barra de rolagem ultra-fina (para gavetas, listas e chips discretos) */
+@supports (-moz-appearance: none) {
+  .slim-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
+.slim-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.slim-scrollbar::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.slim-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.slim-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  opacity: 0.7;
+}
+
+.slim-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  opacity: 1;
 }
 
 /* Ocultar barra mantendo a rolagem por toque / arrasto / shift+wheel */
@@ -212,30 +265,6 @@ button, input, optgroup, select, textarea {
   display: none !important;           /* Chrome, Safari, Edge */
   width: 0 !important;
   height: 0 !important;
-}
-
-/* Barra de rolagem ultra-fina (para gavetas, listas e chips discretos) */
-.slim-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
-}
-
-.slim-scrollbar::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-
-.slim-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.slim-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
-  border-radius: 9999px;
-}
-
-.slim-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.45);
 }
 
 /* ========================================================================== */

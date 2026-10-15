@@ -10,6 +10,32 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Comic+Neue:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Yellowtail&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('omnia-theme') || 'aiko';
+          var thumbs = {
+            aiko: 'rgba(251, 113, 133, 0.45)',
+            dark: 'rgba(59, 130, 246, 0.4)',
+            hacker: 'rgba(0, 255, 0, 0.35)',
+            light: 'rgba(37, 99, 235, 0.35)',
+            cyberpunk: 'rgba(0, 255, 204, 0.45)',
+            lofi: 'rgba(212, 163, 115, 0.5)'
+          };
+          var hovers = {
+            aiko: 'rgba(244, 63, 94, 0.8)',
+            dark: 'rgba(59, 130, 246, 0.8)',
+            hacker: 'rgba(0, 255, 0, 0.75)',
+            light: 'rgba(37, 99, 235, 0.75)',
+            cyberpunk: 'rgba(255, 0, 127, 0.8)',
+            lofi: 'rgba(184, 134, 92, 0.85)'
+          };
+          var d = document.documentElement;
+          d.style.setProperty('--scrollbar-thumb', thumbs[t] || thumbs.aiko);
+          d.style.setProperty('--scrollbar-thumb-hover', hovers[t] || hovers.aiko);
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
