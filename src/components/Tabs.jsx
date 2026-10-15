@@ -26,7 +26,7 @@ import {
   T, TINT, THEMES, applyTheme, applyFont, resolveFontFamily, TIPO_LABELS, PRIORIDADE_META, PERIODO_LABELS, TABS,
   PriorityDot, TypeTag, Card, SectionLabel, EmptyState, PrimaryButton, GhostButton,
 } from "./ui";
-import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre, OMNIA_SECRET_DEV_COMMAND, isSecretDevCommand, executeGodModeCheat } from "../lib/utils";
+import { uid, todayISO, formatDateBR, weekdayShort, addDays, computeInterruptionInsight, fileToBase64, hexToRgba, getWeekRange, getEffectiveRoutineItemsForDate, planoRecomendadoHoje, computeAvisos, getSemestre, OMNIA_SECRET_DEV_COMMAND, isSecretDevCommand, executeGodModeCheat, isHideDevCommand, isToggleDevCommand, setDevMode, isDevModeActive } from "../lib/utils";
 import { sfx } from "../lib/soundEffects";
 import { reactiveBgm } from "../lib/reactiveBgm";
 import { aiGenerateSummary, aiGenerateQuiz, aiEvaluateProfessor, aiParseSyllabus, aiGenerateFlashcards } from "../lib/aiHelpers";
@@ -6781,6 +6781,41 @@ Min.estudados hoje: ${minHoje}`;
     if (!input.trim() || loading) return;
     const question = input.trim();
 
+    // Comando para esconder opções de desenvolvedor
+    if (isHideDevCommand(question)) {
+      setDevMode(false);
+      sfx.complete();
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: question },
+        {
+          role: "assistant",
+          text: `🔒 **OPÇÕES DE DESENVOLVEDOR OCULTADAS**\n\nO modo de desenvolvedor foi desativado com sucesso.\n- A Central de testes/QA e relatórios de diagnóstico foram ocultados da aba Configurações.\n- Todos os atalhos de depuração foram desarmados.\n\n*Para reexibir no futuro, você pode usar o comando \`/dev\` ou clicar 5 vezes no título da aba Configurações.*`
+        }
+      ]);
+      setInput("");
+      return;
+    }
+
+    // Comando para alternar / ativar modo desenvolvedor
+    if (isToggleDevCommand(question)) {
+      const next = !isDevModeActive();
+      setDevMode(next);
+      sfx.pop();
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: question },
+        {
+          role: "assistant",
+          text: next
+            ? `⚡ **MODO DESENVOLVEDOR ATIVADO**\n\nAs opções de desenvolvedor e o painel de QA agora estão visíveis na aba **Configurações > IA & Ferramentas**.\n\n*Para ocultar novamente a qualquer momento, digite \`/hide-dev\`.*`
+            : `🔒 **MODO DESENVOLVEDOR OCULTADO**\n\nAs opções de desenvolvedor e diagnósticos foram ocultados com sucesso.`
+        }
+      ]);
+      setInput("");
+      return;
+    }
+
     // Comando complexo escondido de desenvolvedor para testes rápidos
     if (isSecretDevCommand(question)) {
       executeGodModeCheat(config, updateConfig);
@@ -8126,8 +8161,15 @@ export function ConfigTab(props) {
 
 function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes, summaries }) {
   const [devClicks, setDevClicks] = useState(0);
-  const isDev = devClicks >= 5;
+  const [isDev, setIsDev] = useState(() => isDevModeActive());
   const [bgmState, setBgmState] = useState(() => reactiveBgm.getState());
+
+  useEffect(() => {
+    const handleDevChange = (e) => setIsDev(Boolean(e.detail));
+    window.addEventListener("omnia:dev-mode-changed", handleDevChange);
+    return () => window.removeEventListener("omnia:dev-mode-changed", handleDevChange);
+  }, []);
+
   useEffect(() => {
     return reactiveBgm.subscribe((s) => setBgmState({ ...s }));
   }, []);
@@ -8237,7 +8279,34 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
       {/* Header com easter egg de desenvolvedor */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4" style={{ borderColor: T.border }}>
         <div>
-          <h2 onClick={() => setDevClicks(c => c + 1)} className='text-2xl sm:text-3xl font-bold select-none cursor-pointer tracking-tight' style={{ color: T.ink }}>
+          <h2
+            onClick={() => {
+              if (isDev) {
+                setDevClicks(c => {
+                  const next = c + 1;
+                  if (next >= 3) {
+                    setDevMode(false);
+                    sfx.pop();
+                    return 0;
+                  }
+                  return next;
+                });
+              } else {
+                setDevClicks(c => {
+                  const next = c + 1;
+                  if (next >= 5) {
+                    setDevMode(true);
+                    sfx.pop();
+                    return 0;
+                  }
+                  return next;
+                });
+              }
+            }}
+            className='text-2xl sm:text-3xl font-bold select-none cursor-pointer tracking-tight'
+            style={{ color: T.ink }}
+            title={isDev ? "Clique 3x para esconder opções de dev" : "Configurações"}
+          >
             Configurações
           </h2>
           <p className="text-xs sm:text-sm mt-0.5" style={{ color: T.inkSoft }}>
@@ -8245,9 +8314,22 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
           </p>
         </div>
         {isDev && (
-          <span className="self-start sm:self-auto px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
-            DEV MODE ATIVO
-          </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
+              DEV MODE ATIVO
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setDevMode(false);
+                sfx.pop();
+              }}
+              className="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+              title="Esconder todas as opções de desenvolvedor e diagnósticos QA"
+            >
+              <Shield size={12} /> Esconder Opções de Dev
+            </button>
+          </div>
         )}
       </div>
 
@@ -8903,8 +8985,8 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
             </div>
           </section>
 
-          {/* Central de Autoteste & Diagnóstico QA */}
-          <QAAutomatedSystem userId={userId} />
+          {/* Central de Autoteste & Diagnóstico QA (Oculto se Dev Mode desativado) */}
+          {isDev && <QAAutomatedSystem userId={userId} />}
         </div>
       )}
     </div>
@@ -8934,6 +9016,38 @@ export function GlobalSearchModal({ onClose, commitments, notes, materials, setT
         </div>
         {q && (
           <div className="max-h-[60vh] overflow-y-auto p-2 space-y-4">
+            {isHideDevCommand(q) && (
+              <div className="p-3 rounded-xl border border-rose-500 bg-rose-500/10 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-sm text-rose-400 flex items-center gap-1.5">
+                    <Shield size={16} /> [DEV] Esconder Opções de Desenvolvedor
+                  </div>
+                  <div className="text-xs text-slate-400">Oculta suite de testes QA, ferramentas de debug e badges de dev</div>
+                </div>
+                <button
+                  onClick={() => { setDevMode(false); onClose(); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 text-white hover:bg-rose-500 transition-colors shadow"
+                >
+                  Esconder Agora
+                </button>
+              </div>
+            )}
+            {isToggleDevCommand(q) && !isHideDevCommand(q) && (
+              <div className="p-3 rounded-xl border border-amber-500 bg-amber-500/10 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-sm text-amber-400 flex items-center gap-1.5">
+                    <Sparkles size={16} /> [DEV] Alternar Modo Desenvolvedor
+                  </div>
+                  <div className="text-xs text-slate-400">Ativa ou desativa ferramentas de desenvolvedor e suite de QA</div>
+                </div>
+                <button
+                  onClick={() => { setDevMode(!isDevModeActive()); onClose(); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow"
+                >
+                  Alternar Agora
+                </button>
+              </div>
+            )}
             {isSecretDevCommand(q) && (
               <div className="p-3 rounded-xl border border-amber-500 bg-amber-500/10 flex items-center justify-between">
                 <div>

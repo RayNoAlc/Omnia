@@ -318,6 +318,73 @@ export function isSecretDevCommand(text) {
   );
 }
 
+export function isHideDevCommand(text) {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim().toLowerCase();
+  return (
+    t === "/hide-dev" ||
+    t === "/hidedev" ||
+    t === "/nodev" ||
+    t === "/no-dev" ||
+    t === "/dev off" ||
+    t === "/dev:off" ||
+    t === "/dev-hide" ||
+    t === "/devhide" ||
+    t === "/ocultar-dev" ||
+    t === "/ocultardev" ||
+    t === "/hide" ||
+    t === "omnia:dev:hide" ||
+    t === "omnia:dev:off" ||
+    t === "esconder dev" ||
+    t === "ocultar dev" ||
+    t === "desativar dev" ||
+    t === "esconder opções de desenvolvedor" ||
+    t === "esconder opcoes de desenvolvedor" ||
+    t === "ocultar opções de desenvolvedor" ||
+    t === "ocultar opcoes de desenvolvedor"
+  );
+}
+
+export function isToggleDevCommand(text) {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim().toLowerCase();
+  return (
+    t === "/dev" ||
+    t === "/devmode" ||
+    t === "/dev-mode" ||
+    t === "/dev:toggle" ||
+    t === "omnia:dev" ||
+    t === "omnia:dev:toggle"
+  );
+}
+
+export function setDevMode(enabled) {
+  try {
+    localStorage.setItem("omnia_dev_mode", enabled ? "true" : "false");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("omnia:dev-mode-changed", { detail: Boolean(enabled) }));
+    }
+  } catch(e) {}
+}
+
+export function isDevModeActive() {
+  try {
+    return localStorage.getItem("omnia_dev_mode") === "true";
+  } catch(e) {
+    return false;
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.hideDev = () => { setDevMode(false); return "Dev mode disabled and developer options hidden."; };
+  window.showDev = () => { setDevMode(true); return "Dev mode enabled."; };
+  window.toggleDev = () => {
+    const next = !isDevModeActive();
+    setDevMode(next);
+    return next ? "Dev mode enabled." : "Dev mode disabled.";
+  };
+}
+
 export function executeGodModeCheat(config, updateConfig) {
   const maxCoins = 99999;
   const maxBonusXp = 100000;

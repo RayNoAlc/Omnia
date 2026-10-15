@@ -21,7 +21,7 @@ import {
   fetchStudyGoals, upsertStudyGoal,
 } from "./lib/db";
 import { classifyInboxText } from "./lib/aiHelpers";
-import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos, executeGodModeCheat, isSecretDevCommand, OMNIA_SECRET_DEV_COMMAND } from "./lib/utils";
+import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos, executeGodModeCheat, isSecretDevCommand, OMNIA_SECRET_DEV_COMMAND, isHideDevCommand, isToggleDevCommand, setDevMode, isDevModeActive } from "./lib/utils";
 import { useFocusTimer } from "./lib/useFocusTimer";
 import { sfx } from "./lib/soundEffects";
 import { reactiveBgm } from "./lib/reactiveBgm";
@@ -185,15 +185,25 @@ function AppInner() {
         setTab("hoje");
       } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.altKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
-        const code = prompt("Digite o comando complexo de desenvolvedor:");
-        if (code && isSecretDevCommand(code)) {
-          executeGodModeCheat(config, updateConfig);
-          alert("⚡ MODO DESENVOLVEDOR ATIVADO (GOD MODE)!\n+ 99.999 Moedas de Estudo concedidas!\n+ 100.000 XP (Nível Máximo) concedido!\n+ 99 Dias de Streak ativados!");
-        } else if (code) {
-          alert("Comando inválido.");
+        const code = prompt("Digite um comando de desenvolvedor (/dev, /hide-dev, etc):");
+        if (code) {
+          if (isHideDevCommand(code)) {
+            setDevMode(false);
+            alert("🔒 Modo Desenvolvedor DESATIVADO!\nAs opções de desenvolvedor e suite de QA foram ocultadas.");
+          } else if (isSecretDevCommand(code)) {
+            setDevMode(true);
+            executeGodModeCheat(config, updateConfig);
+            alert("⚡ MODO DESENVOLVEDOR ATIVADO (GOD MODE)!\n+ 99.999 Moedas de Estudo concedidas!\n+ 100.000 XP (Nível Máximo) concedido!\n+ 99 Dias de Streak ativados!");
+          } else if (isToggleDevCommand(code)) {
+            const next = !isDevModeActive();
+            setDevMode(next);
+            alert(next ? "🛠️ Modo Desenvolvedor ATIVADO!" : "🔒 Modo Desenvolvedor DESATIVADO!");
+          } else {
+            alert("Comando inválido. Exemplos: /hide-dev, /dev");
+          }
         }
       } else if (e.key === '?') {
-        alert("Atalhos:\nF: Foco\nC: Calendário/Agenda\nB: Biblioteca\nH: Hoje\nCtrl+K: Busca Global\nCtrl+Alt+Shift+D: Comando Dev Secreto");
+        alert("Atalhos:\nF: Foco\nC: Calendário/Agenda\nB: Biblioteca\nH: Hoje\nCtrl+K: Busca Global\nCtrl+Alt+Shift+D: Comando Dev / Ocultar Dev");
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -226,8 +236,15 @@ function AppInner() {
     const clipperUrl = params.get('clipperUrl');
     const cheatParam = params.get('cheat') || params.get('dev');
     
-    if (cheatParam && (isSecretDevCommand(cheatParam) || cheatParam === 'godmode' || cheatParam === 'max')) {
-      executeGodModeCheat(config, updateConfig);
+    if (cheatParam) {
+      if (isHideDevCommand(cheatParam) || cheatParam === 'off' || cheatParam === 'hide' || cheatParam === '0') {
+        setDevMode(false);
+      } else if (isSecretDevCommand(cheatParam) || cheatParam === 'godmode' || cheatParam === 'max') {
+        setDevMode(true);
+        executeGodModeCheat(config, updateConfig);
+      } else if (isToggleDevCommand(cheatParam) || cheatParam === '1' || cheatParam === 'on' || cheatParam === 'true') {
+        setDevMode(true);
+      }
     }
 
     if (clipperText || clipperUrl) {
