@@ -1580,6 +1580,8 @@ export const BOSS_ROSTER = [
     name: 'Gólem da Procrastinação',
     title: 'Devorador de Minutos',
     icon: Hourglass,
+    spriteIdle: '/boss_procrastinacao_idle.png',
+    spriteHurt: '/boss_procrastinacao_hurt.png',
     maxHp: 1000,
     weakness: 'Blocos contínuos de foco',
     desc: 'Alimenta-se de notificações e vídeos curtos. Foco contínuo quebra sua carapaça de pedra!',
@@ -1590,6 +1592,8 @@ export const BOSS_ROSTER = [
     name: 'Dragão dos Prazos Atrasados',
     title: 'Incendiário Semestral',
     icon: Flame,
+    spriteIdle: '/boss_materia_acumulada_idle.png',
+    spriteHurt: '/boss_materia_acumulada_hurt.png',
     maxHp: 1800,
     weakness: 'Revisão ativa e resumos',
     desc: 'Um réptil gigante que cospe pilhas de PDFs não lidos. Cada minuto de foco extingue suas chamas!',
@@ -1600,6 +1604,8 @@ export const BOSS_ROSTER = [
     name: 'Espectro da Exaustão Mental',
     title: 'Lorde da Névoa Cerebral',
     icon: Skull,
+    spriteIdle: '/boss_burnout_idle.png',
+    spriteHurt: '/boss_burnout_hurt.png',
     maxHp: 2500,
     weakness: 'Pomodoro com pausas conscientes',
     desc: 'Tenta fazer você desistir pelo cansaço. Mantenha o ritmo calmo para dissipá-lo!',
@@ -1610,6 +1616,8 @@ export const BOSS_ROSTER = [
     name: 'Titã da Prova Final',
     title: 'Chefe Supremo do Semestre',
     icon: Swords,
+    spriteIdle: '/boss_tcc_final_idle.png',
+    spriteHurt: '/boss_tcc_final_hurt.png',
     maxHp: 3600,
     weakness: 'Sessão profunda acima de 45 min',
     desc: 'O desafio definitivo de todo universitário. Derrubá-lo garante lenda e glória acadêmica!',
@@ -4887,6 +4895,7 @@ export function FocoTab(props) {
       return localStorage.getItem("omnia_selected_boss") || BOSS_ROSTER[0].id;
     } catch { return BOSS_ROSTER[0].id; }
   });
+  const [bossHurtTrigger, setBossHurtTrigger] = useState(false);
 
   const selectedBoss = useMemo(() => {
     return BOSS_ROSTER.find(b => b.id === selectedBossId) || BOSS_ROSTER[0];
@@ -5157,10 +5166,14 @@ export function FocoTab(props) {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2.5 text-left min-w-0">
                   <div
-                    className={`p-2 rounded-xl shrink-0 flex items-center justify-center ${running ? "animate-bounce" : ""}`}
-                    style={{ backgroundColor: `${selectedBoss.themeColor}22`, color: selectedBoss.themeColor }}
+                    className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center overflow-hidden border p-0.5 ${running ? "animate-pulse" : ""}`}
+                    style={{ backgroundColor: `${selectedBoss.themeColor}18`, borderColor: `${selectedBoss.themeColor}44` }}
                   >
-                    {React.createElement(selectedBoss.icon || Swords, { size: 20 })}
+                    {selectedBoss.spriteIdle ? (
+                      <img src={selectedBoss.spriteIdle} alt="" className="w-full h-full object-contain" style={{ imageRendering: 'pixelated' }} />
+                    ) : (
+                      React.createElement(selectedBoss.icon || Swords, { size: 20, style: { color: selectedBoss.themeColor } })
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="text-xs font-bold flex items-center gap-1.5 truncate" style={{ color: T.ink }}>
@@ -5185,6 +5198,39 @@ export function FocoTab(props) {
                   <div className="text-[10px]" style={{ color: T.inkSoft }}>
                     {bossHpPct}% restante
                   </div>
+                </div>
+              </div>
+
+              {/* Arena Visual do Chefão com Sprite e Reação de Dano */}
+              <div className="my-2.5 flex flex-col items-center justify-center relative">
+                <div
+                  className={`relative cursor-pointer transition-all flex items-center justify-center p-1 rounded-2xl ${
+                    bossHurtTrigger ? "animate-boss-hurt" : running ? "animate-boss-idle" : "hover:scale-105"
+                  }`}
+                  onClick={() => {
+                    sfx.pop();
+                    setBossHurtTrigger(true);
+                    setTimeout(() => setBossHurtTrigger(false), 650);
+                  }}
+                  title="Clique para desferir um golpe de foco no chefão!"
+                >
+                  <img
+                    src={bossHurtTrigger ? (selectedBoss.spriteHurt || selectedBoss.spriteIdle) : (selectedBoss.spriteIdle || selectedBoss.preview)}
+                    alt={selectedBoss.name}
+                    className="w-28 h-28 sm:w-32 sm:h-32 object-contain select-none filter drop-shadow-xl transition-transform"
+                    style={{ imageRendering: 'pixelated' }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                  {bossHurtTrigger && (
+                    <div className="absolute -top-1 -right-2 bg-rose-600 text-white font-mono font-black text-[11px] px-2.5 py-0.5 rounded-full shadow-lg border border-rose-300 animate-bounce z-10">
+                      💥 GOLPE DE FOCO!
+                    </div>
+                  )}
+                </div>
+                <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap justify-center">
+                  <span>Toque no chefe para golpear</span> • <span className="text-emerald-400 font-semibold">Cada minuto de estudo reduz o HP</span>
                 </div>
               </div>
 
@@ -6108,10 +6154,14 @@ export function FocoTab(props) {
                     >
                       <div className="flex items-start gap-2.5">
                         <div
-                          className="p-2.5 rounded-xl shrink-0 flex items-center justify-center"
-                          style={{ backgroundColor: `${boss.themeColor}22`, color: boss.themeColor }}
+                          className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center p-0.5 border overflow-hidden"
+                          style={{ backgroundColor: `${boss.themeColor}15`, borderColor: `${boss.themeColor}33` }}
                         >
-                          {React.createElement(boss.icon || Swords, { size: 22 })}
+                          {boss.spriteIdle ? (
+                            <img src={boss.spriteIdle} alt={boss.name} className="w-full h-full object-contain select-none" style={{ imageRendering: 'pixelated' }} />
+                          ) : (
+                            React.createElement(boss.icon || Swords, { size: 22, style: { color: boss.themeColor } })
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-bold truncate" style={{ color: T.ink }}>
