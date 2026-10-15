@@ -203,16 +203,26 @@ export function OmniaTutorialModal({
   if (!isOpen) return null;
 
   // Filter manual chapters if in manual mode
-  const filteredManualSections = OMNIA_MANUAL_SECTIONS.filter(sec => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const titleMatch = sec.title.toLowerCase().includes(q);
-    const descMatch = sec.description.toLowerCase().includes(q);
-    const itemMatch = sec.items && sec.items.some(i => i.name.toLowerCase().includes(q) || i.desc.toLowerCase().includes(q));
+  const filteredManualSections = (OMNIA_MANUAL_SECTIONS || []).filter(sec => {
+    if (!searchQuery || !searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const titleMatch = Boolean(sec?.title && sec.title.toLowerCase().includes(q));
+    const descMatch = Boolean(
+      (sec?.description && sec.description.toLowerCase().includes(q)) ||
+      (sec?.summary && sec.summary.toLowerCase().includes(q))
+    );
+    const itemMatch = Boolean(
+      Array.isArray(sec?.items) &&
+      sec.items.some(i =>
+        Boolean(i?.name && i.name.toLowerCase().includes(q)) ||
+        Boolean(i?.desc && i.desc.toLowerCase().includes(q)) ||
+        Boolean(i?.type && i.type.toLowerCase().includes(q))
+      )
+    );
     return titleMatch || descMatch || itemMatch;
   });
 
-  const activeSectionData = OMNIA_MANUAL_SECTIONS.find(s => s.id === activeManualSection) || OMNIA_MANUAL_SECTIONS[0];
+  const activeSectionData = (OMNIA_MANUAL_SECTIONS || []).find(s => s.id === activeManualSection) || filteredManualSections[0] || OMNIA_MANUAL_SECTIONS[0];
 
   return (
     <>
@@ -527,7 +537,7 @@ export function OmniaTutorialModal({
                 style={{ borderColor: T.border, backgroundColor: `${T.surfaceAlt}80` }}
               >
                 {filteredManualSections.map(sec => {
-                  const IconCmp = SECTION_ICONS[sec.icon] || BookOpen;
+                  const IconCmp = SECTION_ICONS[sec.iconName] || SECTION_ICONS[sec.icon] || BookOpen;
                   const isActive = activeManualSection === sec.id;
                   return (
                     <button
@@ -567,7 +577,7 @@ export function OmniaTutorialModal({
                           {activeSectionData.title}
                         </h4>
                         <p className="text-xs sm:text-sm mt-1 leading-relaxed" style={{ color: T.inkSoft }}>
-                          {activeSectionData.description}
+                          {activeSectionData.description || activeSectionData.summary}
                         </p>
                       </div>
 

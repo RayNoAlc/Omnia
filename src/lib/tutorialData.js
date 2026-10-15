@@ -302,6 +302,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'hoje',
     iconName: 'Sun',
     summary: 'Central de comando diário com métricas de estudo, mascote interativo e avisos prioritários.',
+    description: 'Central de comando diário com métricas de estudo, mascote interativo e avisos prioritários.',
     items: [
       {
         name: 'Frase Motivacional & Saudação',
@@ -346,6 +347,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'rotina',
     iconName: 'CalendarDays',
     summary: 'Estruturação contínua dos horários fixos e construção de hábitos duradouros.',
+    description: 'Estruturação contínua dos horários fixos e construção de hábitos duradouros.',
     items: [
       {
         name: 'Grade Horária Semanal',
@@ -380,6 +382,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'agenda',
     iconName: 'Calendar',
     summary: 'Gerenciamento de datas acadêmicas cruciais e distribuição inteligente de estudo pré-prova.',
+    description: 'Gerenciamento de datas acadêmicas cruciais e distribuição inteligente de estudo pré-prova.',
     items: [
       {
         name: 'Cadastro de Compromisso Acadêmico',
@@ -409,6 +412,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'foco',
     iconName: 'Clock',
     summary: 'Ambiente imersivo com cronômetro adaptativo, chefões RPG reativos e ferramentas de relaxamento.',
+    description: 'Ambiente imersivo com cronômetro adaptativo, chefões RPG reativos e ferramentas de relaxamento.',
     items: [
       {
         name: 'Timer Pomodoro & Presets',
@@ -463,6 +467,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'biblioteca',
     iconName: 'BookOpen',
     summary: 'Repositório de arquivos na nuvem com leitor integrado e mapas conceituais.',
+    description: 'Repositório de arquivos na nuvem com leitor integrado e mapas conceituais.',
     items: [
       {
         name: 'Upload de Arquivos',
@@ -492,6 +497,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'resumos',
     iconName: 'FileText',
     summary: 'Sínteses enriquecidas com IA Gemini e repetição espaçada para memorização permanente.',
+    description: 'Sínteses enriquecidas com IA Gemini e repetição espaçada para memorização permanente.',
     items: [
       {
         name: 'Gerador de Resumos por IA',
@@ -521,6 +527,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'quiz',
     iconName: 'Award',
     summary: 'Testes práticos gerados por IA com correção analítica e gamificação.',
+    description: 'Testes práticos gerados por IA com correção analítica e gamificação.',
     items: [
       {
         name: 'Criador de Simulados por Matéria',
@@ -545,6 +552,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'professor',
     iconName: 'GraduationCap',
     summary: 'Mapeamento estratégico do estilo de cobrança de bancas e docentes.',
+    description: 'Mapeamento estratégico do estilo de cobrança de bancas e docentes.',
     items: [
       {
         name: 'Análise de Perfil de Docente por IA',
@@ -564,6 +572,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'secretaria',
     iconName: 'MessageCircle',
     summary: 'Assistente pessoal 24h para organização de rotina, dúvidas e diagnósticos.',
+    description: 'Assistente pessoal 24h para organização de rotina, dúvidas e diagnósticos.',
     items: [
       {
         name: 'Chat Conversacional com Memória',
@@ -593,6 +602,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'diario',
     iconName: 'BookHeart',
     summary: 'Espaço seguro para reflexão pessoal, desabafo acadêmico e monitoramento emocional.',
+    description: 'Espaço seguro para reflexão pessoal, desabafo acadêmico e monitoramento emocional.',
     items: [
       {
         name: 'Seleção de Humor Emocional',
@@ -617,6 +627,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'config',
     iconName: 'Settings',
     summary: 'Controle de aparência, módulos opcionais, privacidade biométrica e backups.',
+    description: 'Controle de aparência, módulos opcionais, privacidade biométrica e backups.',
     items: [
       {
         name: 'Temas Visuais (Aiko, Minimal, Cyberpunk...)',
@@ -656,6 +667,7 @@ export const OMNIA_MANUAL_SECTIONS = [
     tab: 'hoje',
     iconName: 'Key',
     summary: 'Teclas de atalho universais para navegar como um mestre da produtividade.',
+    description: 'Teclas de atalho universais para navegar como um mestre da produtividade.',
     items: [
       {
         name: 'Ctrl + K (ou Cmd + K)',

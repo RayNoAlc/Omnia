@@ -101,9 +101,14 @@ function AppInner() {
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
 
   useEffect(() => {
-    // Tutorial temporariamente desativado
-    window.startOmniaTutorial = () => {};
-    window.__omniaStartTour = () => {};
+    window.startOmniaTutorial = (options = {}) => {
+      setTutorialMode(options.mode || "manual");
+      setTutorialStepIndex(typeof options.stepIndex === "number" ? options.stepIndex : 0);
+      setShowTutorial(true);
+    };
+    window.__omniaStartTour = (options = {}) => {
+      window.startOmniaTutorial(options);
+    };
     return () => {
       delete window.startOmniaTutorial;
       delete window.__omniaStartTour;
@@ -676,16 +681,16 @@ function AppInner() {
         </>
       )}
       {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} initialQuery={searchQuery} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} />}
-      {/* Tutorial desativado temporariamente
-      <OmniaTutorialModal
-        isOpen={showTutorial}
-        onClose={() => setShowTutorial(false)}
-        activeTab={tab}
-        onTabChange={(t) => setTab(t)}
-        initialMode={tutorialMode}
-        initialStepIndex={tutorialStepIndex}
-      />
-      */}
+      {showTutorial && (
+        <OmniaTutorialModal
+          isOpen={showTutorial}
+          onClose={() => setShowTutorial(false)}
+          activeTab={tab}
+          onTabChange={(t) => setTab(t)}
+          initialMode={tutorialMode}
+          initialStepIndex={tutorialStepIndex}
+        />
+      )}
     </AppLayout>
   );
 }

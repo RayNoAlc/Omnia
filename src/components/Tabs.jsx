@@ -8523,6 +8523,21 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              sfx.pop();
+              if (window.startOmniaTutorial) {
+                window.startOmniaTutorial({ mode: "manual" });
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all haptic-press flex items-center gap-1.5 cursor-pointer hover:opacity-90 shadow-xs"
+            style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+            title="Abrir Manual Completo e Enciclopédia de Recursos do Omnia"
+          >
+            <BookOpen size={14} style={{ color: T.brand }} />
+            <span>Manual do Omnia</span>
+          </button>
           {isDev && (
             <>
               <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
