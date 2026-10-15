@@ -101,14 +101,9 @@ function AppInner() {
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
 
   useEffect(() => {
-    window.startOmniaTutorial = (options = {}) => {
-      setTutorialMode(options.mode || "tour");
-      setTutorialStepIndex(typeof options.stepIndex === "number" ? options.stepIndex : 0);
-      setShowTutorial(true);
-    };
-    window.__omniaStartTour = (options = {}) => {
-      window.startOmniaTutorial(options);
-    };
+    // Tutorial temporariamente desativado
+    window.startOmniaTutorial = () => {};
+    window.__omniaStartTour = () => {};
     return () => {
       delete window.startOmniaTutorial;
       delete window.__omniaStartTour;
@@ -421,7 +416,8 @@ function AppInner() {
     })();
   }, [session]);
 
-  /* Auto-início do Tutorial Interativo gamificado no primeiro uso (criação de conta / primeiro login) */
+  /* Auto-início do Tutorial Interativo gamificado no primeiro uso - DESATIVADO TEMPORARIAMENTE */
+  /*
   useEffect(() => {
     if (!dataLoaded || !session) return;
     try {
@@ -438,6 +434,7 @@ function AppInner() {
       // Ignora erro de localStorage caso cookies estejam bloqueados
     }
   }, [dataLoaded, session]);
+  */
 
   const userId = session?.user?.id;
 
@@ -679,6 +676,7 @@ function AppInner() {
         </>
       )}
       {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} initialQuery={searchQuery} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} />}
+      {/* Tutorial desativado temporariamente
       <OmniaTutorialModal
         isOpen={showTutorial}
         onClose={() => setShowTutorial(false)}
@@ -687,6 +685,7 @@ function AppInner() {
         initialMode={tutorialMode}
         initialStepIndex={tutorialStepIndex}
       />
+      */}
     </AppLayout>
   );
 }
