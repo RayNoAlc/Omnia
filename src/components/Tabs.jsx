@@ -4503,11 +4503,25 @@ function FocusPet({ timerOn, streak, petName, onNameChange, config, updateConfig
 
         {bubble && (
           <div
-            className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white dark:bg-gray-800 border shadow-lg rounded-xl px-3 py-1.5 text-xs font-semibold z-30 animate-bounce pointer-events-none"
-            style={{ borderColor: T.border, color: T.ink }}
+            className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 whitespace-nowrap border shadow-xl rounded-2xl px-3.5 py-1.5 text-xs font-bold z-30 animate-bounce pointer-events-none select-none"
+            style={{
+              backgroundColor: T.surface,
+              borderColor: T.brand,
+              color: T.ink,
+              boxShadow: `0 8px 20px -4px rgba(0,0,0,0.3), 0 0 12px ${T.brand}25`,
+            }}
           >
-            {bubble}
-            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-white dark:border-t-gray-800" />
+            <span>{bubble}</span>
+            {/* Triângulo / Seta da Cauda do Balão (Borda Externa) */}
+            <div
+              className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent pointer-events-none"
+              style={{ borderTopColor: T.brand }}
+            />
+            {/* Triângulo / Seta da Cauda do Balão (Preenchimento Interno) */}
+            <div
+              className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[5px] border-r-[5px] border-t-[7px] border-l-transparent border-r-transparent pointer-events-none"
+              style={{ borderTopColor: T.surface }}
+            />
           </div>
         )}
 
@@ -5141,7 +5155,7 @@ export function FocoTab(props) {
 
           {/* Mascote de Foco */}
           {config?.enablePet !== false && (
-            <div className="my-2">
+            <div className="mt-8 mb-3">
               <FocusPet
                 timerOn={phase === "work" && running}
                 streak={streak}
