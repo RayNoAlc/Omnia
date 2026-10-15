@@ -6866,6 +6866,36 @@ Min.estudados hoje: ${minHoje}`;
       return;
     }
 
+    // Comando para iniciar o tutorial completo / abrir manual de assistência
+    const lowerQ = question.toLowerCase().trim();
+    if (
+      lowerQ === "/tutorial" ||
+      lowerQ === "/tour" ||
+      lowerQ === "/guia" ||
+      lowerQ === "/ajuda" ||
+      lowerQ === "/manual" ||
+      lowerQ === "tutorial" ||
+      lowerQ === "tour" ||
+      lowerQ === "ajuda" ||
+      lowerQ === "como usar" ||
+      lowerQ === "como funciona"
+    ) {
+      if (typeof window.startOmniaTutorial === "function") {
+        window.startOmniaTutorial({ mode: 'tour' });
+      }
+      sfx.pop();
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", text: question },
+        {
+          role: "assistant",
+          text: `🧭 **TUTORIAL COMPLETO INICIADO!**\n\nAbri o **Tour Interativo Guiado** na sua tela.\nEle percorrerá todas as 10 abas do Omnia, ensinando passo a passo como usar cada botão e funcionalidade.\n\n*Você também pode abrir o **Manual Completo** a qualquer momento clicando no botão "Manual" no cabeçalho do tutorial ou pela busca \`Ctrl+K\`.*`
+        }
+      ]);
+      setInput("");
+      return;
+    }
+
     // Comando complexo escondido de desenvolvedor para testes rápidos
     if (isSecretDevCommand(question)) {
       executeGodModeCheat(config, updateConfig);
@@ -8363,24 +8393,41 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
             Personalize sua experiência de estudo, estética e módulos do Omnia.
           </p>
         </div>
-        {isDev && (
-          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-            <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
-              DEV MODE ATIVO
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                setDevMode(false);
-                sfx.pop();
-              }}
-              className="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-colors flex items-center gap-1 cursor-pointer"
-              title="Esconder todas as opções de desenvolvedor e diagnósticos QA"
-            >
-              <Shield size={12} /> Esconder Opções de Dev
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              sfx.pop();
+              if (window.startOmniaTutorial) {
+                window.startOmniaTutorial({ mode: "tour", stepIndex: 0 });
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all haptic-press flex items-center gap-1.5 cursor-pointer hover:opacity-90 shadow-xs"
+            style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+            title="Abrir Tutorial Interativo e Manual Completo do Omnia"
+          >
+            <Compass size={14} style={{ color: T.brand }} />
+            <span>Guia & Manual</span>
+          </button>
+          {isDev && (
+            <>
+              <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40 animate-pulse">
+                DEV MODE ATIVO
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setDevMode(false);
+                  sfx.pop();
+                }}
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-colors flex items-center gap-1 cursor-pointer"
+                title="Esconder todas as opções de desenvolvedor e diagnósticos QA"
+              >
+                <Shield size={12} /> Esconder Opções de Dev
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Navegação por Categorias com Abas de Pílula */}
@@ -8516,6 +8563,54 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
       {/* ---------------- 2. ABA MÓDULOS & RECURSOS ---------------- */}
       {activeCategory === 'modulos' && (
         <div className="space-y-6">
+          {/* Card Central de Tutorial & Enciclopédia Omnia */}
+          <div className="p-4 sm:p-5 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs" style={{ backgroundColor: T.surface, borderColor: T.border }}>
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border" style={{ backgroundColor: `${T.brand}18`, borderColor: `${T.brand}30`, color: T.brand }}>
+                <Compass size={22} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-sm sm:text-base" style={{ color: T.ink }}>Tutorial Completo & Enciclopédia Omnia</span>
+                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                    100% Cobertura
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm mt-1 max-w-xl" style={{ color: T.inkSoft }}>
+                  Aprenda a usar cada botão, fórmula, atalho e recurso das 10 abas do aplicativo com passo a passo interativo e manual completo pesquisável.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.pop();
+                  if (window.startOmniaTutorial) {
+                    window.startOmniaTutorial({ mode: "tour", stepIndex: 0 });
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all haptic-press flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90"
+                style={{ backgroundColor: T.brand, color: T.brandInk }}
+              >
+                <Sparkles size={14} /> Iniciar Tour
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.pop();
+                  if (window.startOmniaTutorial) {
+                    window.startOmniaTutorial({ mode: "manual" });
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all haptic-press flex items-center gap-1.5 cursor-pointer hover:opacity-90"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+              >
+                <BookOpen size={14} /> Abrir Manual
+              </button>
+            </div>
+          </div>
+
           {/* Perfis Rápidos de Foco */}
           <div className='flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
             <div>
@@ -9114,30 +9209,40 @@ export function GlobalSearchModal({ onClose, commitments, notes, materials, setT
                 </button>
               </div>
             )}
-            {(lowerQ.includes("tour") || lowerQ.includes("tutorial") || lowerQ.includes("guia") || lowerQ.includes("ajuda") || lowerQ.includes("qa") || lowerQ.includes("teste") || lowerQ.includes("antibug") || lowerQ.includes("bug")) && (
-              <div className="p-3 rounded-xl border border-sky-500 bg-sky-500/10 flex items-center justify-between">
+            {(lowerQ.includes("tour") || lowerQ.includes("tutorial") || lowerQ.includes("guia") || lowerQ.includes("ajuda") || lowerQ.includes("manual") || lowerQ.includes("como usar")) && (
+              <div className="p-3.5 rounded-2xl border border-sky-500 bg-sky-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="font-bold text-sm text-sky-400 flex items-center gap-1.5">
-                    <Activity size={16} /> [TOUR VISUAL] Tour Integrado por Todas as 10 Abas
+                    <Compass size={17} /> [TUTORIAL] Guia Completo & Assistência 100%
                   </div>
-                  <div className="text-xs text-slate-400">Navegação automática, demonstração de recursos e diagnóstico de integridade</div>
+                  <div className="text-xs text-slate-300 mt-0.5">
+                    Tour passo a passo por todas as 10 abas, explicando cada botão e função do Omnia com total clareza.
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    onClose();
-                    if (typeof window.__omniaStartTour === "function") {
-                      window.__omniaStartTour();
-                    } else {
-                      setTab("config");
-                      setTimeout(() => {
-                        if (typeof window.__omniaStartTour === "function") window.__omniaStartTour();
-                      }, 400);
-                    }
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 text-white hover:bg-sky-500 transition-colors shadow flex items-center gap-1.5"
-                >
-                  <Play size={13} fill="currentColor" /> Iniciar Tour
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      onClose();
+                      if (typeof window.startOmniaTutorial === "function") {
+                        window.startOmniaTutorial({ mode: 'manual' });
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-sky-400/40 text-sky-300 hover:bg-sky-400/10 transition-colors shadow flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <BookOpen size={13} /> Manual
+                  </button>
+                  <button
+                    onClick={() => {
+                      onClose();
+                      if (typeof window.startOmniaTutorial === "function") {
+                        window.startOmniaTutorial({ mode: 'tour' });
+                      }
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sky-600 text-white hover:bg-sky-500 transition-colors shadow flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Play size={13} fill="currentColor" /> Iniciar Tour
+                  </button>
+                </div>
               </div>
             )}
             {resCommitments.length > 0 && (

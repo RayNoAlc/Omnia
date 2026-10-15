@@ -28,6 +28,7 @@ import { reactiveBgm } from "./lib/reactiveBgm";
 import { AppLayout } from "./layouts/AppLayout";
 import { T, TABS, applyTheme, applyFont } from "./components/ui";
 import { BiometricSecurityLock } from "./components/BiometricSecurityLock";
+import { OmniaTutorialModal } from "./components/OmniaTutorialModal";
 
 
 class GlobalErrorBoundary extends React.Component {
@@ -95,6 +96,24 @@ function AppInner() {
   const [isZen, setIsZen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialMode, setTutorialMode] = useState("tour"); // 'tour' | 'manual'
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0);
+
+  useEffect(() => {
+    window.startOmniaTutorial = (options = {}) => {
+      setTutorialMode(options.mode || "tour");
+      setTutorialStepIndex(typeof options.stepIndex === "number" ? options.stepIndex : 0);
+      setShowTutorial(true);
+    };
+    window.__omniaStartTour = (options = {}) => {
+      window.startOmniaTutorial(options);
+    };
+    return () => {
+      delete window.startOmniaTutorial;
+      delete window.__omniaStartTour;
+    };
+  }, []);
   const [isUnlocked, setIsUnlocked] = useState(() => {
     try {
       return sessionStorage.getItem("omnia_unlocked") === "true";
@@ -576,7 +595,15 @@ function AppInner() {
     return true;
   });
     return (
-    <AppLayout activeTab={tab} onTabChange={setTab} TABS={visibleTabs} onLogout={() => supabase.auth.signOut()} isZen={isZen} config={config}>
+    <AppLayout
+      activeTab={tab}
+      onTabChange={setTab}
+      onOpenTutorial={(opts) => window.startOmniaTutorial && window.startOmniaTutorial(opts)}
+      TABS={visibleTabs}
+      onLogout={() => supabase.auth.signOut()}
+      isZen={isZen}
+      config={config}
+    >
       {!dataLoaded ? (
         <div className="py-16 flex justify-center" style={{ color: T.inkSoft }}>
           <Loader2 className="w-5 h-5 animate-spin" />
@@ -634,6 +661,14 @@ function AppInner() {
         </>
       )}
       {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} initialQuery={searchQuery} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} />}
+      <OmniaTutorialModal
+        isOpen={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        activeTab={tab}
+        onTabChange={(t) => setTab(t)}
+        initialMode={tutorialMode}
+        initialStepIndex={tutorialStepIndex}
+      />
     </AppLayout>
   );
 }

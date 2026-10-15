@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Menu, Palette, X, Download } from 'lucide-react';
+import { LogOut, Menu, Palette, X, Download, Compass, HelpCircle } from 'lucide-react';
 import { TINT, applyTheme, THEMES, T } from '../components/ui';
 import { sfx } from '../lib/soundEffects';
 import { ReactiveBgmWidget } from '../components/ReactiveBgmWidget';
 import { reactiveBgm } from '../lib/reactiveBgm';
 
-export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, config, children }) {
+export function AppLayout({ activeTab, onTabChange, onOpenTutorial, TABS, onLogout, isZen, config, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -126,6 +126,18 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, confi
             </button>
           )}
           <button 
+            type="button"
+            onClick={() => {
+              sfx.pop();
+              if (onOpenTutorial) onOpenTutorial({ mode: 'tour' });
+            }} 
+            className='w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl transition-all duration-200 hover:bg-sky-500/10 active:scale-[0.98] cursor-pointer' 
+            style={{ color: T.brand, border: `1px solid ${T.brand}35` }}
+            title="Abrir Tutorial Completo & Manual da Aplicação"
+          >
+            <Compass className='w-3.5 h-3.5' /> Tutorial & Guia
+          </button>
+          <button 
             onClick={onLogout} 
             className='w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl transition-all duration-200 hover:bg-red-500/10 active:scale-[0.98]' 
             style={{ color: T.critico, border: `1px solid ${T.critico}20` }}
@@ -155,7 +167,19 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, confi
             }} />
           </div>
         </div>
-        <div className='flex items-center gap-2.5'>
+        <div className='flex items-center gap-2'>
+          <button 
+            type="button"
+            onClick={() => {
+              sfx.pop();
+              if (onOpenTutorial) onOpenTutorial({ mode: 'tour' });
+            }}
+            className="p-2 rounded-xl transition-colors active:scale-95 flex items-center justify-center cursor-pointer"
+            style={{ color: T.brand, backgroundColor: `${T.surfaceAlt}80` }}
+            title="Tutorial & Guia do Omnia"
+          >
+            <Compass className='w-4.5 h-4.5' />
+          </button>
           {deferredPrompt && (
             <button onClick={handleInstallPwa} className='px-3 py-1.5 text-xs font-bold rounded-lg shadow-sm active:scale-95 transition-transform' style={{ backgroundColor: T.brand, color: '#fff' }}>
               Baixar App
@@ -206,6 +230,18 @@ export function AppLayout({ activeTab, onTabChange, TABS, onLogout, isZen, confi
             {config?.enableMusic !== false && config?.enableBgm !== false && (
               <ReactiveBgmWidget currentTab={activeTab} className="mb-2" />
             )}
+            <button
+              type="button"
+              onClick={() => {
+                sfx.pop();
+                setMobileOpen(false);
+                if (onOpenTutorial) onOpenTutorial({ mode: 'tour' });
+              }}
+              className='w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl active:scale-[0.98] transition-transform cursor-pointer'
+              style={{ backgroundColor: `${T.brand}18`, color: T.brand, border: `1px solid ${T.brand}35` }}
+            >
+              <Compass className='w-4 h-4' /> Tutorial & Manual Completo
+            </button>
             <button onClick={onLogout} className='w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl active:scale-[0.98] transition-transform' style={{ backgroundColor: TINT.critico, color: T.critico }}>
               <LogOut className='w-4 h-4' /> Sair
             </button>
