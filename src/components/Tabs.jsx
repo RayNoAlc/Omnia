@@ -3251,8 +3251,13 @@ function CompromissoWorkspaceContent({
     }
   }
   async function handleDeleteNote(id) {
-    await deleteNote(id);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+    sfx.trash();
+    setNotes((prev) => (prev || []).filter((n) => n.id !== id));
+    try {
+      await deleteNote(id);
+    } catch (e) {
+      console.warn("Erro ao deletar nota:", e);
+    }
   }
 
   function checkSize(file) {
@@ -3401,9 +3406,20 @@ function CompromissoWorkspaceContent({
         ) : (
           <div className="space-y-1.5">
             {notasC.map((n) => (
-              <div key={n.id} className="flex items-start justify-between gap-2 text-sm rounded-md p-2" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
-                <span style={{ color: T.inkSoft }}>{formatTextWithTags(n.texto, T)}</span>
-                  <div className="flex gap-2"><AudioReaderButton text={n.texto} T={T} /><button onClick={() => handleDeleteNote(n.id)} style={{ color: T.inkSoft }} className="shrink-0"><Trash2 className="w-3.5 h-3.5" /></button></div>
+              <div key={n.id} className="flex items-start justify-between gap-2 text-sm rounded-md p-2 group transition-colors" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+                <span className="flex-1 break-words leading-relaxed" style={{ color: T.inkSoft }}>{formatTextWithTags(n.texto, T)}</span>
+                <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                  <AudioReaderButton text={n.texto} T={T} />
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteNote(n.id)}
+                    style={{ color: T.inkSoft }}
+                    className="p-1 rounded-md hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    title="Excluir anotação"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -3602,16 +3618,26 @@ function CompromissoWorkspaceContent({
           materialId={viewingPdfModal.id}
           disciplina={viewingPdfModal.disciplina}
           onClose={() => setViewingPdfModal(null)}
-          onSaveNote={(noteData) => {
+          onSaveNote={async (noteData) => {
             if (setNotes) {
-              const newN = {
-                id: uid(),
-                disciplina: noteData.disciplina || commitment?.disciplina || "Geral",
-                commitmentId: commitment?.id || null,
-                texto: noteData.texto,
-                created_at: new Date().toISOString()
-              };
-              setNotes(prev => [newN, ...(prev || [])]);
+              try {
+                const saved = await addNote(userId, {
+                  disciplina: noteData.disciplina || commitment?.disciplina || "Geral",
+                  commitmentId: commitment?.id || null,
+                  texto: noteData.texto,
+                });
+                setNotes((prev) => [saved, ...(prev || [])]);
+              } catch (err) {
+                console.error("Erro ao persistir nota no banco:", err);
+                const fallbackNote = {
+                  id: uid(),
+                  disciplina: noteData.disciplina || commitment?.disciplina || "Geral",
+                  commitmentId: commitment?.id || null,
+                  texto: noteData.texto,
+                  createdAt: new Date().toISOString(),
+                };
+                setNotes((prev) => [fallbackNote, ...(prev || [])]);
+              }
             }
           }}
         />
@@ -3985,15 +4011,26 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
             materialId={viewingPdf.id}
             disciplina={viewingPdf.disciplina}
             onClose={() => setViewingPdf(null)}
-            onSaveNote={(noteData) => {
+            onSaveNote={async (noteData) => {
               if (setNotes) {
-                const newNote = {
-                  id: uid(),
-                  disciplina: noteData.disciplina || "Geral",
-                  texto: noteData.texto,
-                  created_at: new Date().toISOString()
-                };
-                setNotes(prev => [newNote, ...(prev || [])]);
+                try {
+                  const saved = await addNote(userId, {
+                    disciplina: noteData.disciplina || "Geral",
+                    commitmentId: null,
+                    texto: noteData.texto,
+                  });
+                  setNotes((prev) => [saved, ...(prev || [])]);
+                } catch (err) {
+                  console.error("Erro ao persistir nota no banco:", err);
+                  const fallbackNote = {
+                    id: uid(),
+                    disciplina: noteData.disciplina || "Geral",
+                    commitmentId: null,
+                    texto: noteData.texto,
+                    createdAt: new Date().toISOString(),
+                  };
+                  setNotes((prev) => [fallbackNote, ...(prev || [])]);
+                }
               }
             }}
           />

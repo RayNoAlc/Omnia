@@ -298,8 +298,13 @@ export async function addNote(userId, note) {
   return { id: data.id, disciplina: data.disciplina, texto: data.texto, commitmentId: data.commitment_id, createdAt: data.created_at };
 }
 export async function deleteNote(id) {
-  const { error } = await supabase.from("notes").delete().eq("id", id);
-  if (error) throw error;
+  if (!id) return;
+  try {
+    const { error } = await supabase.from("notes").delete().eq("id", id);
+    if (error) console.warn("Aviso ao deletar nota do Supabase:", error.message || error);
+  } catch (err) {
+    console.warn("Exceção ao deletar nota:", err);
+  }
 }
 
 /* ---------------------------------------------------------------------- */

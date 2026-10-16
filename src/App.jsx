@@ -496,8 +496,12 @@ function AppInner() {
     setStudyBlocks((prev) => prev.filter((b) => b.commitmentId !== id));
   }
   async function handleDeleteNote(id) {
-    await deleteNote(id);
-    setNotes((prev) => prev.filter((n) => n.id !== id));
+    setNotes((prev) => (prev || []).filter((n) => n.id !== id));
+    try {
+      await deleteNote(id);
+    } catch (e) {
+      console.warn("Erro ao deletar nota:", e);
+    }
   }
   async function handleToggleBlock(id) {
     const block = studyBlocks.find((b) => b.id === id);
