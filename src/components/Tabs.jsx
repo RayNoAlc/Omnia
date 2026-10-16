@@ -12,7 +12,7 @@ import {
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
   Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users, Music, Filter, ChevronDown, ChevronUp,
-  Swords, Apple, Cookie, Shield, User, Fingerprint, Highlighter, Hourglass, FlaskConical, PawPrint, QrCode, Bookmark
+  Swords, Apple, Cookie, Shield, User, Fingerprint, Highlighter, Hourglass, FlaskConical, PawPrint, QrCode, Bookmark, ExternalLink
 } from 'lucide-react';
 
 import confetti from 'canvas-confetti';
@@ -103,6 +103,33 @@ export function formatTextWithTags(text, T) {
     }
     return <span key={i}>{part}</span>;
   });
+}
+
+export function parsePdfNoteReference(text) {
+  if (!text || typeof text !== "string") return null;
+
+  // Formato padrão gerado pelo Omnia no Leitor de PDF:
+  // 🔖 Anotação do documento: **nome_arquivo.pdf** (Pág. 1)
+  const regexPrincipal = /(?:Anotação do documento|Documento):\s*\*\*([^*]+)\*\*\s*\((?:Pág\.?|Página)\s*(\d+)\)/i;
+  const match1 = text.match(regexPrincipal);
+  if (match1) {
+    return {
+      fileName: match1[1].trim(),
+      pageNum: parseInt(match1[2], 10) || 1,
+    };
+  }
+
+  // Variações com nome de PDF e indicação de página
+  const docMatch = text.match(/\*\*([^*]+\.pdf)\*\*/i) || text.match(/([a-zA-Z0-9_\-.,+]+\.pdf)/i);
+  const pageMatch = text.match(/(?:pág\.?|página)\s*(\d+)/i);
+  if (docMatch && pageMatch) {
+    return {
+      fileName: docMatch[1].trim(),
+      pageNum: parseInt(pageMatch[1], 10) || 1,
+    };
+  }
+
+  return null;
 }
 
 export function Header({ onLogout }) {
@@ -3032,6 +3059,43 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
     }
   }
 
+  async function handleOpenPdfAtPage(docName, targetPage = 1) {
+    if (!onOpenPdfViewer) return;
+    const cleanName = (docName || "").trim().toLowerCase();
+    const mat = (materiaisDisc || []).find(m => {
+      const mName = (m.nomeArquivo || "").trim().toLowerCase();
+      const isPdf = m.tipoArquivo === "pdf" || mName.endsWith(".pdf");
+      return isPdf && (mName === cleanName || mName.includes(cleanName) || cleanName.includes(mName));
+    }) || (materiaisDisc || []).find(m => m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf"));
+
+    if (!mat) {
+      alert(`O documento "${docName}" não foi localizado nos materiais desta disciplina.`);
+      return;
+    }
+
+    sfx.pop();
+    try {
+      const url = await getMaterialSignedUrl(mat.storagePath);
+      onOpenPdfViewer({
+        url,
+        title: mat.nomeArquivo,
+        id: mat.id,
+        disciplina: mat.disciplina || disc || "Geral",
+        storagePath: mat.storagePath,
+        initialPage: Number(targetPage) || 1
+      });
+    } catch {
+      onOpenPdfViewer({
+        url: null,
+        title: mat.nomeArquivo,
+        id: mat.id,
+        disciplina: mat.disciplina || disc || "Geral",
+        storagePath: mat.storagePath,
+        initialPage: Number(targetPage) || 1
+      });
+    }
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-y-1">
@@ -3059,12 +3123,55 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
               </Card>
             </button>
         ))}
-        {notasDisc.map((n) => (
-          <Card key={n.id} className="py-2.5 flex items-start justify-between gap-2">
-            <div className="text-sm" style={{ color: T.inkSoft }}>{formatTextWithTags(n.texto, T)}</div>
-              <div className="flex gap-2"><AudioReaderButton text={n.texto} T={T} /><button onClick={() => onDeleteNote(n.id)} style={{ color: T.inkSoft }} className="shrink-0"><Trash2 className="w-3.5 h-3.5" /></button></div>
-          </Card>
-        ))}
+        {notasDisc.map((n) => {
+          const pdfRef = parsePdfNoteReference(n.texto);
+          return (
+            <Card
+              key={n.id}
+              className={`py-2.5 flex items-start justify-between gap-2 transition-all ${
+                pdfRef ? "border-l-4 border-l-emerald-500 shadow-xs" : ""
+              }`}
+              style={pdfRef ? { borderLeftColor: "#10b981", borderColor: "rgba(16, 185, 129, 0.3)" } : {}}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="text-sm break-words leading-relaxed" style={{ color: T.inkSoft }}>{formatTextWithTags(n.texto, T)}</div>
+                {pdfRef && onOpenPdfViewer && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPdfAtPage(pdfRef.fileName, pdfRef.pageNum)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+                      style={{
+                        backgroundColor: "rgba(16, 185, 129, 0.18)",
+                        border: "1px solid rgba(16, 185, 129, 0.4)",
+                        color: "#10b981"
+                      }}
+                      title={`Abrir ${pdfRef.fileName} diretamente na página ${pdfRef.pageNum}`}
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>Abrir na Pág. {pdfRef.pageNum}</span>
+                      <ExternalLink className="w-3 h-3 opacity-70 ml-0.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-1.5 items-center shrink-0 ml-1">
+                {pdfRef && onOpenPdfViewer && (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenPdfAtPage(pdfRef.fileName, pdfRef.pageNum)}
+                    className="p-1 rounded-md text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                    title={`Abrir diretamente na página ${pdfRef.pageNum}`}
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <AudioReaderButton text={n.texto} T={T} />
+                <button onClick={() => onDeleteNote(n.id)} style={{ color: T.inkSoft }} className="shrink-0 p-1 hover:text-red-400 cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+            </Card>
+          );
+        })}
       </div>
 
       {panel === "resumo" && (
@@ -3334,6 +3441,48 @@ function CompromissoWorkspaceContent({
     setMaterials((prev) => prev.filter((x) => x.id !== m.id));
   }
 
+  async function handleOpenPdfAtPage(docName, targetPage = 1) {
+    const cleanName = (docName || "").trim().toLowerCase();
+    
+    // Procura primeiro nos materiais deste compromisso, depois em todos os materiais
+    const mat = (materiaisC || []).find(m => {
+      const mName = (m.nomeArquivo || "").trim().toLowerCase();
+      const isPdf = m.tipoArquivo === "pdf" || mName.endsWith(".pdf");
+      return isPdf && (mName === cleanName || mName.includes(cleanName) || cleanName.includes(mName));
+    }) || (materials || []).find(m => {
+      const mName = (m.nomeArquivo || "").trim().toLowerCase();
+      const isPdf = m.tipoArquivo === "pdf" || mName.endsWith(".pdf");
+      return isPdf && (mName === cleanName || mName.includes(cleanName) || cleanName.includes(mName));
+    }) || (materiaisC || []).find(m => m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf"));
+
+    if (!mat) {
+      alert(`O documento "${docName}" não foi localizado nos materiais deste compromisso.`);
+      return;
+    }
+
+    sfx.pop();
+    try {
+      const url = await getMaterialSignedUrl(mat.storagePath);
+      setViewingPdfModal({
+        url,
+        title: mat.nomeArquivo,
+        id: mat.id,
+        disciplina: mat.disciplina || commitment?.disciplina || "Geral",
+        storagePath: mat.storagePath,
+        initialPage: Number(targetPage) || 1
+      });
+    } catch {
+      setViewingPdfModal({
+        url: null,
+        title: mat.nomeArquivo,
+        id: mat.id,
+        disciplina: mat.disciplina || commitment?.disciplina || "Geral",
+        storagePath: mat.storagePath,
+        initialPage: Number(targetPage) || 1
+      });
+    }
+  }
+
   async function openResumo() {
     setPanel("resumo");
     setResumoSalvo(false);
@@ -3405,23 +3554,69 @@ function CompromissoWorkspaceContent({
           <div className="text-xs" style={{ color: T.inkSoft }}>Nenhuma anotação ainda.</div>
         ) : (
           <div className="space-y-1.5">
-            {notasC.map((n) => (
-              <div key={n.id} className="flex items-start justify-between gap-2 text-sm rounded-md p-2 group transition-colors" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
-                <span className="flex-1 break-words leading-relaxed" style={{ color: T.inkSoft }}>{formatTextWithTags(n.texto, T)}</span>
-                <div className="flex items-center gap-1.5 shrink-0 ml-1">
-                  <AudioReaderButton text={n.texto} T={T} />
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteNote(n.id)}
-                    style={{ color: T.inkSoft }}
-                    className="p-1 rounded-md hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-                    title="Excluir anotação"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+            {notasC.map((n) => {
+              const pdfRef = parsePdfNoteReference(n.texto);
+              return (
+                <div
+                  key={n.id}
+                  className={`flex items-start justify-between gap-2 text-sm rounded-xl p-2.5 group transition-all ${
+                    pdfRef ? "border-l-4 border-l-emerald-500 shadow-xs" : ""
+                  }`}
+                  style={{
+                    backgroundColor: T.surfaceAlt,
+                    border: `1px solid ${pdfRef ? "rgba(16, 185, 129, 0.35)" : T.border}`,
+                    borderLeftColor: pdfRef ? "#10b981" : undefined
+                  }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <span className="block break-words leading-relaxed" style={{ color: T.inkSoft }}>
+                      {formatTextWithTags(n.texto, T)}
+                    </span>
+                    {pdfRef && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPdfAtPage(pdfRef.fileName, pdfRef.pageNum)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 shadow-xs"
+                          style={{
+                            backgroundColor: "rgba(16, 185, 129, 0.18)",
+                            border: "1px solid rgba(16, 185, 129, 0.4)",
+                            color: "#10b981"
+                          }}
+                          title={`Abrir ${pdfRef.fileName} diretamente na página ${pdfRef.pageNum}`}
+                        >
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>Abrir na Pág. {pdfRef.pageNum}</span>
+                          <ExternalLink className="w-3 h-3 opacity-70 ml-0.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                    {pdfRef && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPdfAtPage(pdfRef.fileName, pdfRef.pageNum)}
+                        className="p-1 rounded-md text-emerald-400 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                        title={`Ir direto para a página ${pdfRef.pageNum}`}
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <AudioReaderButton text={n.texto} T={T} />
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteNote(n.id)}
+                      style={{ color: T.inkSoft }}
+                      className="p-1 rounded-md hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      title="Excluir anotação"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -3617,6 +3812,7 @@ function CompromissoWorkspaceContent({
           fileName={viewingPdfModal.title}
           materialId={viewingPdfModal.id}
           disciplina={viewingPdfModal.disciplina}
+          initialPage={viewingPdfModal.initialPage || viewingPdfModal.page || 1}
           onClose={() => setViewingPdfModal(null)}
           onSaveNote={async (noteData) => {
             if (setNotes) {
@@ -4024,6 +4220,7 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
             fileName={viewingPdf.title}
             materialId={viewingPdf.id}
             disciplina={viewingPdf.disciplina}
+            initialPage={viewingPdf.initialPage || viewingPdf.page || 1}
             onClose={() => setViewingPdf(null)}
             onSaveNote={async (noteData) => {
               if (setNotes) {

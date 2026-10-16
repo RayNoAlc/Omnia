@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   FileText, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw,
@@ -27,14 +27,16 @@ export function PdfViewerModal({
   pdfTitle,
   materialId = "temp",
   disciplina = "Geral",
+  initialPage = 1,
   onClose,
   onSaveNote
 }) {
   const actualUrl = fileUrl || pdfUrl;
   const actualName = pdfTitle || fileName;
+  const startingPage = Math.max(1, parseInt(initialPage, 10) || 1);
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
-  const [pageNum, setPageNum] = useState(1);
+  const [pageNum, setPageNum] = useState(startingPage);
   const [scale, setScale] = useState(1.0);
   const [fitMode, setFitMode] = useState("page"); // 'page' | 'width' | 'manual'
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -54,6 +56,10 @@ export function PdfViewerModal({
       return [];
     }
   });
+
+  const highlightedPages = useMemo(() => {
+    return Array.from(new Set(highlights.map(h => h.page))).sort((a, b) => a - b);
+  }, [highlights]);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
@@ -165,13 +171,14 @@ export function PdfViewerModal({
 
         const doc = await loadingTask.promise;
         if (!isCancelled) {
+          const targetPage = Math.min(Math.max(1, startingPage), doc.numPages);
           setPdfDoc(doc);
           setNumPages(doc.numPages);
-          setPageNum(1);
+          setPageNum(targetPage);
           setLoading(false);
 
           // Ajuste inicial inteligente para que a página ou slide caiba perfeitamente
-          const initialFit = await calculateFitScale(doc, 1, "page");
+          const initialFit = await calculateFitScale(doc, targetPage, "page");
           if (initialFit) {
             setScale(initialFit);
             setFitMode("page");
@@ -188,7 +195,15 @@ export function PdfViewerModal({
 
     loadPdf();
     return () => { isCancelled = true; };
-  }, [fileUrl, pdfUrl, fileBlob, storagePath, reloadKey, calculateFitScale]);
+  }, [fileUrl, pdfUrl, fileBlob, storagePath, reloadKey, calculateFitScale, startingPage]);
+
+  // Sincroniza página se a prop initialPage mudar dinamicamente
+  useEffect(() => {
+    if (initialPage && pdfDoc) {
+      const p = Math.min(Math.max(1, parseInt(initialPage, 10) || 1), pdfDoc.numPages);
+      setPageNum(p);
+    }
+  }, [initialPage, pdfDoc]);
 
   // Recalcula a escala em caso de redimensionamento da janela
   useEffect(() => {
@@ -707,9 +722,36 @@ export function PdfViewerModal({
 
         {/* Rodapé: Paginação */}
         {numPages > 0 && (
-          <div className="px-5 py-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
-            <div className="text-[11px] text-slate-400 hidden sm:block">
-              Clique e arraste para grifar. Use as setas ← → do teclado para navegar.
+          <div className="px-5 py-2.5 border-t flex items-center justify-between text-xs flex-wrap gap-2" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="text-[11px] text-slate-400 hidden sm:block">
+                Arraste para grifar. Setas ← → para navegar.
+              </div>
+              {highlightedPages.length > 0 && (
+                <div className="flex items-center gap-1.5 sm:pl-2 sm:border-l" style={{ borderColor: T.border }}>
+                  <span className="text-[11px] text-amber-400 font-semibold flex items-center gap-1 shrink-0">
+                    <Bookmark size={12} /> Págs Marcadas:
+                  </span>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {highlightedPages.map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => handlePageChange(p)}
+                        className={`px-1.5 py-0.5 rounded text-[11px] font-mono font-bold transition-all cursor-pointer ${
+                          pageNum === p
+                            ? "bg-amber-400 text-black shadow-xs ring-1 ring-amber-300"
+                            : "border hover:opacity-80"
+                        }`}
+                        style={pageNum !== p ? { backgroundColor: T.surface, borderColor: T.border, color: T.ink } : {}}
+                        title={`Ir direto para a página ${p}`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 mx-auto sm:mx-0">
