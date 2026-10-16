@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import {
   FileText, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw,
   Highlighter, Eraser, Download, Bookmark, Plus, Loader2, Save, Check,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, StickyNote, Trash2, Pin, MessageSquare, ExternalLink, Sparkles
 } from "lucide-react";
 import { pdfjsLib } from "../lib/pdf";
 import { supabase } from "../lib/supabaseClient";
@@ -17,6 +17,37 @@ const HIGHLIGHT_COLORS = [
   { id: "purple", name: "Lilás Foco", bg: "rgba(192, 132, 252, 0.42)", border: "#a855f7" },
   { id: "pink", name: "Rosa Destaque", bg: "rgba(244, 114, 182, 0.42)", border: "#ec4899" },
 ];
+
+const POST_IT_THEMES = {
+  yellow: {
+    bg: "#fef9c3",
+    border: "#fde047",
+    text: "#713f12",
+    accent: "#eab308",
+    name: "Amarelo"
+  },
+  green: {
+    bg: "#dcfce7",
+    border: "#86efac",
+    text: "#14532d",
+    accent: "#22c55e",
+    name: "Verde"
+  },
+  purple: {
+    bg: "#f3e8ff",
+    border: "#d8b4fe",
+    text: "#581c87",
+    accent: "#a855f7",
+    name: "Lilás"
+  },
+  pink: {
+    bg: "#fce7f3",
+    border: "#f472b6",
+    text: "#831843",
+    accent: "#ec4899",
+    name: "Rosa"
+  },
+};
 
 export function PdfViewerModal({
   fileUrl,
@@ -44,7 +75,7 @@ export function PdfViewerModal({
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Ferramentas de grifo
+  // Ferramentas de grifo e Post-it
   const [isHighlighterActive, setIsHighlighterActive] = useState(true);
   const [selectedColor, setSelectedColor] = useState(HIGHLIGHT_COLORS[0]);
   const [highlights, setHighlights] = useState(() => {
@@ -57,9 +88,30 @@ export function PdfViewerModal({
     }
   });
 
+  // Bloco de Notas / Post-its Drawer
+  const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
+  const [activeHighlightId, setActiveHighlightId] = useState(null);
+  const [drawerScope, setDrawerScope] = useState("page"); // "page" | "all"
+
   const highlightedPages = useMemo(() => {
     return Array.from(new Set(highlights.map(h => h.page))).sort((a, b) => a - b);
   }, [highlights]);
+
+  const currentPageHighlights = useMemo(() => {
+    return highlights.filter((h) => h.page === pageNum);
+  }, [highlights, pageNum]);
+
+  const pageNotes = useMemo(() => {
+    return highlights.filter((h) => h.page === pageNum && (h.isStickyNote || (h.note && h.note.trim())));
+  }, [highlights, pageNum]);
+
+  const allNotes = useMemo(() => {
+    return highlights.filter((h) => h.isStickyNote || (h.note && h.note.trim()));
+  }, [highlights]);
+
+  const displayedNotes = useMemo(() => {
+    return drawerScope === "page" ? currentPageHighlights : highlights;
+  }, [drawerScope, currentPageHighlights, highlights]);
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawStart, setDrawStart] = useState({ x: 0, y: 0 });
@@ -217,6 +269,17 @@ export function PdfViewerModal({
     return () => window.removeEventListener("resize", handleResize);
   }, [pdfDoc, pageNum, fitMode, calculateFitScale]);
 
+  // Recalcula a escala automaticamente ao abrir/fechar o Bloco de Notas lateral
+  useEffect(() => {
+    if (fitMode !== "manual" && pdfDoc) {
+      const timer = setTimeout(async () => {
+        const fit = await calculateFitScale(pdfDoc, pageNum, fitMode);
+        if (fit) setScale(fit);
+      }, 70);
+      return () => clearTimeout(timer);
+    }
+  }, [isNotesDrawerOpen, pdfDoc, pageNum, fitMode, calculateFitScale]);
+
   // Navegação de páginas com auto-ajuste de escala
   const handlePageChange = async (newPage) => {
     sfx.pop();
@@ -360,10 +423,11 @@ export function PdfViewerModal({
 
     if (currentBox && currentBox.width > 12 && currentBox.height > 8) {
       sfx.pop();
+      const newHId = Date.now().toString(36);
       const newH = [
         ...highlights,
         {
-          id: Date.now().toString(36),
+          id: newHId,
           page: pageNum,
           x: currentBox.x / scale,
           y: currentBox.y / scale,
@@ -371,24 +435,82 @@ export function PdfViewerModal({
           height: currentBox.height / scale,
           color: selectedColor.bg,
           border: selectedColor.border,
+          stickyColor: selectedColor.id || "yellow",
+          note: "",
           createdAt: new Date().toISOString()
         }
       ];
       saveHighlights(newH);
+      setActiveHighlightId(newHId);
     }
     setCurrentBox(null);
+  };
+
+  const updateHighlightNote = (hId, text, extraProps = {}) => {
+    const updated = highlights.map(h => {
+      if (h.id === hId) {
+        return {
+          ...h,
+          note: text,
+          updatedAt: new Date().toISOString(),
+          ...extraProps
+        };
+      }
+      return h;
+    });
+    saveHighlights(updated);
+  };
+
+  const handleAddPageStickyNote = (color = selectedColor) => {
+    sfx.pop();
+    const existingCount = currentPageHighlights.filter(h => h.isStickyNote).length;
+    const newSticky = {
+      id: Date.now().toString(36),
+      page: pageNum,
+      x: 60 + ((existingCount % 4) * 35),
+      y: 60 + ((existingCount % 5) * 55),
+      width: 170,
+      height: 110,
+      isStickyNote: true,
+      color: color.bg,
+      border: color.border,
+      stickyColor: color.id || "yellow",
+      note: "",
+      createdAt: new Date().toISOString()
+    };
+    const nextH = [...highlights, newSticky];
+    saveHighlights(nextH);
+    setActiveHighlightId(newSticky.id);
+    setIsNotesDrawerOpen(true);
+  };
+
+  const handleExportPostItToNotes = (h) => {
+    if (!onSaveNote) return;
+    sfx.complete();
+    const noteContent = (h.note || "").trim();
+    const typeLabel = h.isStickyNote ? "Post-it" : "Anotação de Grifo";
+    const noteText = `🔖 ${typeLabel}: **${actualName}** (Pág. ${h.page})\n\n"${noteContent}"\n\nData: ${new Date().toLocaleDateString('pt-BR')}`;
+    
+    onSaveNote({
+      disciplina: disciplina || "Geral",
+      texto: noteText,
+    });
+    setSavedFeedback(true);
+    setTimeout(() => setSavedFeedback(false), 2500);
   };
 
   const removeHighlight = (hId) => {
     sfx.click();
     const filtered = highlights.filter(h => h.id !== hId);
     saveHighlights(filtered);
+    if (activeHighlightId === hId) setActiveHighlightId(null);
   };
 
   const clearAllPageHighlights = () => {
     sfx.click();
     const filtered = highlights.filter(h => h.page !== pageNum);
     saveHighlights(filtered);
+    setActiveHighlightId(null);
   };
 
   const handleExportToNotes = () => {
@@ -434,8 +556,6 @@ export function PdfViewerModal({
     setScale((s) => Math.max(0.35, Number((s - 0.15).toFixed(2))));
   };
 
-  const currentPageHighlights = highlights.filter(h => h.page === pageNum);
-
   const modalContent = (
     <div
       className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
@@ -468,6 +588,12 @@ export function PdfViewerModal({
                   <>
                     <span>•</span>
                     <span className="text-amber-500 font-semibold">{currentPageHighlights.length} grifo(s) nesta página</span>
+                  </>
+                )}
+                {pageNotes.length > 0 && (
+                  <>
+                    <span>•</span>
+                    <span className="text-emerald-400 font-semibold">{pageNotes.length} post-it(s)</span>
                   </>
                 )}
               </div>
@@ -511,6 +637,52 @@ export function PdfViewerModal({
                 </div>
               )}
             </div>
+
+            {/* Botão de Adicionar Post-it Rápido */}
+            <button
+              type="button"
+              onClick={() => handleAddPageStickyNote()}
+              className="px-2.5 py-1.5 rounded-xl border text-xs font-semibold hover:opacity-90 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+              style={{
+                backgroundColor: "rgba(234, 179, 8, 0.15)",
+                borderColor: "rgba(234, 179, 8, 0.4)",
+                color: "#eab308"
+              }}
+              title="Colar um novo post-it nesta página"
+            >
+              <Plus size={14} />
+              <span className="hidden sm:inline">+ Post-it</span>
+            </button>
+
+            {/* Botão de Abrir/Fechar Bloco de Notas Lateral */}
+            <button
+              type="button"
+              onClick={() => {
+                sfx.click();
+                setIsNotesDrawerOpen(!isNotesDrawerOpen);
+              }}
+              className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                isNotesDrawerOpen ? "shadow-xs" : "hover:opacity-85"
+              }`}
+              style={{
+                backgroundColor: isNotesDrawerOpen ? T.brand : T.surface,
+                borderColor: isNotesDrawerOpen ? T.brand : T.border,
+                color: isNotesDrawerOpen ? T.brandInk : T.ink
+              }}
+              title={isNotesDrawerOpen ? "Recolher bloco de notas" : "Abrir bloco de notas e post-its"}
+            >
+              <StickyNote size={14} />
+              <span className="hidden sm:inline">Bloco de Notas</span>
+              {pageNotes.length > 0 && (
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    isNotesDrawerOpen ? "bg-black/20 text-white" : "bg-amber-400 text-black"
+                  }`}
+                >
+                  {pageNotes.length}
+                </span>
+              )}
+            </button>
 
             {/* Apagar grifos da página */}
             {currentPageHighlights.length > 0 && (
@@ -623,100 +795,386 @@ export function PdfViewerModal({
           </div>
         </div>
 
-        {/* Área Central: Visualizador Canvas com Overlay de Grifos */}
-        <div
-          ref={containerRef}
-          className="flex-1 w-full overflow-auto p-3 sm:p-6 flex flex-col items-center justify-center custom-scrollbar relative"
-          style={{ backgroundColor: "#0b1120" }}
-        >
-          {loading ? (
-            <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-slate-400">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-              <span className="text-xs font-medium">Renderizando páginas do PDF...</span>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-rose-400 text-center max-w-sm">
-              <span className="text-sm font-semibold">{error}</span>
-              <div className="flex items-center gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setReloadKey(k => k + 1)}
-                  className="px-3 py-1.5 rounded-xl border text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
-                >
-                  Tentar novamente
-                </button>
-                {actualUrl && (
-                  <a
-                    href={actualUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold bg-blue-600/20 border-blue-500/40 text-blue-400 hover:bg-blue-600/30 transition-all"
+        {/* Área Central: Visualizador Canvas + Bloco de Notas Lateral */}
+        <div className="flex-1 w-full flex overflow-hidden relative" style={{ backgroundColor: "#0b1120" }}>
+          {/* Visualizador Canvas com Overlay de Grifos */}
+          <div
+            ref={containerRef}
+            onClick={() => setActiveHighlightId(null)}
+            className="flex-1 h-full overflow-auto p-3 sm:p-6 flex flex-col items-center justify-center custom-scrollbar relative"
+          >
+            {loading ? (
+              <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-slate-400">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                <span className="text-xs font-medium">Renderizando páginas do PDF...</span>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-rose-400 text-center max-w-sm">
+                <span className="text-sm font-semibold">{error}</span>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setReloadKey(k => k + 1)}
+                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
                   >
-                    Abrir no navegador
-                  </a>
+                    Tentar novamente
+                  </button>
+                  {actualUrl && (
+                    <a
+                      href={actualUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-xl border text-xs font-semibold bg-blue-600/20 border-blue-500/40 text-blue-400 hover:bg-blue-600/30 transition-all"
+                    >
+                      Abrir no navegador
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div
+                className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white shrink-0 my-auto"
+                style={{
+                  width: canvasRef.current?.style?.width || "auto",
+                  height: canvasRef.current?.style?.height || "auto",
+                }}
+              >
+                {/* Canvas da Página PDF */}
+                <canvas
+                  ref={canvasRef}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleMouseUp}
+                  className={isHighlighterActive ? "cursor-crosshair select-none block touch-none" : "select-text block"}
+                />
+
+                {/* Grifos e Post-its Renderizados Sobre a Página */}
+                {currentPageHighlights.map((h, idx) => {
+                  const isSelected = activeHighlightId === h.id;
+                  const theme = POST_IT_THEMES[h.stickyColor] || POST_IT_THEMES.yellow;
+                  const hasNote = Boolean(h.note && h.note.trim());
+
+                  if (h.isStickyNote) {
+                    return (
+                      <div
+                        key={h.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sfx.pop();
+                          setActiveHighlightId(h.id);
+                          setIsNotesDrawerOpen(true);
+                        }}
+                        className={`absolute rounded-xl shadow-lg border p-2 flex flex-col transition-all cursor-pointer group ${
+                          isSelected ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900 z-30 scale-102" : "z-20 hover:scale-101"
+                        }`}
+                        style={{
+                          left: `${h.x * scale}px`,
+                          top: `${h.y * scale}px`,
+                          width: `${Math.max(140, h.width * scale)}px`,
+                          minHeight: `${Math.max(90, h.height * scale)}px`,
+                          backgroundColor: theme.bg,
+                          borderColor: theme.border,
+                          color: theme.text,
+                          boxShadow: isSelected ? "0 10px 25px -5px rgba(0, 0, 0, 0.4)" : "0 4px 12px rgba(0,0,0,0.2)"
+                        }}
+                      >
+                        <div className="flex items-center justify-between pb-1 mb-1 border-b border-black/10 text-[10px] font-bold">
+                          <span className="flex items-center gap-1">
+                            📌 Post-it #{idx + 1}
+                          </span>
+                          <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeHighlight(h.id);
+                              }}
+                              className="p-0.5 rounded hover:bg-black/10 text-rose-700 cursor-pointer"
+                              title="Excluir post-it"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                        <textarea
+                          value={h.note || ""}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => updateHighlightNote(h.id, e.target.value)}
+                          placeholder="Escreva seu post-it..."
+                          className="w-full flex-1 bg-transparent border-0 resize-none outline-none text-xs leading-relaxed font-sans placeholder-black/40 custom-scrollbar"
+                          style={{ color: theme.text }}
+                          rows={3}
+                        />
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={h.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        sfx.pop();
+                        setActiveHighlightId(h.id);
+                        setIsNotesDrawerOpen(true);
+                      }}
+                      className={`absolute cursor-pointer transition-all group ${
+                        isSelected ? "ring-2 ring-amber-400 ring-offset-1 z-20" : "hover:opacity-90 z-10"
+                      }`}
+                      style={{
+                        left: `${h.x * scale}px`,
+                        top: `${h.y * scale}px`,
+                        width: `${h.width * scale}px`,
+                        height: `${h.height * scale}px`,
+                        backgroundColor: h.color,
+                        borderBottom: `2px solid ${h.border}`,
+                        mixBlendMode: "multiply"
+                      }}
+                      title={hasNote ? `Anotação: "${h.note}"` : "Clique para abrir anotação deste grifo"}
+                    >
+                      {/* Mini Pin de Post-it no cantinho do Grifo */}
+                      <div
+                        className="absolute -top-3.5 -right-3 z-30 transition-transform group-hover:scale-115 flex items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          sfx.pop();
+                          setActiveHighlightId(h.id);
+                          setIsNotesDrawerOpen(true);
+                        }}
+                      >
+                        <span
+                          className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-0.5 shadow-md border cursor-pointer ${
+                            hasNote ? "bg-amber-300 text-amber-950 border-amber-400" : "bg-slate-800 text-slate-300 border-slate-600 opacity-60 group-hover:opacity-100"
+                          }`}
+                          title={hasNote ? h.note : "Adicionar anotação a este grifo"}
+                        >
+                          {hasNote ? "📝" : "✏️"}
+                          {hasNote && <span className="max-w-[80px] truncate hidden sm:inline text-[9px]">{h.note}</span>}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Caixa de Grifo Temporária Durante o Arraste */}
+                {isDrawing && currentBox && (
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: `${currentBox.x}px`,
+                      top: `${currentBox.y}px`,
+                      width: `${currentBox.width}px`,
+                      height: `${currentBox.height}px`,
+                      backgroundColor: selectedColor.bg,
+                      border: `1.5px dashed ${selectedColor.border}`,
+                      mixBlendMode: "multiply"
+                    }}
+                  />
                 )}
               </div>
-            </div>
-          ) : (
-            <div
-              className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white shrink-0 my-auto"
-              style={{
-                width: canvasRef.current?.style?.width || "auto",
-                height: canvasRef.current?.style?.height || "auto",
-              }}
+            )}
+          </div>
+
+          {/* Bloco de Notas / Post-its Lateral Retrátil */}
+          {isNotesDrawerOpen && (
+            <aside
+              className="w-full sm:w-80 md:w-96 border-l flex flex-col shadow-2xl z-30 transition-all duration-200 shrink-0"
+              style={{ backgroundColor: T.surface, borderColor: T.border }}
+              onClick={(e) => e.stopPropagation()}
             >
-              {/* Canvas da Página PDF */}
-              <canvas
-                ref={canvasRef}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleMouseUp}
-                className={isHighlighterActive ? "cursor-crosshair select-none block touch-none" : "select-text block"}
-              />
+              {/* Header do Drawer */}
+              <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                    <StickyNote size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold" style={{ color: T.ink }}>Bloco de Post-its</h4>
+                    <p className="text-[10px]" style={{ color: T.inkSoft }}>
+                      {drawerScope === "page" ? `Pág. ${pageNum} (${pageNotes.length} nota(s))` : `Documento todo (${allNotes.length} nota(s))`}
+                    </p>
+                  </div>
+                </div>
 
-              {/* Grifos Persistidos Renderizados Sobre a Página */}
-              {currentPageHighlights.map((h) => (
-                <div
-                  key={h.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm("Deseja remover este grifo?")) {
-                      removeHighlight(h.id);
-                    }
-                  }}
-                  className="absolute cursor-pointer transition-opacity hover:opacity-75 group"
-                  style={{
-                    left: `${h.x * scale}px`,
-                    top: `${h.y * scale}px`,
-                    width: `${h.width * scale}px`,
-                    height: `${h.height * scale}px`,
-                    backgroundColor: h.color,
-                    borderBottom: `2px solid ${h.border}`,
-                    mixBlendMode: "multiply"
-                  }}
-                  title="Clique para remover este grifo"
-                />
-              ))}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleAddPageStickyNote()}
+                    className="px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer active:scale-95 transition-all shadow-xs"
+                    style={{ backgroundColor: T.brand, color: T.brandInk }}
+                    title="Colar novo post-it nesta página"
+                  >
+                    <Plus size={13} />
+                    <span>Post-it</span>
+                  </button>
 
-              {/* Caixa de Grifo Temporária Durante o Arraste */}
-              {isDrawing && currentBox && (
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: `${currentBox.x}px`,
-                    top: `${currentBox.y}px`,
-                    width: `${currentBox.width}px`,
-                    height: `${currentBox.height}px`,
-                    backgroundColor: selectedColor.bg,
-                    border: `1.5px dashed ${selectedColor.border}`,
-                    mixBlendMode: "multiply"
-                  }}
-                />
-              )}
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsNotesDrawerOpen(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white cursor-pointer"
+                    title="Recolher bloco de notas"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filtro: Página Atual vs Documento Inteiro */}
+              <div className="px-3 py-2 border-b flex items-center gap-2 text-xs" style={{ borderColor: T.border, backgroundColor: T.surface }}>
+                <button
+                  type="button"
+                  onClick={() => setDrawerScope("page")}
+                  className={`flex-1 py-1 px-2 rounded-lg font-semibold text-[11px] transition-all cursor-pointer ${
+                    drawerScope === "page" ? "bg-amber-500/20 text-amber-400 border border-amber-500/40" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  Nesta Página ({pageNotes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawerScope("all")}
+                  className={`flex-1 py-1 px-2 rounded-lg font-semibold text-[11px] transition-all cursor-pointer ${
+                    drawerScope === "all" ? "bg-amber-500/20 text-amber-400 border border-amber-500/40" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  No Arquivo ({allNotes.length})
+                </button>
+              </div>
+
+              {/* Lista de Notas / Post-its */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                {displayedNotes.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400 gap-3">
+                    <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                      <StickyNote size={28} />
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-bold text-white mb-1">
+                        {drawerScope === "page" ? "Nenhum post-it nesta página" : "Nenhum post-it no documento"}
+                      </h5>
+                      <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                        Grife um trecho no documento para vincular uma anotação ou cole um post-it solto.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPageStickyNote()}
+                      className="mt-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-300 text-black shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                    >
+                      <Plus size={14} />
+                      <span>+ Colar Novo Post-it</span>
+                    </button>
+                  </div>
+                ) : (
+                  displayedNotes.map((h, i) => {
+                    const isSelected = activeHighlightId === h.id;
+                    const theme = POST_IT_THEMES[h.stickyColor] || (h.border === "#22c55e" ? POST_IT_THEMES.green : h.border === "#a855f7" ? POST_IT_THEMES.purple : h.border === "#ec4899" ? POST_IT_THEMES.pink : POST_IT_THEMES.yellow);
+
+                    return (
+                      <div
+                        key={h.id}
+                        onClick={() => {
+                          setActiveHighlightId(h.id);
+                          if (h.page !== pageNum) handlePageChange(h.page);
+                        }}
+                        className={`rounded-2xl p-3 border transition-all cursor-pointer relative shadow-sm ${
+                          isSelected ? "ring-2 ring-amber-400 shadow-md scale-[1.01]" : "hover:border-slate-500"
+                        }`}
+                        style={{
+                          backgroundColor: theme.bg,
+                          borderColor: isSelected ? "#eab308" : theme.border,
+                          color: theme.text
+                        }}
+                      >
+                        {/* Card Header */}
+                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/10">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base">{h.isStickyNote ? "📌" : "🖍️"}</span>
+                            <span className="text-xs font-bold">
+                              {h.isStickyNote ? `Post-it #${i + 1}` : `Grifo Pág. ${h.page}`}
+                            </span>
+                            {h.page !== pageNum && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-black/10 font-mono font-bold">
+                                Ir p/ Pág. {h.page}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {/* Seletor de Cor do Post-it */}
+                            <div className="flex items-center gap-0.5 bg-black/5 p-0.5 rounded-lg">
+                              {Object.keys(POST_IT_THEMES).map(cKey => (
+                                <button
+                                  key={cKey}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateHighlightNote(h.id, h.note || "", { stickyColor: cKey });
+                                  }}
+                                  className={`w-3.5 h-3.5 rounded-full transition-transform ${
+                                    (h.stickyColor || "yellow") === cKey ? "scale-125 ring-1 ring-black" : "opacity-70 hover:opacity-100"
+                                  }`}
+                                  style={{ backgroundColor: POST_IT_THEMES[cKey].accent }}
+                                  title={`Mudar para ${POST_IT_THEMES[cKey].name}`}
+                                />
+                              ))}
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeHighlight(h.id);
+                              }}
+                              className="p-1 rounded-md hover:bg-black/10 text-rose-700 transition-colors cursor-pointer"
+                              title="Excluir este grifo / post-it"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Textarea para Anotação do Post-it */}
+                        <textarea
+                          value={h.note || ""}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => updateHighlightNote(h.id, e.target.value)}
+                          placeholder={h.isStickyNote ? "Escreva sua anotação aqui..." : "Adicionar anotação vinculada a este grifo..."}
+                          rows={3}
+                          className="w-full bg-transparent border-0 resize-none outline-none text-xs leading-relaxed font-sans placeholder-black/45 custom-scrollbar"
+                          style={{ color: theme.text }}
+                        />
+
+                        {/* Card Footer: Salvar nas Notas do Aluno */}
+                        <div className="flex items-center justify-between pt-2 mt-1 border-t border-black/10 text-[10px]">
+                          <span className="opacity-60 font-mono">
+                            {h.updatedAt ? "Editado recentemente" : "Salvo no PDF"}
+                          </span>
+
+                          {onSaveNote && (h.note && h.note.trim()) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExportPostItToNotes(h);
+                              }}
+                              className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-black/10 hover:bg-black/20 transition-all flex items-center gap-1 cursor-pointer"
+                              title="Exportar esta anotação para o caderno de notas da matéria"
+                            >
+                              <Bookmark size={10} />
+                              <span>Salvar no Caderno</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </aside>
           )}
         </div>
 
