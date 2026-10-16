@@ -1,27 +1,33 @@
-import { callAI, callAIWithTools } from "./ai";
+import { callAI, callAIWithTools, isGeminiActive } from "./ai";
 import { todayISO } from "./utils";
 
-// Limite de segurança pro texto do material: a Groq tem teto de 8.000
-// tokens por pedido no plano gratuito. ~6.000 caracteres fica bem
-// abaixo disso mesmo somando as instruções do prompt.
-const LIMITE_TEXTO_MATERIAL = 6000;
+// Limite do material: O Gemini Flash suporta até 1 milhão de tokens (~4M caracteres),
+// permitindo analisar apostilas inteiras de uma só vez (configurado em 250k caracteres).
+// Para a Groq, mantemos o teto seguro de 6.000 caracteres.
+function getLimiteMaterial() {
+  return isGeminiActive() ? 250000 : 6000;
+}
+
 function truncarMaterial(texto) {
-  if (!texto || texto.length <= LIMITE_TEXTO_MATERIAL) return texto;
-  return texto.slice(0, LIMITE_TEXTO_MATERIAL) + "\n\n(texto truncado — o material original é maior que isso)";
+  const limite = getLimiteMaterial();
+  if (!texto || texto.length <= limite) return texto;
+  return texto.slice(0, limite) + "\n\n(texto truncado — o material original ultrapassou o limite máximo)";
 }
 
 export async function classifyInboxText(text, disciplinasConhecidas) {
   let processableText = text || "";
+  const isGemini = isGeminiActive();
+  const limiteDireto = isGemini ? 150000 : 12000;
   
-  if (processableText.length > 12000) {
-    const chunkLimit = 12000;
+  if (processableText.length > limiteDireto) {
+    const chunkLimit = isGemini ? 100000 : 12000;
     const chunks = [];
     for (let i = 0; i < processableText.length; i += chunkLimit) {
       chunks.push(processableText.slice(i, i + chunkLimit));
     }
     
     let combinedSummary = "";
-    const maxChunks = Math.min(chunks.length, 6);
+    const maxChunks = isGemini ? Math.min(chunks.length, 10) : Math.min(chunks.length, 6);
     for (let i = 0; i < maxChunks; i++) {
       const sysSum = 'Você é um sumarizador especialista acadêmico/universitário. Extraia os principais fatos, conceitos, datas, prazos e compromissos deste trecho do material. Mantenha as datas e disciplinas exatas intactas. Responda apenas com o resumo.';
       const chunkRes = await callAI(sysSum, chunks[i]);
@@ -121,7 +127,8 @@ Seja honesto mas construtivo — não infle a nota.`;
 
 export async function aiParseSyllabus(disciplina, sourceTexts) {
   let texto = sourceTexts || "";
-  if (texto.length > 20000) texto = texto.slice(0, 20000) + "..."; // O Syllabus pode ser grande, mas não gigante
+  const maxSyllabus = isGeminiActive() ? 100000 : 20000;
+  if (texto.length > maxSyllabus) texto = texto.slice(0, maxSyllabus) + "...";
   const sys = "Você é um assistente de estudos. O usuário forneceu o plano de ensino (Syllabus/Ementa) da disciplina " + disciplina + ".\n" +
   "Sua tarefa é extrair todas as datas importantes (provas, trabalhos, seminários, exercícios, entregas) e retornar estritamente um JSON.\n" +
   "O formato DEVE ser um objeto JSON com uma chave 'eventos', que contém um array de objetos.\n" +

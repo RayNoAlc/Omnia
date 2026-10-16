@@ -7070,7 +7070,7 @@ Min.estudados hoje: ${minHoje}`;
           for (const call of response.toolCalls) {
             if (call.function.name === "pintar_materia_pelo_nome") hasPintar = true;
             const result = await executeRoutineTool(call, { userId, routineBlocks, setRoutineBlocks, setRoutineExceptions });
-            convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
+            convo.push({ role: "tool", name: call.function.name, tool_call_id: call.id, content: JSON.stringify(result) });
           }
           
           if (hasPintar) {
@@ -8382,6 +8382,24 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
   useEffect(() => {
     return reactiveBgm.subscribe((s) => setBgmState({ ...s }));
   }, []);
+
+  const [testingAi, setTestingAi] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const handleTestAi = async () => {
+    setTestingAi(true);
+    setTestResult(null);
+    const start = Date.now();
+    try {
+      const res = await callAI("Você é um verificador de conexão do assistente Omnia. Responda apenas com: 'Conectado com sucesso!'", "Teste de conectividade");
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      setTestResult({ ok: true, msg: `Conexão bem-sucedida (${elapsed}s): "${res.trim()}"` });
+    } catch (e) {
+      setTestResult({ ok: false, msg: e.message || String(e) });
+    } finally {
+      setTestingAi(false);
+    }
+  };
   const safeConfig = {
     enableRoutine: true,
     enableHabits: true,
@@ -9117,31 +9135,154 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
       {/* ---------------- 4. ABA IA & FERRAMENTAS ---------------- */}
       {activeCategory === 'integracoes' && (
         <div className="space-y-6">
-          {/* Chave de API Groq */}
+          {/* Provedor e Chaves de Inteligência Artificial */}
           <section className='p-6 rounded-2xl shadow-sm border' style={{ backgroundColor: T.surface, borderColor: T.border }}>
-            <div className='flex items-center gap-3 mb-2'>
-              <Key className='w-5 h-5' style={{ color: T.brand }} />
-              <h3 className='text-lg font-bold' style={{ color: T.ink }}>Inteligência Artificial Pessoal</h3>
+            <div className='flex items-center justify-between mb-3'>
+              <div className='flex items-center gap-3'>
+                <Sparkles className='w-5 h-5 text-amber-400' />
+                <div>
+                  <h3 className='text-lg font-bold' style={{ color: T.ink }}>Motor de Inteligência Artificial</h3>
+                  <p className='text-xs' style={{ color: T.inkSoft }}>Escolha o provedor de IA para resumos, quizzes, visão e assistência acadêmica</p>
+                </div>
+              </div>
+              <span className='px-2.5 py-1 rounded-full text-xs font-semibold' style={{
+                backgroundColor: (safeConfig.aiProvider || 'gemini') === 'gemini' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                color: (safeConfig.aiProvider || 'gemini') === 'gemini' ? '#60a5fa' : '#fbbf24',
+                border: `1px solid ${(safeConfig.aiProvider || 'gemini') === 'gemini' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+              }}>
+                {(safeConfig.aiProvider || 'gemini') === 'gemini' ? '⚡ Google Gemini (Flash)' : '⚡ Groq (Llama 3)'}
+              </span>
             </div>
-            <p className='mb-3 text-xs sm:text-sm' style={{ color: T.inkSoft }}>
-              Insira sua chave de API pessoal da Groq para obter limite de IA exclusivo e velocidade máxima. Se deixar em branco, o Omnia utilizará a infraestrutura padrão.
-            </p>
-            <a href='https://console.groq.com/keys' target='_blank' rel='noopener noreferrer' className='text-xs underline mb-3 inline-block font-semibold' style={{ color: T.brand }}>
-              → Obter chave gratuita em console.groq.com/keys
-            </a>
-            <input
-              type='password'
-              placeholder='gsk_...'
-              value={safeConfig.groqApiKey || ''}
-              onChange={(e) => updateConfig({ ...safeConfig, groqApiKey: e.target.value })}
-              className='w-full p-3 rounded-xl text-sm font-mono'
-              style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
-            />
-            {safeConfig.groqApiKey && (
-              <p className='text-xs mt-2 font-medium flex items-center gap-1 text-emerald-400'>
-                <Check size={14} /> Chave pessoal configurada e ativa
-              </p>
+
+            {/* Abas de Seleção de Provedor */}
+            <div className='grid grid-cols-2 gap-2 mb-4 p-1 rounded-xl' style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}` }}>
+              <button
+                type='button'
+                onClick={() => updateConfig({ ...safeConfig, aiProvider: 'gemini' })}
+                className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                  (safeConfig.aiProvider || 'gemini') === 'gemini'
+                    ? 'shadow-sm'
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+                style={{
+                  backgroundColor: (safeConfig.aiProvider || 'gemini') === 'gemini' ? T.surface : 'transparent',
+                  color: (safeConfig.aiProvider || 'gemini') === 'gemini' ? T.brand : T.inkSoft,
+                  border: (safeConfig.aiProvider || 'gemini') === 'gemini' ? `1px solid ${T.border}` : 'none'
+                }}
+              >
+                <Sparkles size={14} className='text-blue-400' /> Google Gemini (Recomendado)
+              </button>
+              <button
+                type='button'
+                onClick={() => updateConfig({ ...safeConfig, aiProvider: 'groq' })}
+                className={`py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-2 transition-all ${
+                  safeConfig.aiProvider === 'groq'
+                    ? 'shadow-sm'
+                    : 'opacity-70 hover:opacity-100'
+                }`}
+                style={{
+                  backgroundColor: safeConfig.aiProvider === 'groq' ? T.surface : 'transparent',
+                  color: safeConfig.aiProvider === 'groq' ? T.brand : T.inkSoft,
+                  border: safeConfig.aiProvider === 'groq' ? `1px solid ${T.border}` : 'none'
+                }}
+              >
+                <Zap size={14} className='text-amber-400' /> Groq Cloud
+              </button>
+            </div>
+
+            {(safeConfig.aiProvider || 'gemini') === 'gemini' ? (
+              <div className='space-y-3'>
+                <div className='p-3.5 rounded-xl border text-xs leading-relaxed' style={{ backgroundColor: 'rgba(59, 130, 246, 0.08)', borderColor: 'rgba(59, 130, 246, 0.25)', color: T.ink }}>
+                  <p className='font-semibold text-blue-400 mb-1 flex items-center gap-1.5'>
+                    <Sparkles size={14} /> Modelo Ativo: Gemini Flash com Janela de 1 Milhão de Tokens
+                  </p>
+                  Capacidade incomparável para processar apostilas de 50+ páginas, slides completos e áudios com raciocínio de alta precisão. Sua chave do plano Gemini já vem pré-configurada por padrão.
+                </div>
+
+                <div>
+                  <div className='flex items-center justify-between mb-1.5'>
+                    <label className='text-xs font-semibold' style={{ color: T.ink }}>Chave de API do Google Gemini</label>
+                    <a href='https://aistudio.google.com/app/apikey' target='_blank' rel='noopener noreferrer' className='text-xs underline font-semibold' style={{ color: T.brand }}>
+                      → Obter no Google AI Studio
+                    </a>
+                  </div>
+                  <input
+                    type='password'
+                    placeholder='AQ... ou AIzaSy...'
+                    value={safeConfig.geminiApiKey || ''}
+                    onChange={(e) => updateConfig({ ...safeConfig, geminiApiKey: e.target.value })}
+                    className='w-full p-3 rounded-xl text-sm font-mono'
+                    style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
+                  />
+                  <div className='flex items-center justify-between mt-2'>
+                    {safeConfig.geminiApiKey ? (
+                      <p className='text-xs font-medium flex items-center gap-1 text-emerald-400'>
+                        <Check size={14} /> Chave Gemini configurada e pronta para uso
+                      </p>
+                    ) : (
+                      <p className='text-xs font-medium flex items-center gap-1 text-amber-400'>
+                        <Info size={14} /> Cole sua chave do Gemini para obter 1 milhão de tokens de contexto
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className='space-y-3'>
+                <p className='text-xs' style={{ color: T.inkSoft }}>
+                  Insira sua chave de API pessoal da Groq (Llama 3 e Whisper).
+                </p>
+                <div>
+                  <div className='flex items-center justify-between mb-1.5'>
+                    <label className='text-xs font-semibold' style={{ color: T.ink }}>Chave de API da Groq</label>
+                    <a href='https://console.groq.com/keys' target='_blank' rel='noopener noreferrer' className='text-xs underline font-semibold' style={{ color: T.brand }}>
+                      → Obter em console.groq.com/keys
+                    </a>
+                  </div>
+                  <input
+                    type='password'
+                    placeholder='gsk_...'
+                    value={safeConfig.groqApiKey || ''}
+                    onChange={(e) => updateConfig({ ...safeConfig, groqApiKey: e.target.value })}
+                    className='w-full p-3 rounded-xl text-sm font-mono'
+                    style={{ backgroundColor: T.surfaceAlt, color: T.ink, border: `1px solid ${T.border}` }}
+                  />
+                  {safeConfig.groqApiKey && (
+                    <p className='text-xs mt-2 font-medium flex items-center gap-1 text-emerald-400'>
+                      <Check size={14} /> Chave Groq configurada
+                    </p>
+                  )}
+                </div>
+              </div>
             )}
+
+            {/* Botão de teste da IA */}
+            <div className='mt-4 pt-4 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3' style={{ borderColor: T.border }}>
+              <button
+                type='button'
+                onClick={handleTestAi}
+                disabled={testingAi}
+                className='px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all'
+                style={{
+                  backgroundColor: T.surfaceAlt,
+                  color: T.ink,
+                  border: `1px solid ${T.border}`,
+                  opacity: testingAi ? 0.6 : 1
+                }}
+              >
+                {testingAi ? <Loader2 size={14} className='animate-spin text-brand' /> : <Zap size={14} className='text-amber-400' />}
+                {testingAi ? 'Testando conexão...' : '⚡ Testar Conexão com a IA'}
+              </button>
+
+              {testResult && (
+                <div className={`text-xs font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${
+                  testResult.ok ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                }`}>
+                  {testResult.ok ? <Check size={14} /> : <AlertCircle size={14} />}
+                  <span>{testResult.msg}</span>
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Web Clipper & Extensão do Chrome */}

@@ -1,20 +1,41 @@
-import { supabase } from "./supabaseClient";
-
-function getCustomApiKey() {
+export function getAiConfig() {
   try {
     const cfg = JSON.parse(localStorage.getItem('omnia_config') || '{}');
-    return cfg.groqApiKey || null;
+    const provider = cfg.aiProvider || (cfg.groqApiKey && !cfg.geminiApiKey ? 'groq' : 'gemini');
+    let apiKey = null;
+
+    if (provider === 'gemini') {
+      apiKey = cfg.geminiApiKey || null;
+    } else {
+      apiKey = cfg.groqApiKey || null;
+    }
+
+    return {
+      provider,
+      apiKey,
+      model: cfg.aiModel || null,
+    };
   } catch (e) {
-    return null;
+    return {
+      provider: 'gemini',
+      apiKey: null,
+      model: null,
+    };
   }
 }
 
+export function isGeminiActive() {
+  const { provider } = getAiConfig();
+  return provider === 'gemini';
+}
+
 async function invokeAiProxy(body) {
-  const customKey = getCustomApiKey();
-  if (!customKey || customKey.trim() === '') {
-    throw new Error("IA Desativada: Nenhuma chave de API configurada. Por favor, vá até a aba Configurações e cadastre sua chave da Groq para utilizar a IA.");
+  const { provider, apiKey, model } = getAiConfig();
+  if (apiKey) {
+    body.customApiKey = apiKey;
   }
-  body.customApiKey = customKey;
+  body.provider = provider;
+  if (model) body.model = model;
 
   const res = await fetch("/api/ai-proxy", {
     method: "POST",
@@ -23,6 +44,9 @@ async function invokeAiProxy(body) {
   });
   const data = await res.json();
   if (!res.ok) {
+    if (data?.error && (data.error.includes("Nenhuma chave") || data.error.includes("não configurada"))) {
+      throw new Error("IA Desativada: Nenhuma chave de API configurada. Vá até Configurações > Inteligência Artificial para cadastrar sua chave.");
+    }
     throw new Error("Falha na chamada à IA: " + (data.error || "Erro desconhecido"));
   }
   if (data?.error) throw new Error(data.error);
@@ -31,12 +55,10 @@ async function invokeAiProxy(body) {
 
 /**
  * Chamada de texto (classificação, resumo, quiz, Modo Professor, chat).
- * Chama a Edge Function "ai-proxy", que por sua vez chama a API da
- * Groq usando uma chave secreta guardada no servidor (nunca no
- * navegador). Veja supabase/functions/ai-proxy/index.ts.
+ * Utiliza o provedor configurado (Google Gemini por padrão ou Groq).
  */
 export async function callAI(systemPrompt, userText, { json = false } = {}) {
-  const data = await invokeAiProxy({ mode: "text", system: systemPrompt, message: userText });
+  const data = await invokeAiProxy({ mode: "text", system: systemPrompt, message: userText, json });
   const text = data?.text || "";
   if (json) {
     const cleaned = text.replace(/```json|```/g, "").trim();
@@ -57,7 +79,7 @@ export async function callAIWithTools(systemPrompt, messages, tools) {
 
 /**
  * Envia uma imagem (base64, sem o prefixo "data:...") para o modelo
- * de visão da Groq e devolve o texto transcrito/descrito.
+ * de visão (Gemini / Groq) e devolve o texto transcrito/descrito.
  */
 export async function callVision(imageBase64, mimeType, prompt) {
   const data = await invokeAiProxy({ mode: "vision", image: imageBase64, mimeType, prompt });
@@ -65,7 +87,7 @@ export async function callVision(imageBase64, mimeType, prompt) {
 }
 
 /**
- * Envia um áudio (base64) para transcrição via Whisper na Groq.
+ * Envia um áudio (base64) para transcrição via Gemini / Groq Whisper.
  */
 export async function callAudioTranscription(audioBase64, mimeType) {
   const data = await invokeAiProxy({ mode: "audio", audio: audioBase64, mimeType });
