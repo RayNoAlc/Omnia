@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Brain, X, ZoomIn, ZoomOut, RotateCcw, Search, Sparkles, BookOpen,
   FileText, Target, CheckCircle2, Layers, Filter, Compass, Maximize, ExternalLink
@@ -194,11 +195,12 @@ export function MindMapModal({
 
   const handleMouseUp = () => setIsDragging(false);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200" onClick={onClose}>
       <div
         className="w-full max-w-6xl h-[92vh] rounded-3xl flex flex-col shadow-2xl relative border overflow-hidden"
         style={{ backgroundColor: T.surface, borderColor: T.border }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header */}
         <div className="px-5 py-3.5 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
@@ -509,4 +511,9 @@ export function MindMapModal({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 }

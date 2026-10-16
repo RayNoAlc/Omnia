@@ -3993,11 +3993,25 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
         )}
         {showCommunityHub && (
           <CommunitySummariesModal
+            userId={userId}
             summaries={summaries}
+            userSummaries={summaries}
+            notes={notasAcademicas}
+            materials={materials}
+            commitments={commitments}
             onClose={() => setShowCommunityHub(false)}
-            onImportSummary={(imported) => {
+            onImportSummary={async (imported) => {
               if (setSummaries) {
-                setSummaries(prev => [imported, ...(prev || [])]);
+                try {
+                  const saved = await upsertSummary(userId, {
+                    disciplina: imported.disciplina || "Geral",
+                    commitmentId: null,
+                    texto: imported.markdown || imported.texto
+                  });
+                  setSummaries(prev => [saved, ...(prev || [])]);
+                } catch {
+                  setSummaries(prev => [{ id: uid(), disciplina: imported.disciplina || "Geral", texto: imported.markdown || imported.texto }, ...(prev || [])]);
+                }
               }
             }}
             T={T}
