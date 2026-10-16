@@ -37,6 +37,13 @@ async function invokeAiProxy(body) {
   body.provider = provider;
   if (model) body.model = model;
 
+  try {
+    const cfg = JSON.parse(localStorage.getItem('omnia_config') || '{}');
+    if (cfg.groqApiKey) {
+      body.groqFallbackKey = cfg.groqApiKey;
+    }
+  } catch (e) {}
+
   const res = await fetch("/api/ai-proxy", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

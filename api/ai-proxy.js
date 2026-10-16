@@ -7,8 +7,9 @@ const GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview";
 const GROQ_AUDIO_MODEL = "whisper-large-v3";
 
 const GEMINI_MODELS = [
-  "gemini-3.8-flash",
   "gemini-3.1-flash-lite",
+  "gemini-flash-lite-latest",
+  "gemini-3.8-flash",
   "gemini-flash-latest",
 ];
 
@@ -47,10 +48,12 @@ async function callGeminiApi(model, apiKey, payload) {
 
 async function executeGeminiWithFallback(apiKey, payload, preferredModel) {
   const modelsToTry = [
-    preferredModel || "gemini-3.8-flash",
+    preferredModel,
     "gemini-3.1-flash-lite",
+    "gemini-flash-lite-latest",
+    "gemini-3.8-flash",
     "gemini-flash-latest",
-  ].filter((m, idx, arr) => arr.indexOf(m) === idx);
+  ].filter(Boolean).filter((m, idx, arr) => arr.indexOf(m) === idx);
 
   let lastErrorText = "";
   for (const m of modelsToTry) {
@@ -63,6 +66,7 @@ async function executeGeminiWithFallback(apiKey, payload, preferredModel) {
       const errText = await res.text();
       lastErrorText = `(${m}): ${errText}`;
       if (res.status === 503 || res.status === 429 || res.status === 404) {
+        await new Promise((r) => setTimeout(r, 350));
         continue;
       }
       return { ok: false, error: lastErrorText, status: res.status };
@@ -240,6 +244,34 @@ export default async function handler(req) {
 
         const geminiRes = await executeGeminiWithFallback(apiKey, geminiPayload, body.model);
         if (!geminiRes.ok) {
+          const fallbackGroqKey = body.groqFallbackKey || process.env.GROQ_API_KEY;
+          if (fallbackGroqKey) {
+            const chatMessages = [
+              { role: "system", content: system },
+              ...(providedMessages || [{ role: "user", content: message }]),
+            ];
+            const payload = {
+              model: GROQ_TEXT_MODEL,
+              max_tokens: 8192,
+              messages: chatMessages,
+            };
+            if (tools) {
+              payload.tools = tools;
+              payload.tool_choice = "auto";
+            }
+            try {
+              const fRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${fallbackGroqKey}` },
+                body: JSON.stringify(payload),
+              });
+              if (fRes.ok) {
+                const fData = await fRes.json();
+                const fMsg = fData.choices?.[0]?.message || {};
+                return jsonResponse({ text: fMsg.content || "", toolCalls: fMsg.tool_calls || null });
+              }
+            } catch (e) {}
+          }
           return jsonResponse({ error: "Erro da API do Gemini (texto): " + geminiRes.error }, geminiRes.status || 502);
         }
 
