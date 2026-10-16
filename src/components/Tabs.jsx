@@ -2561,6 +2561,11 @@ function MaterialsList({ materiaisDisc, onDeleteMaterial, onOpenPdfViewer }) {
   const [urls, setUrls] = useState({});
 
   async function handleOpen(m) {
+    const isPdf = m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf");
+    if (isPdf && onOpenPdfViewer) {
+      handleOpenPdfHighlight(m);
+      return;
+    }
     if (urls[m.id]) {
       window.open(urls[m.id], "_blank");
       return;
@@ -2577,17 +2582,31 @@ function MaterialsList({ materiaisDisc, onDeleteMaterial, onOpenPdfViewer }) {
   async function handleOpenPdfHighlight(m) {
     try {
       let url = urls[m.id];
-      if (!url) {
+      if (!url && m.storagePath) {
         url = await getMaterialSignedUrl(m.storagePath);
         setUrls((prev) => ({ ...prev, [m.id]: url }));
       }
       if (onOpenPdfViewer) {
-        onOpenPdfViewer({ url, title: m.nomeArquivo, id: m.id, disciplina: m.disciplina });
-      } else {
+        onOpenPdfViewer({
+          url,
+          title: m.nomeArquivo,
+          id: m.id,
+          disciplina: m.disciplina,
+          storagePath: m.storagePath
+        });
+      } else if (url) {
         window.open(url, "_blank");
       }
     } catch {
-      // fallback
+      if (onOpenPdfViewer) {
+        onOpenPdfViewer({
+          url: null,
+          title: m.nomeArquivo,
+          id: m.id,
+          disciplina: m.disciplina,
+          storagePath: m.storagePath
+        });
+      }
     }
   }
 
@@ -3274,6 +3293,29 @@ function CompromissoWorkspaceContent({
     }
   }
   async function handleOpenMaterial(m) {
+    const isPdf = m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf");
+    if (isPdf) {
+      try {
+        const url = await getMaterialSignedUrl(m.storagePath);
+        setViewingPdfModal({
+          url,
+          title: m.nomeArquivo,
+          id: m.id,
+          disciplina: commitment?.disciplina || "Geral",
+          storagePath: m.storagePath
+        });
+        return;
+      } catch {
+        setViewingPdfModal({
+          url: null,
+          title: m.nomeArquivo,
+          id: m.id,
+          disciplina: commitment?.disciplina || "Geral",
+          storagePath: m.storagePath
+        });
+        return;
+      }
+    }
     try {
       const url = await getMaterialSignedUrl(m.storagePath);
       window.open(url, "_blank");
@@ -3408,8 +3450,22 @@ function CompromissoWorkspaceContent({
                       onClick={async () => {
                         try {
                           const url = await getMaterialSignedUrl(m.storagePath);
-                          setViewingPdfModal({ url, title: m.nomeArquivo, id: m.id, disciplina: commitment?.disciplina || "Geral" });
-                        } catch {}
+                          setViewingPdfModal({
+                            url,
+                            title: m.nomeArquivo,
+                            id: m.id,
+                            disciplina: commitment?.disciplina || "Geral",
+                            storagePath: m.storagePath
+                          });
+                        } catch {
+                          setViewingPdfModal({
+                            url: null,
+                            title: m.nomeArquivo,
+                            id: m.id,
+                            disciplina: commitment?.disciplina || "Geral",
+                            storagePath: m.storagePath
+                          });
+                        }
                       }}
                       title="Abrir no Leitor com Grifador"
                       className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 hover:opacity-85 transition-opacity"
@@ -3540,6 +3596,7 @@ function CompromissoWorkspaceContent({
       {viewingPdfModal && (
         <PdfViewerModal
           fileUrl={viewingPdfModal.url}
+          storagePath={viewingPdfModal.storagePath}
           fileName={viewingPdfModal.title}
           materialId={viewingPdfModal.id}
           disciplina={viewingPdfModal.disciplina}
@@ -3917,6 +3974,7 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
         {viewingPdf && (
           <PdfViewerModal
             fileUrl={viewingPdf.url}
+            storagePath={viewingPdf.storagePath}
             fileName={viewingPdf.title}
             materialId={viewingPdf.id}
             disciplina={viewingPdf.disciplina}

@@ -4,6 +4,8 @@ import {
   Highlighter, Eraser, Download, Bookmark, Plus, Loader2, Save, Check
 } from "lucide-react";
 import { pdfjsLib } from "../lib/pdf";
+import { supabase } from "../lib/supabaseClient";
+import { getMaterialSignedUrl } from "../lib/db";
 import { T, PrimaryButton, GhostButton } from "./ui";
 import { sfx } from "../lib/soundEffects";
 
@@ -18,6 +20,7 @@ export function PdfViewerModal({
   fileUrl,
   pdfUrl,
   fileBlob,
+  storagePath,
   fileName = "Documento.pdf",
   pdfTitle,
   materialId = "temp",
@@ -33,6 +36,7 @@ export function PdfViewerModal({
   const [scale, setScale] = useState(1.2);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Ferramentas de grifo
   const [isHighlighterActive, setIsHighlighterActive] = useState(true);
@@ -64,12 +68,70 @@ export function PdfViewerModal({
 
     const loadPdf = async () => {
       try {
-        let loadingTask;
+        let loadingTask = null;
+        let buffer = null;
+
+        // Estratégia 1: fileBlob local
         if (fileBlob) {
-          const buffer = await fileBlob.arrayBuffer();
-          loadingTask = pdfjsLib.getDocument({ data: buffer });
+          buffer = await fileBlob.arrayBuffer();
+        }
+
+        // Estratégia 2: Download direto autenticado do Supabase Storage
+        if (!buffer && storagePath) {
+          try {
+            const { data: blobData, error: dlErr } = await supabase.storage
+              .from("materials")
+              .download(storagePath);
+            if (!dlErr && blobData) {
+              buffer = await blobData.arrayBuffer();
+            }
+          } catch (dlEx) {
+            console.warn("Download direto por storagePath falhou, tentando URLs:", dlEx);
+          }
+        }
+
+        // Estratégia 3: Fetch do arrayBuffer via actualUrl
+        if (!buffer && actualUrl) {
+          try {
+            const resp = await fetch(actualUrl);
+            if (resp.ok) {
+              buffer = await resp.arrayBuffer();
+            }
+          } catch (fetchEx) {
+            console.warn("Fetch direto de actualUrl falhou:", fetchEx);
+          }
+        }
+
+        // Estratégia 4: Gerar nova signedUrl e dar fetch
+        if (!buffer && storagePath) {
+          try {
+            const freshUrl = await getMaterialSignedUrl(storagePath);
+            if (freshUrl) {
+              const resp = await fetch(freshUrl);
+              if (resp.ok) {
+                buffer = await resp.arrayBuffer();
+              }
+            }
+          } catch (signEx) {
+            console.warn("Renovação de signedUrl falhou:", signEx);
+          }
+        }
+
+        const cmapConfig = {
+          cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/cmaps/",
+          cMapPacked: true,
+        };
+
+        if (buffer) {
+          loadingTask = pdfjsLib.getDocument({
+            data: new Uint8Array(buffer),
+            ...cmapConfig,
+          });
         } else if (actualUrl) {
-          loadingTask = pdfjsLib.getDocument(actualUrl);
+          loadingTask = pdfjsLib.getDocument({
+            url: actualUrl,
+            ...cmapConfig,
+          });
         } else {
           throw new Error("Nenhum arquivo ou URL de PDF fornecido.");
         }
@@ -92,7 +154,7 @@ export function PdfViewerModal({
 
     loadPdf();
     return () => { isCancelled = true; };
-  }, [fileUrl, fileBlob]);
+  }, [fileUrl, pdfUrl, fileBlob, storagePath, reloadKey]);
 
   // 2. Renderiza a página atual no canvas
   const renderPage = useCallback(async (doc, num, currentScale) => {
@@ -157,6 +219,33 @@ export function PdfViewerModal({
     const rect = canvasRef.current.getBoundingClientRect();
     const currentX = e.clientX - rect.left;
     const currentY = e.clientY - rect.top;
+
+    const x = Math.min(drawStart.x, currentX);
+    const y = Math.min(drawStart.y, currentY);
+    const width = Math.abs(currentX - drawStart.x);
+    const height = Math.abs(currentY - drawStart.y);
+
+    setCurrentBox({ x, y, width, height });
+  };
+
+  const handleTouchStart = (e) => {
+    if (!isHighlighterActive || !e.touches || !e.touches[0] || !canvasRef.current) return;
+    const touch = e.touches[0];
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    setIsDrawing(true);
+    setDrawStart({ x, y });
+    setCurrentBox({ x, y, width: 0, height: 0 });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDrawing || !isHighlighterActive || !e.touches || !e.touches[0] || !canvasRef.current) return;
+    const touch = e.touches[0];
+    const rect = canvasRef.current.getBoundingClientRect();
+    const currentX = touch.clientX - rect.left;
+    const currentY = touch.clientY - rect.top;
 
     const x = Math.min(drawStart.x, currentX);
     const y = Math.min(drawStart.y, currentY);
@@ -368,8 +457,27 @@ export function PdfViewerModal({
               <span className="text-xs font-medium">Renderizando páginas do PDF...</span>
             </div>
           ) : error ? (
-            <div className="flex flex-col items-center justify-center h-full py-20 gap-2 text-rose-400 text-center max-w-sm">
+            <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-rose-400 text-center max-w-sm">
               <span className="text-sm font-semibold">{error}</span>
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setReloadKey(k => k + 1)}
+                  className="px-3 py-1.5 rounded-xl border text-xs font-semibold bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+                >
+                  Tentar novamente
+                </button>
+                {actualUrl && (
+                  <a
+                    href={actualUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-xl border text-xs font-semibold bg-blue-600/20 border-blue-500/40 text-blue-400 hover:bg-blue-600/30 transition-all"
+                  >
+                    Abrir no navegador
+                  </a>
+                )}
+              </div>
             </div>
           ) : (
             <div className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white">
@@ -379,7 +487,10 @@ export function PdfViewerModal({
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-                className={isHighlighterActive ? "cursor-crosshair select-none block" : "select-text block"}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleMouseUp}
+                className={isHighlighterActive ? "cursor-crosshair select-none block touch-none" : "select-text block"}
               />
 
               {/* Grifos Persistidos Renderizados Sobre a Página */}
