@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import {
   Network, ShieldAlert, Layers, Archive, Lock, Volume2, Square, BarChart, Edit3, MessageCircle, BookHeart, Smile, Search, Maximize, Minimize, Type, PartyPopper, BookOpen, Briefcase, Book, Dumbbell, Utensils, Leaf, Trophy,
   Gamepad2, Calendar, Key, Flame, TrendingUp,
@@ -3622,12 +3623,12 @@ function CompromissoWorkspaceContent({
 function CompromissoWorkspaceModal({
   userId, commitment, notes, materials, summaries, quizAttempts, professorAttempts,
   setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts, onClose, onDeleteCommitment
-  }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ backgroundColor: "rgba(13,25,23,0.65)" }} onClick={onClose}>
+}) {
+  const modal = (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-2 sm:p-4" style={{ backgroundColor: "rgba(13,25,23,0.75)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div
-        className="w-full sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-t-xl sm:rounded-xl p-4"
-        style={{ backgroundColor: T.surface }}
+        className="w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-4 shadow-2xl border"
+        style={{ backgroundColor: T.surface, borderColor: T.border }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-3">
@@ -3640,15 +3641,15 @@ function CompromissoWorkspaceModal({
               {commitment.prazo && <span className="text-xs font-mono" style={{ color: T.inkSoft }}>{formatDateBR(commitment.prazo)}</span>}
             </div>
           </div>
-            <div className="flex items-center gap-4 shrink-0">
-              {onDeleteCommitment && (
-                <button onClick={() => { const ans = prompt("Para excluir permanentemente, digite o nome exato do compromisso:\n\n" + commitment.assunto); if (ans === commitment.assunto) { onDeleteCommitment(commitment.id); onClose(); } else if (ans !== null) { alert("Nome incorreto. Exclusão cancelada."); } }} style={{ color: T.critico }} className="hover:opacity-80 transition-opacity" title="Excluir"><Trash2 className="w-5 h-5" /></button>
-              )}
-              <button onClick={onClose} style={{ color: T.inkSoft }} className="hover:opacity-80 transition-opacity"><X className="w-5 h-5" /></button>
-            </div>
+          <div className="flex items-center gap-4 shrink-0">
+            {onDeleteCommitment && (
+              <button onClick={() => { const ans = prompt("Para excluir permanentemente, digite o nome exato do compromisso:\n\n" + commitment.assunto); if (ans === commitment.assunto) { onDeleteCommitment(commitment.id); onClose(); } else if (ans !== null) { alert("Nome incorreto. Exclusão cancelada."); } }} style={{ color: T.critico }} className="hover:opacity-80 transition-opacity" title="Excluir"><Trash2 className="w-5 h-5" /></button>
+            )}
+            <button onClick={onClose} style={{ color: T.inkSoft }} className="hover:opacity-80 transition-opacity"><X className="w-5 h-5" /></button>
           </div>
-  
-          <CompromissoWorkspaceContent
+        </div>
+
+        <CompromissoWorkspaceContent
           userId={userId} commitment={commitment} notes={notes} materials={materials}
           summaries={summaries} quizAttempts={quizAttempts} professorAttempts={professorAttempts}
           setNotes={setNotes} setMaterials={setMaterials} setSummaries={setSummaries}
@@ -3657,6 +3658,11 @@ function CompromissoWorkspaceModal({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(modal, document.body);
+  }
+  return modal;
 }
 
 function ExportarBiblioteca({ userId, commitments, notes, materials, summaries, disciplinas, semestres }) {

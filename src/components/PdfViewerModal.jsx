@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   FileText, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw,
-  Highlighter, Eraser, Download, Bookmark, Plus, Loader2, Save, Check
+  Highlighter, Eraser, Download, Bookmark, Plus, Loader2, Save, Check,
+  Maximize2, Minimize2
 } from "lucide-react";
 import { pdfjsLib } from "../lib/pdf";
 import { supabase } from "../lib/supabaseClient";
@@ -33,7 +35,9 @@ export function PdfViewerModal({
   const [pdfDoc, setPdfDoc] = useState(null);
   const [numPages, setNumPages] = useState(0);
   const [pageNum, setPageNum] = useState(1);
-  const [scale, setScale] = useState(1.2);
+  const [scale, setScale] = useState(1.0);
+  const [fitMode, setFitMode] = useState("page"); // 'page' | 'width' | 'manual'
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -59,6 +63,29 @@ export function PdfViewerModal({
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const renderTaskRef = useRef(null);
+
+  // Calcula escala de auto-fit baseado no tamanho visível do container
+  const calculateFitScale = useCallback(async (doc, num, mode) => {
+    if (!doc || !containerRef.current) return null;
+    try {
+      const page = await doc.getPage(num);
+      const unscaledViewport = page.getViewport({ scale: 1.0 });
+      const containerW = containerRef.current.clientWidth - 48;
+      const containerH = containerRef.current.clientHeight - 48;
+      if (containerW <= 0 || containerH <= 0) return null;
+
+      const scaleW = containerW / unscaledViewport.width;
+      const scaleH = containerH / unscaledViewport.height;
+
+      if (mode === "width") {
+        return Math.max(0.35, Math.min(2.5, Number(scaleW.toFixed(2))));
+      }
+      // 'page' mode: ajusta tanto largura quanto altura para exibir a página inteira
+      return Math.max(0.35, Math.min(2.5, Number(Math.min(scaleW, scaleH).toFixed(2))));
+    } catch {
+      return null;
+    }
+  }, []);
 
   // 1. Carrega o documento PDF
   useEffect(() => {
@@ -142,6 +169,13 @@ export function PdfViewerModal({
           setNumPages(doc.numPages);
           setPageNum(1);
           setLoading(false);
+
+          // Ajuste inicial inteligente para que a página ou slide caiba perfeitamente
+          const initialFit = await calculateFitScale(doc, 1, "page");
+          if (initialFit) {
+            setScale(initialFit);
+            setFitMode("page");
+          }
         }
       } catch (err) {
         if (!isCancelled) {
@@ -154,9 +188,53 @@ export function PdfViewerModal({
 
     loadPdf();
     return () => { isCancelled = true; };
-  }, [fileUrl, pdfUrl, fileBlob, storagePath, reloadKey]);
+  }, [fileUrl, pdfUrl, fileBlob, storagePath, reloadKey, calculateFitScale]);
 
-  // 2. Renderiza a página atual no canvas
+  // Recalcula a escala em caso de redimensionamento da janela
+  useEffect(() => {
+    const handleResize = async () => {
+      if (fitMode !== "manual" && pdfDoc) {
+        const fit = await calculateFitScale(pdfDoc, pageNum, fitMode);
+        if (fit) setScale(fit);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [pdfDoc, pageNum, fitMode, calculateFitScale]);
+
+  // Navegação de páginas com auto-ajuste de escala
+  const handlePageChange = async (newPage) => {
+    sfx.pop();
+    setPageNum(newPage);
+    if (fitMode !== "manual" && pdfDoc) {
+      const fit = await calculateFitScale(pdfDoc, newPage, fitMode);
+      if (fit) setScale(fit);
+    }
+  };
+
+  // Atalhos de teclado (Setas para trocar páginas, + / - para zoom, Escape para fechar)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "ArrowLeft") {
+        handlePageChange(Math.max(1, pageNum - 1));
+      } else if (e.key === "ArrowRight") {
+        handlePageChange(Math.min(numPages || pageNum, pageNum + 1));
+      } else if (e.key === "+" || e.key === "=") {
+        setFitMode("manual");
+        setScale(s => Math.min(2.5, Number((s + 0.15).toFixed(2))));
+      } else if (e.key === "-") {
+        setFitMode("manual");
+        setScale(s => Math.max(0.35, Number((s - 0.15).toFixed(2))));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [pageNum, numPages, onClose]);
+
+  // 2. Renderiza a página atual no canvas com suporte a High-DPI (Retina/4K)
   const renderPage = useCallback(async (doc, num, currentScale) => {
     if (!doc || !canvasRef.current) return;
 
@@ -170,11 +248,17 @@ export function PdfViewerModal({
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
 
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(viewport.width * dpr);
+      canvas.height = Math.floor(viewport.height * dpr);
+      canvas.style.width = `${Math.floor(viewport.width)}px`;
+      canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+      const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null;
 
       const renderContext = {
         canvasContext: ctx,
+        transform: transform,
         viewport: viewport
       };
 
@@ -182,7 +266,7 @@ export function PdfViewerModal({
       renderTaskRef.current = task;
       await task.promise;
     } catch (err) {
-      if (err.name !== "RenderingCancelledException") {
+      if (err?.name !== "RenderingCancelledException") {
         console.error("Erro ao renderizar página:", err);
       }
     }
@@ -202,7 +286,7 @@ export function PdfViewerModal({
     } catch (e) {}
   };
 
-  // 3. Captura do mouse para desenhar grifos
+  // 3. Captura do mouse / touch para desenhar grifos
   const handleMouseDown = (e) => {
     if (!isHighlighterActive) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -305,13 +389,51 @@ export function PdfViewerModal({
     setTimeout(() => setSavedFeedback(false), 2500);
   };
 
+  const handleFitPage = async () => {
+    sfx.click();
+    setFitMode("page");
+    if (pdfDoc) {
+      const fit = await calculateFitScale(pdfDoc, pageNum, "page");
+      if (fit) setScale(fit);
+    }
+  };
+
+  const handleFitWidth = async () => {
+    sfx.click();
+    setFitMode("width");
+    if (pdfDoc) {
+      const fit = await calculateFitScale(pdfDoc, pageNum, "width");
+      if (fit) setScale(fit);
+    }
+  };
+
+  const handleZoomIn = () => {
+    sfx.pop();
+    setFitMode("manual");
+    setScale((s) => Math.min(2.5, Number((s + 0.15).toFixed(2))));
+  };
+
+  const handleZoomOut = () => {
+    sfx.pop();
+    setFitMode("manual");
+    setScale((s) => Math.max(0.35, Number((s - 0.15).toFixed(2))));
+  };
+
   const currentPageHighlights = highlights.filter(h => h.page === pageNum);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      onClick={onClose}
+    >
       <div
-        className="w-full max-w-5xl h-[94vh] rounded-3xl flex flex-col shadow-2xl relative border overflow-hidden"
+        className={`w-full ${
+          isFullscreen
+            ? "h-full max-w-none rounded-none border-0 m-0"
+            : "max-w-6xl xl:max-w-7xl h-[95vh] rounded-2xl sm:rounded-3xl border"
+        } flex flex-col shadow-2xl relative overflow-hidden transition-all duration-200`}
         style={{ backgroundColor: T.surface, borderColor: T.border }}
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header */}
         <div className="px-5 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
@@ -320,7 +442,7 @@ export function PdfViewerModal({
               <FileText size={18} />
             </div>
             <div className="min-w-0">
-              <h3 className="text-sm font-bold truncate" style={{ color: T.ink }} title={actualName}>
+              <h3 className="text-sm font-bold truncate max-w-xs sm:max-w-md lg:max-w-lg" style={{ color: T.ink }} title={actualName}>
                 {actualName}
               </h3>
               <div className="text-[11px] flex items-center gap-2" style={{ color: T.inkSoft }}>
@@ -337,7 +459,7 @@ export function PdfViewerModal({
             </div>
           </div>
 
-          {/* Barra de Ferramentas de Grifo */}
+          {/* Barra de Ferramentas de Grifo e Visualização */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Seletor de Cores do Grifa-Texto */}
             <div className="flex items-center gap-1.5 p-1 rounded-xl border" style={{ backgroundColor: T.surface, borderColor: T.border }}>
@@ -399,46 +521,87 @@ export function PdfViewerModal({
                 title="Criar anotação com referência a esta página"
               >
                 {savedFeedback ? <Check size={14} /> : <Bookmark size={14} />}
-                <span>{savedFeedback ? "Salvo nas Notas!" : "Anotar Página"}</span>
+                <span className="hidden sm:inline">{savedFeedback ? "Salvo nas Notas!" : "Anotar Página"}</span>
               </button>
             )}
 
-            {/* Zoom */}
+            {/* Controles de Escala / Zoom */}
             <div className="flex items-center gap-1 p-1 rounded-xl border" style={{ backgroundColor: T.surface, borderColor: T.border }}>
               <button
                 type="button"
-                onClick={() => { sfx.pop(); setScale(s => Math.min(2.5, s + 0.2)); }}
-                className="p-1 rounded-lg hover:opacity-80 active:scale-95 transition-all"
-                title="Aumentar zoom"
-                style={{ color: T.ink }}
+                onClick={handleFitPage}
+                className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  fitMode === "page" ? "shadow-xs font-bold" : "hover:opacity-80"
+                }`}
+                style={{
+                  backgroundColor: fitMode === "page" ? `${T.brand}25` : "transparent",
+                  color: fitMode === "page" ? T.brand : T.ink
+                }}
+                title="Ajustar slide/página inteira na tela"
               >
-                <ZoomIn size={14} />
+                Ajustar
               </button>
+
               <button
                 type="button"
-                onClick={() => { sfx.pop(); setScale(s => Math.max(0.6, s - 0.2)); }}
-                className="p-1 rounded-lg hover:opacity-80 active:scale-95 transition-all"
-                title="Diminuir zoom"
+                onClick={handleFitWidth}
+                className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer hidden sm:inline-block ${
+                  fitMode === "width" ? "shadow-xs font-bold" : "hover:opacity-80"
+                }`}
+                style={{
+                  backgroundColor: fitMode === "width" ? `${T.brand}25` : "transparent",
+                  color: fitMode === "width" ? T.brand : T.ink
+                }}
+                title="Ajustar à largura"
+              >
+                Largura
+              </button>
+
+              <div className="w-[1px] h-4 mx-0.5" style={{ backgroundColor: T.border }} />
+
+              <button
+                type="button"
+                onClick={handleZoomOut}
+                className="p-1 rounded-lg hover:opacity-80 active:scale-95 transition-all cursor-pointer"
+                title="Diminuir zoom (-)"
                 style={{ color: T.ink }}
               >
                 <ZoomOut size={14} />
               </button>
+
+              <span className="text-[11px] font-mono px-1 select-none min-w-[3ch] text-center" style={{ color: T.inkSoft }}>
+                {Math.round(scale * 100)}%
+              </span>
+
               <button
                 type="button"
-                onClick={() => { sfx.click(); setScale(1.2); }}
-                className="p-1 rounded-lg hover:opacity-80 active:scale-95 transition-all"
-                title="Zoom padrão"
-                style={{ color: T.inkSoft }}
+                onClick={handleZoomIn}
+                className="p-1 rounded-lg hover:opacity-80 active:scale-95 transition-all cursor-pointer"
+                title="Aumentar zoom (+)"
+                style={{ color: T.ink }}
               >
-                <RotateCcw size={14} />
+                <ZoomIn size={14} />
               </button>
             </div>
 
+            {/* Alternar Tela Cheia */}
+            <button
+              type="button"
+              onClick={() => { sfx.pop(); setIsFullscreen(!isFullscreen); }}
+              className="p-2 rounded-xl border hover:opacity-80 transition-opacity cursor-pointer hidden sm:flex items-center justify-center"
+              style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+              title={isFullscreen ? "Restaurar tamanho normal" : "Tela cheia"}
+            >
+              {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            </button>
+
+            {/* Fechar */}
             <button
               type="button"
               onClick={() => { sfx.click(); onClose(); }}
               className="p-2 rounded-xl border hover:opacity-80 transition-opacity cursor-pointer"
               style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+              title="Fechar leitor (Esc)"
             >
               <X size={16} />
             </button>
@@ -448,7 +611,7 @@ export function PdfViewerModal({
         {/* Área Central: Visualizador Canvas com Overlay de Grifos */}
         <div
           ref={containerRef}
-          className="flex-1 w-full overflow-auto p-4 flex flex-col items-center justify-start custom-scrollbar relative"
+          className="flex-1 w-full overflow-auto p-3 sm:p-6 flex flex-col items-center justify-center custom-scrollbar relative"
           style={{ backgroundColor: "#0b1120" }}
         >
           {loading ? (
@@ -480,7 +643,13 @@ export function PdfViewerModal({
               </div>
             </div>
           ) : (
-            <div className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white">
+            <div
+              className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white shrink-0 my-auto"
+              style={{
+                width: canvasRef.current?.style?.width || "auto",
+                height: canvasRef.current?.style?.height || "auto",
+              }}
+            >
               {/* Canvas da Página PDF */}
               <canvas
                 ref={canvasRef}
@@ -540,16 +709,17 @@ export function PdfViewerModal({
         {numPages > 0 && (
           <div className="px-5 py-2.5 border-t flex items-center justify-between text-xs" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
             <div className="text-[11px] text-slate-400 hidden sm:block">
-              Clique e arraste sobre o texto para grifar. Os grifos ficam salvos automaticamente.
+              Clique e arraste para grifar. Use as setas ← → do teclado para navegar.
             </div>
 
             <div className="flex items-center gap-2 mx-auto sm:mx-0">
               <button
                 type="button"
                 disabled={pageNum <= 1}
-                onClick={() => { sfx.pop(); setPageNum(p => Math.max(1, p - 1)); }}
+                onClick={() => handlePageChange(Math.max(1, pageNum - 1))}
                 className="p-1.5 rounded-lg border disabled:opacity-30 hover:opacity-80 active:scale-95 transition-all cursor-pointer"
                 style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+                title="Página anterior (←)"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -561,9 +731,10 @@ export function PdfViewerModal({
               <button
                 type="button"
                 disabled={pageNum >= numPages}
-                onClick={() => { sfx.pop(); setPageNum(p => Math.min(numPages, p + 1)); }}
+                onClick={() => handlePageChange(Math.min(numPages, pageNum + 1))}
                 className="p-1.5 rounded-lg border disabled:opacity-30 hover:opacity-80 active:scale-95 transition-all cursor-pointer"
                 style={{ backgroundColor: T.surface, borderColor: T.border, color: T.ink }}
+                title="Próxima página (→)"
               >
                 <ChevronRight size={16} />
               </button>
@@ -573,4 +744,9 @@ export function PdfViewerModal({
       </div>
     </div>
   );
+
+  if (typeof document !== "undefined") {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 }
