@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
-  FileText, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw,
+  FileText, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, RotateCw,
   Highlighter, Eraser, Download, Bookmark, Plus, Loader2, Save, Check,
-  Maximize2, Minimize2, StickyNote, Trash2, Pin, MessageSquare, ExternalLink, Sparkles
+  Maximize2, Minimize2, StickyNote, Trash2, Pin, MessageSquare, ExternalLink, Sparkles,
+  Move, Columns
 } from "lucide-react";
 import { pdfjsLib } from "../lib/pdf";
 import { supabase } from "../lib/supabaseClient";
@@ -93,6 +94,10 @@ export function PdfViewerModal({
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [activeHighlightId, setActiveHighlightId] = useState(null);
   const [drawerScope, setDrawerScope] = useState("page"); // "page" | "all"
+
+  // Estado de Arraste e Redimensionamento de Post-its
+  const [dragState, setDragState] = useState(null); // { id, startX, startY, origX, origY, currentX, currentY }
+  const [resizeState, setResizeState] = useState(null); // { id, startX, startY, origW, origH, currentW, currentH }
 
   // Gerador de Resumos e Questões por IA
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -459,20 +464,200 @@ export function PdfViewerModal({
     setCurrentBox(null);
   };
 
-  const updateHighlightNote = (hId, text, extraProps = {}) => {
+  const updateHighlight = (hId, patch = {}) => {
     const updated = highlights.map(h => {
       if (h.id === hId) {
         return {
           ...h,
-          note: text,
+          ...patch,
           updatedAt: new Date().toISOString(),
-          ...extraProps
         };
       }
       return h;
     });
     saveHighlights(updated);
   };
+
+  const updateHighlightNote = (hId, text, extraProps = {}) => {
+    updateHighlight(hId, { note: text, ...extraProps });
+  };
+
+  const ROTATION_PRESETS = [0, 3, -3, 90];
+
+  const handleCycleRotation = (h) => {
+    sfx.pop();
+    const currentRot = h.rotation || 0;
+    const currentIdx = ROTATION_PRESETS.indexOf(currentRot);
+    const nextRot = currentIdx >= 0 && currentIdx < ROTATION_PRESETS.length - 1
+      ? ROTATION_PRESETS[currentIdx + 1]
+      : ROTATION_PRESETS[0];
+
+    updateHighlight(h.id, { rotation: nextRot });
+  };
+
+  const handleToggleOrientation = (h) => {
+    sfx.pop();
+    const curW = h.width || 170;
+    const curH = h.height || 110;
+
+    // Se estiver em modo Paisagem (largura >= altura), inverte para Retrato
+    if (curW >= curH) {
+      updateHighlight(h.id, {
+        width: Math.min(curH, 160),
+        height: Math.max(curW, 210),
+      });
+    } else {
+      // Se estiver em modo Retrato, inverte para Paisagem
+      updateHighlight(h.id, {
+        width: Math.max(curH, 220),
+        height: Math.min(curW, 130),
+      });
+    }
+  };
+
+  const handleTogglePin = (h) => {
+    sfx.pop();
+    const nextPinned = !h.isPinned;
+    updateHighlight(h.id, { isPinned: nextPinned });
+  };
+
+  const handleSetStickyPresetSize = (h, sizeKey) => {
+    sfx.pop();
+    if (sizeKey === "p") {
+      updateHighlight(h.id, { width: 140, height: 95 });
+    } else if (sizeKey === "m") {
+      updateHighlight(h.id, { width: 200, height: 130 });
+    } else if (sizeKey === "g") {
+      updateHighlight(h.id, { width: 280, height: 180 });
+    }
+  };
+
+  const handleStartDragSticky = (e, h) => {
+    if (h.isPinned) return; // Se fixado, bloqueia arraste
+    e.stopPropagation();
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.closest("button")) {
+      return;
+    }
+    const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+    const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+    if (clientX === undefined || clientY === undefined) return;
+
+    setActiveHighlightId(h.id);
+    setDragState({
+      id: h.id,
+      startX: clientX,
+      startY: clientY,
+      origX: h.x,
+      origY: h.y,
+      currentX: h.x,
+      currentY: h.y,
+    });
+  };
+
+  const handleStartResizeSticky = (e, h) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+    const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+    if (clientX === undefined || clientY === undefined) return;
+
+    setActiveHighlightId(h.id);
+    setResizeState({
+      id: h.id,
+      startX: clientX,
+      startY: clientY,
+      origW: h.width || 170,
+      origH: h.height || 110,
+      currentW: h.width || 170,
+      currentH: h.height || 110,
+    });
+  };
+
+  // Efeito global de ponteiro para arraste suave
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handlePointerMove = (e) => {
+      const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+      const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+      if (clientX === undefined || clientY === undefined) return;
+
+      const deltaX = (clientX - dragState.startX) / scale;
+      const deltaY = (clientY - dragState.startY) / scale;
+
+      const maxW = canvasRef.current ? canvasRef.current.clientWidth / scale : 1200;
+      const maxH = canvasRef.current ? canvasRef.current.clientHeight / scale : 1800;
+
+      const newX = Math.max(0, Math.min(maxW - 50, dragState.origX + deltaX));
+      const newY = Math.max(0, Math.min(maxH - 40, dragState.origY + deltaY));
+
+      setDragState(prev => prev ? { ...prev, currentX: newX, currentY: newY } : null);
+    };
+
+    const handlePointerUp = () => {
+      setDragState(prev => {
+        if (prev) {
+          const finalX = prev.currentX !== undefined ? prev.currentX : prev.origX;
+          const finalY = prev.currentY !== undefined ? prev.currentY : prev.origY;
+          updateHighlight(prev.id, { x: finalX, y: finalY });
+          sfx.pop();
+        }
+        return null;
+      });
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [dragState, scale]);
+
+  // Efeito global de ponteiro para redimensionamento suave
+  useEffect(() => {
+    if (!resizeState) return;
+
+    const handlePointerMove = (e) => {
+      const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
+      const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
+      if (clientX === undefined || clientY === undefined) return;
+
+      const deltaW = (clientX - resizeState.startX) / scale;
+      const deltaH = (clientY - resizeState.startY) / scale;
+
+      const newW = Math.max(120, Math.min(700, resizeState.origW + deltaW));
+      const newH = Math.max(70, Math.min(700, resizeState.origH + deltaH));
+
+      setResizeState(prev => prev ? { ...prev, currentW: newW, currentH: newH } : null);
+    };
+
+    const handlePointerUp = () => {
+      setResizeState(prev => {
+        if (prev) {
+          const finalW = prev.currentW !== undefined ? prev.currentW : prev.origW;
+          const finalH = prev.currentH !== undefined ? prev.currentH : prev.origH;
+          updateHighlight(prev.id, { width: finalW, height: finalH });
+          sfx.click();
+        }
+        return null;
+      });
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
+
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
+    };
+  }, [resizeState, scale]);
 
   const handleAddPageStickyNote = (color = selectedColor) => {
     sfx.pop();
@@ -482,13 +667,15 @@ export function PdfViewerModal({
       page: pageNum,
       x: 60 + ((existingCount % 4) * 35),
       y: 60 + ((existingCount % 5) * 55),
-      width: 170,
-      height: 110,
+      width: 180,
+      height: 120,
       isStickyNote: true,
       color: color.bg,
       border: color.border,
       stickyColor: color.id || "yellow",
       note: "",
+      isPinned: false,
+      rotation: 0,
       createdAt: new Date().toISOString()
     };
     const nextH = [...highlights, newSticky];
@@ -892,6 +1079,15 @@ export function PdfViewerModal({
                   const hasNote = Boolean(h.note && h.note.trim());
 
                   if (h.isStickyNote) {
+                    const isDraggingThis = dragState?.id === h.id;
+                    const isResizingThis = resizeState?.id === h.id;
+                    const curX = isDraggingThis ? dragState.currentX : h.x;
+                    const curY = isDraggingThis ? dragState.currentY : h.y;
+                    const curW = isResizingThis ? resizeState.currentW : (h.width || 180);
+                    const curH = isResizingThis ? resizeState.currentH : (h.height || 120);
+                    const rotation = h.rotation || 0;
+                    const isPinned = Boolean(h.isPinned);
+
                     return (
                       <div
                         key={h.id}
@@ -899,49 +1095,126 @@ export function PdfViewerModal({
                           e.stopPropagation();
                           sfx.pop();
                           setActiveHighlightId(h.id);
-                          setIsNotesDrawerOpen(true);
                         }}
-                        className={`absolute rounded-xl shadow-lg border p-2 flex flex-col transition-all cursor-pointer group ${
-                          isSelected ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900 z-30 scale-102" : "z-20 hover:scale-101"
-                        }`}
+                        className={`absolute rounded-2xl border p-2.5 flex flex-col group select-none transition-shadow ${
+                          isSelected
+                            ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900 z-30"
+                            : "z-20 hover:shadow-xl"
+                        } ${isDraggingThis ? "z-50 opacity-95 scale-[1.03]" : ""}`}
                         style={{
-                          left: `${h.x * scale}px`,
-                          top: `${h.y * scale}px`,
-                          width: `${Math.max(140, h.width * scale)}px`,
-                          minHeight: `${Math.max(90, h.height * scale)}px`,
+                          left: `${curX * scale}px`,
+                          top: `${curY * scale}px`,
+                          width: `${Math.max(120, curW * scale)}px`,
+                          height: `${Math.max(70, curH * scale)}px`,
                           backgroundColor: theme.bg,
                           borderColor: theme.border,
                           color: theme.text,
-                          boxShadow: isSelected ? "0 10px 25px -5px rgba(0, 0, 0, 0.4)" : "0 4px 12px rgba(0,0,0,0.2)"
+                          transform: `rotate(${rotation}deg)`,
+                          transformOrigin: "center center",
+                          boxShadow: isDraggingThis
+                            ? "0 22px 35px -5px rgba(0, 0, 0, 0.45), 0 10px 10px -5px rgba(0, 0, 0, 0.2)"
+                            : isSelected
+                            ? "0 10px 25px -5px rgba(0, 0, 0, 0.35)"
+                            : "0 4px 14px rgba(0,0,0,0.18)",
+                          touchAction: "none"
                         }}
                       >
-                        <div className="flex items-center justify-between pb-1 mb-1 border-b border-black/10 text-[10px] font-bold">
-                          <span className="flex items-center gap-1">
-                            📌 Post-it #{idx + 1}
-                          </span>
-                          <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
+                        {/* Alfinete / Pin visual no topo central quando fixado */}
+                        {isPinned && (
+                          <div
+                            className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-40 text-sm drop-shadow-md select-none pointer-events-none"
+                            title="Post-it fixado no local"
+                          >
+                            📌
+                          </div>
+                        )}
+
+                        {/* Barra Superior / Header: Alça de Arraste e Ferramentas */}
+                        <div
+                          onPointerDown={(e) => handleStartDragSticky(e, h)}
+                          className={`flex items-center justify-between pb-1 mb-1 border-b border-black/10 text-[10px] font-bold ${
+                            isPinned ? "cursor-default" : "cursor-grab active:cursor-grabbing hover:bg-black/5"
+                          } rounded px-1 -mx-0.5 transition-colors`}
+                          title={
+                            isPinned
+                              ? "Post-it fixado no local (clique no alfinete para desafixar e mover)"
+                              : "Arraste aqui para mover o post-it pelo documento"
+                          }
+                        >
+                          <div className="flex items-center gap-1 select-none">
+                            {!isPinned && <Move size={11} className="opacity-60" />}
+                            <span>Post-it #{idx + 1}</span>
+                            {rotation !== 0 && (
+                              <span className="font-mono text-[9px] opacity-60">({rotation}°)</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-0.5 opacity-85 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                            {/* Botão de Fixar / Desafixar */}
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeHighlight(h.id);
-                              }}
-                              className="p-0.5 rounded hover:bg-black/10 text-rose-700 cursor-pointer"
+                              onClick={() => handleTogglePin(h)}
+                              className={`p-1 rounded transition-colors cursor-pointer ${
+                                isPinned ? "bg-amber-400 text-amber-950 font-bold shadow-xs" : "hover:bg-black/10 text-black/70"
+                              }`}
+                              title={isPinned ? "Desafixar post-it (permitir mover)" : "Fixar post-it no local (evitar mover)"}
+                            >
+                              <Pin size={11} className={isPinned ? "fill-current" : ""} />
+                            </button>
+
+                            {/* Botão de Girar / Inclinar */}
+                            <button
+                              type="button"
+                              onClick={() => handleCycleRotation(h)}
+                              className="p-1 rounded hover:bg-black/10 text-black/70 transition-colors cursor-pointer"
+                              title={`Girar / Inclinar post-it (atual: ${rotation}°)`}
+                            >
+                              <RotateCw size={11} />
+                            </button>
+
+                            {/* Botão de Alternar Retrato / Paisagem */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleOrientation(h)}
+                              className="p-1 rounded hover:bg-black/10 text-black/70 transition-colors cursor-pointer"
+                              title="Alternar orientação (Retrato ↔ Paisagem)"
+                            >
+                              <Columns size={11} className={curW < curH ? "rotate-90" : ""} />
+                            </button>
+
+                            {/* Botão de Excluir */}
+                            <button
+                              type="button"
+                              onClick={() => removeHighlight(h.id)}
+                              className="p-1 rounded hover:bg-black/10 text-rose-700 transition-colors cursor-pointer"
                               title="Excluir post-it"
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={11} />
                             </button>
                           </div>
                         </div>
+
+                        {/* Textarea para anotação */}
                         <textarea
                           value={h.note || ""}
                           onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
                           onChange={(e) => updateHighlightNote(h.id, e.target.value)}
                           placeholder="Escreva seu post-it..."
-                          className="w-full flex-1 bg-transparent border-0 resize-none outline-none text-xs leading-relaxed font-sans placeholder-black/40 custom-scrollbar"
+                          className="w-full flex-1 bg-transparent border-0 resize-none outline-none text-xs leading-relaxed font-sans placeholder-black/40 custom-scrollbar select-text"
                           style={{ color: theme.text }}
-                          rows={3}
                         />
+
+                        {/* Alça de Redimensionamento no Canto Inferior Direito */}
+                        <div
+                          onPointerDown={(e) => handleStartResizeSticky(e, h)}
+                          className="absolute bottom-0 right-0 w-6 h-6 flex items-end justify-end p-1 cursor-se-resize select-none z-30 group/resize hover:scale-115 active:scale-95 transition-transform"
+                          title="Arraste aqui para redimensionar o post-it"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 10 10" className="text-black/35 group-hover/resize:text-black/80 transition-colors">
+                            <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                          </svg>
+                        </div>
                       </div>
                     );
                   }
@@ -1188,6 +1461,67 @@ export function PdfViewerModal({
                             </button>
                           </div>
                         </div>
+
+                        {/* Controles de Fixação, Orientação e Tamanho do Post-it no Drawer */}
+                        {h.isStickyNote && (
+                          <div
+                            className="flex items-center justify-between gap-1 py-1 px-1.5 rounded-lg bg-black/5 text-[10px] mb-2 flex-wrap"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center gap-1">
+                              {/* Fixar / Desafixar */}
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePin(h)}
+                                className={`px-1.5 py-0.5 rounded font-bold flex items-center gap-1 cursor-pointer transition-colors ${
+                                  h.isPinned ? "bg-amber-400 text-amber-950 shadow-xs" : "bg-black/10 hover:bg-black/15 text-black/80"
+                                }`}
+                                title={h.isPinned ? "Fixado (clique para liberar movimento)" : "Clique para fixar no local"}
+                              >
+                                <Pin size={10} className={h.isPinned ? "fill-current" : ""} />
+                                <span>{h.isPinned ? "Fixado" : "Livre"}</span>
+                              </button>
+
+                              {/* Girar */}
+                              <button
+                                type="button"
+                                onClick={() => handleCycleRotation(h)}
+                                className="px-1.5 py-0.5 rounded font-bold bg-black/10 hover:bg-black/15 text-black/80 flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Girar / Inclinar post-it (0°, 3°, -3°, 90°)"
+                              >
+                                <RotateCw size={10} />
+                                <span>{h.rotation ? `${h.rotation}°` : "0°"}</span>
+                              </button>
+
+                              {/* Orientação Retrato / Paisagem */}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleOrientation(h)}
+                                className="px-1.5 py-0.5 rounded font-bold bg-black/10 hover:bg-black/15 text-black/80 flex items-center gap-1 cursor-pointer transition-colors"
+                                title="Alternar entre Retrato e Paisagem"
+                              >
+                                <Columns size={10} className={(h.width || 180) < (h.height || 120) ? "rotate-90" : ""} />
+                                <span>{(h.width || 180) < (h.height || 120) ? "Retrato" : "Paisagem"}</span>
+                              </button>
+                            </div>
+
+                            {/* Presets de Tamanho */}
+                            <div className="flex items-center gap-0.5">
+                              <span className="opacity-60 text-[9px]">Tam:</span>
+                              {["p", "m", "g"].map((sKey) => (
+                                <button
+                                  key={sKey}
+                                  type="button"
+                                  onClick={() => handleSetStickyPresetSize(h, sKey)}
+                                  className="w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center bg-black/10 hover:bg-black/20 text-black/80 cursor-pointer uppercase transition-colors"
+                                  title={`Tamanho ${sKey.toUpperCase()}`}
+                                >
+                                  {sKey}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Textarea para Anotação do Post-it */}
                         <textarea
