@@ -10,6 +10,7 @@ import { supabase } from "../lib/supabaseClient";
 import { getMaterialSignedUrl } from "../lib/db";
 import { T, PrimaryButton, GhostButton } from "./ui";
 import { sfx } from "../lib/soundEffects";
+import { PdfAiGeneratorModal } from "./PdfAiGeneratorModal";
 
 const HIGHLIGHT_COLORS = [
   { id: "yellow", name: "Amarelo Neon", bg: "rgba(250, 204, 21, 0.42)", border: "#eab308" },
@@ -92,6 +93,18 @@ export function PdfViewerModal({
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
   const [activeHighlightId, setActiveHighlightId] = useState(null);
   const [drawerScope, setDrawerScope] = useState("page"); // "page" | "all"
+
+  // Gerador de Resumos e Questões por IA
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiModalScope, setAiModalScope] = useState("all"); // "single" | "page" | "all" | "custom"
+  const [aiModalTargetId, setAiModalTargetId] = useState(null);
+
+  const handleOpenAiModal = (scope = "all", targetId = null) => {
+    sfx.pop();
+    setAiModalScope(scope);
+    setAiModalTargetId(targetId);
+    setIsAiModalOpen(true);
+  };
 
   const highlightedPages = useMemo(() => {
     return Array.from(new Set(highlights.map(h => h.page))).sort((a, b) => a - b);
@@ -654,6 +667,27 @@ export function PdfViewerModal({
               <span className="hidden sm:inline">+ Post-it</span>
             </button>
 
+            {/* Gerador de Resumos e Questões por IA */}
+            <button
+              type="button"
+              onClick={() => handleOpenAiModal(highlights.some(h => h.page === pageNum) ? "page" : "all")}
+              className="px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+              style={{
+                background: "linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(59, 130, 246, 0.22))",
+                borderColor: "rgba(168, 85, 247, 0.5)",
+                color: "#c084fc",
+              }}
+              title="Gerar resumos, questões ou flashcards por IA baseados em seus grifos e anotações"
+            >
+              <Sparkles size={14} className="text-purple-400" />
+              <span className="hidden sm:inline">Gerar com IA</span>
+              {highlights.length > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-purple-500/30 text-purple-200">
+                  {highlights.length}
+                </span>
+              )}
+            </button>
+
             {/* Botão de Abrir/Fechar Bloco de Notas Lateral */}
             <button
               type="button"
@@ -1044,6 +1078,24 @@ export function PdfViewerModal({
                 </button>
               </div>
 
+              {/* Botão de Geração com IA no Drawer */}
+              <div className="px-3 py-2 border-b" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAiModal(drawerScope === "page" ? "page" : "all")}
+                  className="w-full py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-98 border"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(99, 102, 241, 0.25))",
+                    borderColor: "rgba(168, 85, 247, 0.5)",
+                    color: "#d8b4fe",
+                  }}
+                  title="Gerar resumo ou questões com IA a partir dos grifos e post-its"
+                >
+                  <Sparkles size={13} className="text-purple-400" />
+                  <span>Gerar Resumo ou Questões com IA</span>
+                </button>
+              </div>
+
               {/* Lista de Notas / Post-its */}
               <div className="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
                 {displayedNotes.length === 0 ? (
@@ -1148,11 +1200,20 @@ export function PdfViewerModal({
                           style={{ color: theme.text }}
                         />
 
-                        {/* Card Footer: Salvar nas Notas do Aluno */}
-                        <div className="flex items-center justify-between pt-2 mt-1 border-t border-black/10 text-[10px]">
-                          <span className="opacity-60 font-mono">
-                            {h.updatedAt ? "Editado recentemente" : "Salvo no PDF"}
-                          </span>
+                        {/* Card Footer: Salvar nas Notas do Aluno e Gerar IA */}
+                        <div className="flex items-center justify-between pt-2 mt-1 border-t border-black/10 text-[10px] gap-1 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAiModal("single", h.id);
+                            }}
+                            className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-purple-500/20 hover:bg-purple-500/30 text-purple-900 border border-purple-400/40 transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                            title="Gerar resumo ou questões com IA a partir apenas deste grifo/post-it"
+                          >
+                            <Sparkles size={10} className="text-purple-700" />
+                            <span>IA Desta Nota</span>
+                          </button>
 
                           {onSaveNote && (h.note && h.note.trim()) && (
                             <button
@@ -1240,6 +1301,22 @@ export function PdfViewerModal({
               </button>
             </div>
           </div>
+        )}
+
+        {/* Modal de Geração de Resumos e Questões por IA */}
+        {isAiModalOpen && (
+          <PdfAiGeneratorModal
+            isOpen={isAiModalOpen}
+            onClose={() => setIsAiModalOpen(false)}
+            pdfDoc={pdfDoc}
+            highlights={highlights}
+            currentPage={pageNum}
+            initialScope={aiModalScope}
+            initialHighlightId={aiModalTargetId}
+            fileName={actualName}
+            disciplina={disciplina}
+            onSaveNote={onSaveNote}
+          />
         )}
       </div>
     </div>
