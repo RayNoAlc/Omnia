@@ -140,24 +140,25 @@ export function PdfViewerModal({
   const containerRef = useRef(null);
   const renderTaskRef = useRef(null);
 
-  // Calcula escala de auto-fit baseado no tamanho visível do container
+  // Calcula escala de auto-fit baseado no tamanho visível do container com margem de respiro confortável
   const calculateFitScale = useCallback(async (doc, num, mode) => {
     if (!doc || !containerRef.current) return null;
     try {
       const page = await doc.getPage(num);
       const unscaledViewport = page.getViewport({ scale: 1.0 });
-      const containerW = containerRef.current.clientWidth - 48;
-      const containerH = containerRef.current.clientHeight - 48;
+      const containerW = containerRef.current.clientWidth - 80;
+      const containerH = containerRef.current.clientHeight - 80;
       if (containerW <= 0 || containerH <= 0) return null;
 
       const scaleW = containerW / unscaledViewport.width;
       const scaleH = containerH / unscaledViewport.height;
 
       if (mode === "width") {
-        return Math.max(0.35, Math.min(2.5, Number(scaleW.toFixed(2))));
+        return Math.max(0.35, Math.min(2.0, Number((scaleW * 0.95).toFixed(2))));
       }
-      // 'page' mode: ajusta tanto largura quanto altura para exibir a página inteira
-      return Math.max(0.35, Math.min(2.5, Number(Math.min(scaleW, scaleH).toFixed(2))));
+      // 'page' mode: ajusta tanto largura quanto altura para exibir a página inteira com margem confortável (sem zoom apertado)
+      const pageScale = Math.min(scaleW, scaleH) * 0.88;
+      return Math.max(0.35, Math.min(1.5, Number(pageScale.toFixed(2))));
     } catch {
       return null;
     }
@@ -247,12 +248,23 @@ export function PdfViewerModal({
           setPageNum(targetPage);
           setLoading(false);
 
-          // Ajuste inicial inteligente para que a página ou slide caiba perfeitamente
+          // Ajuste inicial inteligente para que a página caiba confortavelmente na tela
           const initialFit = await calculateFitScale(doc, targetPage, "page");
           if (initialFit) {
             setScale(initialFit);
             setFitMode("page");
           }
+
+          // Recalcula logo após a renderização do layout para garantir proporção perfeita
+          setTimeout(async () => {
+            if (!isCancelled) {
+              const freshFit = await calculateFitScale(doc, targetPage, "page");
+              if (freshFit) {
+                setScale(freshFit);
+                setFitMode("page");
+              }
+            }
+          }, 80);
         }
       } catch (err) {
         if (!isCancelled) {
@@ -538,6 +550,7 @@ export function PdfViewerModal({
       return;
     }
     e.stopPropagation();
+    if (e.cancelable) e.preventDefault();
     const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
     const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
     if (clientX === undefined || clientY === undefined) return;
@@ -556,7 +569,7 @@ export function PdfViewerModal({
 
   const handleStartResizeSticky = (e, h) => {
     e.stopPropagation();
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
 
     const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
     const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
@@ -598,8 +611,8 @@ export function PdfViewerModal({
     const handlePointerUp = () => {
       setDragState(prev => {
         if (prev) {
-          const finalX = prev.currentX !== undefined ? prev.currentX : prev.origX;
-          const finalY = prev.currentY !== undefined ? prev.currentY : prev.origY;
+          const finalX = prev.currentX !== undefined ? Math.round(prev.currentX) : Math.round(prev.origX);
+          const finalY = prev.currentY !== undefined ? Math.round(prev.currentY) : Math.round(prev.origY);
           updateHighlight(prev.id, { x: finalX, y: finalY });
           sfx.pop();
         }
@@ -639,8 +652,8 @@ export function PdfViewerModal({
     const handlePointerUp = () => {
       setResizeState(prev => {
         if (prev) {
-          const finalW = prev.currentW !== undefined ? prev.currentW : prev.origW;
-          const finalH = prev.currentH !== undefined ? prev.currentH : prev.origH;
+          const finalW = prev.currentW !== undefined ? Math.round(prev.currentW) : Math.round(prev.origW);
+          const finalH = prev.currentH !== undefined ? Math.round(prev.currentH) : Math.round(prev.origH);
           updateHighlight(prev.id, { width: finalW, height: finalH });
           sfx.click();
         }
@@ -662,11 +675,37 @@ export function PdfViewerModal({
   const handleAddPageStickyNote = (color = selectedColor) => {
     sfx.pop();
     const existingCount = currentPageHighlights.filter(h => h.isStickyNote).length;
+
+    // Calcula posição inicial visível e centralizada na área que o usuário está olhando
+    let posX = 80;
+    let posY = 100;
+    if (containerRef.current && canvasRef.current) {
+      const containerEl = containerRef.current;
+      const canvasEl = canvasRef.current;
+      const cRect = containerEl.getBoundingClientRect();
+      const cvRect = canvasEl.getBoundingClientRect();
+
+      // Posição visível relativa ao canvas atual
+      const visibleTop = Math.max(0, cRect.top - cvRect.top);
+      const visibleLeft = Math.max(0, cRect.left - cvRect.left);
+      const visibleW = Math.min(cvRect.width, cRect.width);
+      const visibleH = Math.min(cvRect.height, cRect.height);
+
+      const offset = (existingCount % 4) * 20;
+      posX = Math.max(30, ((visibleLeft + visibleW / 2) / scale) - 90 + offset);
+      posY = Math.max(30, ((visibleTop + visibleH / 3) / scale) - 60 + offset);
+
+      const maxCanvasW = canvasEl ? (canvasEl.clientWidth / scale) - 200 : 600;
+      const maxCanvasH = canvasEl ? (canvasEl.clientHeight / scale) - 150 : 800;
+      posX = Math.min(Math.max(20, posX), Math.max(20, maxCanvasW));
+      posY = Math.min(Math.max(20, posY), Math.max(20, maxCanvasH));
+    }
+
     const newSticky = {
       id: Date.now().toString(36),
       page: pageNum,
-      x: 60 + ((existingCount % 4) * 35),
-      y: 60 + ((existingCount % 5) * 55),
+      x: Math.round(posX),
+      y: Math.round(posY),
       width: 180,
       height: 120,
       isStickyNote: true,
@@ -1022,7 +1061,7 @@ export function PdfViewerModal({
           <div
             ref={containerRef}
             onClick={() => setActiveHighlightId(null)}
-            className="flex-1 h-full overflow-auto p-3 sm:p-6 flex flex-col items-center justify-center custom-scrollbar relative"
+            className="flex-1 h-full overflow-auto custom-scrollbar relative"
           >
             {loading ? (
               <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-slate-400">
@@ -1030,9 +1069,9 @@ export function PdfViewerModal({
                 <span className="text-xs font-medium">Renderizando páginas do PDF...</span>
               </div>
             ) : error ? (
-              <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-rose-400 text-center max-w-sm">
+              <div className="flex flex-col items-center justify-center h-full py-20 gap-3 text-rose-400 text-center max-w-sm mx-auto">
                 <span className="text-sm font-semibold">{error}</span>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2 mt-2 justify-center">
                   <button
                     type="button"
                     onClick={() => setReloadKey(k => k + 1)}
@@ -1053,13 +1092,14 @@ export function PdfViewerModal({
                 </div>
               </div>
             ) : (
-              <div
-                className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white shrink-0 my-auto"
-                style={{
-                  width: canvasRef.current?.style?.width || "auto",
-                  height: canvasRef.current?.style?.height || "auto",
-                }}
-              >
+              <div className="min-h-full min-w-full w-max flex flex-col items-center justify-center p-6 sm:p-10">
+                <div
+                  className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white shrink-0"
+                  style={{
+                    width: canvasRef.current?.style?.width || "auto",
+                    height: canvasRef.current?.style?.height || "auto",
+                  }}
+                >
                 {/* Canvas da Página PDF */}
                 <canvas
                   ref={canvasRef}
@@ -1153,6 +1193,16 @@ export function PdfViewerModal({
                           </div>
 
                           <div className="flex items-center gap-0.5 opacity-85 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+                            {/* Botão de Estudo Rápido com IA */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAiModal("single", h.id)}
+                              className="p-1 rounded hover:bg-black/10 text-purple-700 transition-colors cursor-pointer"
+                              title="Gerar resumo ou quiz a partir deste post-it com IA"
+                            >
+                              <Sparkles size={11} className="text-purple-700" />
+                            </button>
+
                             {/* Botão de Fixar / Desafixar */}
                             <button
                               type="button"
@@ -1284,6 +1334,7 @@ export function PdfViewerModal({
                     }}
                   />
                 )}
+                </div>
               </div>
             )}
           </div>

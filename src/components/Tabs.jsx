@@ -12,7 +12,7 @@ import {
   Droplets, Sun, Sprout, Palmtree, Brain, Compass, Award, CalendarClock,
   Coins, ShoppingBag, VolumeX, CloudRain, Coffee, CheckCircle2, Meh, Frown,
   Laugh, Footprints, Zap, Glasses, Copy, Share2, Instagram, Users, Music, Filter, ChevronDown, ChevronUp,
-  Swords, Apple, Cookie, Shield, User, Fingerprint, Highlighter, Hourglass, FlaskConical, PawPrint, QrCode, Bookmark, ExternalLink
+  Swords, Apple, Cookie, Shield, User, Fingerprint, Highlighter, Hourglass, FlaskConical, PawPrint, QrCode, Bookmark, ExternalLink, HelpCircle
 } from 'lucide-react';
 
 import confetti from 'canvas-confetti';
@@ -3343,7 +3343,32 @@ function CompromissoWorkspaceContent({
   const existingSummary = summaries.find((s) => s.commitmentId === commitment.id);
   const quizzesC = quizAttempts.filter((q) => q.commitmentId === commitment.id);
   const profAttemptsC = professorAttempts.filter((p) => p.commitmentId === commitment.id);
-  const sourceTexts = [...notasC.map((n) => n.texto), ...materiaisC.map((m) => m.textoExtraido).filter(Boolean)].join("\n---\n");
+
+  // Seleção personalizada de notas para estudo / geração de resumo e quiz por IA
+  const [selectedNoteIds, setSelectedNoteIds] = useState([]);
+
+  const toggleSelectNote = (id) => {
+    sfx.click();
+    setSelectedNoteIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleStudySingleNote = (n, mode = "resumo") => {
+    sfx.pop();
+    setSelectedNoteIds([n.id]);
+    if (mode === "quiz") {
+      setPanel("quiz");
+    } else {
+      openResumoWithTexts(n.texto);
+    }
+  };
+
+  const selectedNotes = notasC.filter((n) => selectedNoteIds.includes(n.id));
+  const effectiveSourceTexts = selectedNotes.length > 0
+    ? selectedNotes.map((n) => n.texto).join("\n---\n")
+    : [...notasC.map((n) => n.texto), ...materiaisC.map((m) => m.textoExtraido).filter(Boolean)].join("\n---\n");
+  const sourceTexts = effectiveSourceTexts;
   const inputStyle = { backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink };
 
   async function handleAddNote() {
@@ -3487,11 +3512,32 @@ function CompromissoWorkspaceContent({
     setPanel("resumo");
     setResumoSalvo(false);
     setErroSalvarResumo(null);
-    if (existingSummary) { setResumoDraft(existingSummary.texto); return; }
+    if (selectedNotes.length === 0 && existingSummary) {
+      setResumoDraft(existingSummary.texto);
+      return;
+    }
     setResumoLoading(true);
     try {
-      const texto = await aiGenerateSummary(commitment.disciplina, sourceTexts);
-      setResumoDraft(texto);
+      const headerPrefix = selectedNotes.length > 0
+        ? `📌 **Resumo Focado em ${selectedNotes.length} Anotação(ões) Selecionada(s)**\n\n`
+        : "";
+      const texto = await aiGenerateSummary(commitment.disciplina, effectiveSourceTexts);
+      setResumoDraft(headerPrefix + texto);
+    } catch (e) {
+      setResumoDraft("Não foi possível gerar o resumo agora: " + (e.message || String(e)));
+    } finally {
+      setResumoLoading(false);
+    }
+  }
+
+  async function openResumoWithTexts(customText) {
+    setPanel("resumo");
+    setResumoSalvo(false);
+    setErroSalvarResumo(null);
+    setResumoLoading(true);
+    try {
+      const texto = await aiGenerateSummary(commitment.disciplina, customText);
+      setResumoDraft(`📌 **Resumo Focado na Anotação Selecionada**\n\n${texto}`);
     } catch (e) {
       setResumoDraft("Não foi possível gerar o resumo agora: " + (e.message || String(e)));
     } finally {
@@ -3538,7 +3584,73 @@ function CompromissoWorkspaceContent({
     <>
       {/* Anotações */}
       <div className="mb-4">
-        <SectionLabel>Anotações</SectionLabel>
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <SectionLabel>Anotações</SectionLabel>
+          {notasC.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.click();
+                  if (selectedNoteIds.length === notasC.length) {
+                    setSelectedNoteIds([]);
+                  } else {
+                    setSelectedNoteIds(notasC.map((n) => n.id));
+                  }
+                }}
+                className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+              >
+                {selectedNoteIds.length === notasC.length ? "Desmarcar todas" : "Selecionar todas"}
+              </button>
+              {selectedNoteIds.length > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                  {selectedNoteIds.length} selecionada{selectedNoteIds.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Barra de Ações Rápidas da Seleção */}
+        {selectedNoteIds.length > 0 && (
+          <div className="flex items-center justify-between p-2 mb-2 rounded-xl bg-purple-950/40 border border-purple-500/40 text-xs text-purple-200">
+            <span className="font-semibold text-[11px]">
+              ✨ Estudar {selectedNoteIds.length} anotação(ões) marcada(s):
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => openResumo()}
+                className="px-2 py-1 rounded-lg text-[11px] font-bold bg-purple-500/30 text-purple-200 border border-purple-400/40 hover:bg-purple-500/40 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-xs"
+                title="Gerar resumo focado nas anotações selecionadas"
+              >
+                <Sparkles className="w-3 h-3 text-purple-300" />
+                <span>Resumir</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  sfx.pop();
+                  setPanel("quiz");
+                }}
+                className="px-2 py-1 rounded-lg text-[11px] font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 hover:bg-emerald-500/40 transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-xs"
+                title="Gerar quiz focado nas anotações selecionadas"
+              >
+                <BookOpen className="w-3 h-3 text-emerald-300" />
+                <span>Quiz</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedNoteIds([])}
+                className="p-1 rounded-md text-purple-300/70 hover:text-purple-100 hover:bg-white/10 transition-colors cursor-pointer"
+                title="Limpar seleção"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 mb-2">
           <input
             value={newNote}
@@ -3556,24 +3668,43 @@ function CompromissoWorkspaceContent({
           <div className="space-y-1.5">
             {notasC.map((n) => {
               const pdfRef = parsePdfNoteReference(n.texto);
+              const isSelected = selectedNoteIds.includes(n.id);
               return (
                 <div
                   key={n.id}
-                  className={`flex items-start justify-between gap-2 text-sm rounded-xl p-2.5 group transition-all ${
+                  className={`flex items-start justify-between gap-2.5 text-sm rounded-xl p-2.5 group transition-all ${
+                    isSelected ? "ring-2 ring-purple-500/60 shadow-md" : ""
+                  } ${
                     pdfRef ? "border-l-4 border-l-emerald-500 shadow-xs" : ""
                   }`}
                   style={{
-                    backgroundColor: T.surfaceAlt,
-                    border: `1px solid ${pdfRef ? "rgba(16, 185, 129, 0.35)" : T.border}`,
-                    borderLeftColor: pdfRef ? "#10b981" : undefined
+                    backgroundColor: isSelected ? "rgba(168, 85, 247, 0.08)" : T.surfaceAlt,
+                    border: `1px solid ${isSelected ? "rgba(168, 85, 247, 0.5)" : (pdfRef ? "rgba(16, 185, 129, 0.35)" : T.border)}`,
+                    borderLeftColor: pdfRef ? "#10b981" : (isSelected ? "#a855f7" : undefined)
                   }}
                 >
-                  <div className="flex-1 min-w-0">
-                    <span className="block break-words leading-relaxed" style={{ color: T.inkSoft }}>
+                  {/* Checkbox para seleção individual ou múltipla */}
+                  <div className="pt-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleSelectNote(n.id)}
+                      className={`w-4 h-4 rounded flex items-center justify-center transition-colors cursor-pointer ${
+                        isSelected
+                          ? "bg-purple-600 text-white"
+                          : "border border-slate-500/50 hover:border-purple-400 bg-white/5"
+                      }`}
+                      title={isSelected ? "Desmarcar nota" : "Selecionar esta anotação para gerar resumo ou quiz"}
+                    >
+                      {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                    </button>
+                  </div>
+
+                  <div className="flex-1 min-w-0" onClick={() => toggleSelectNote(n.id)}>
+                    <span className="block break-words leading-relaxed cursor-pointer" style={{ color: T.inkSoft }}>
                       {formatTextWithTags(n.texto, T)}
                     </span>
                     {pdfRef && (
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => handleOpenPdfAtPage(pdfRef.fileName, pdfRef.pageNum)}
@@ -3593,6 +3724,31 @@ function CompromissoWorkspaceContent({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                    {/* Botão de Estudo Rápido por IA desta Anotação */}
+                    <button
+                      type="button"
+                      onClick={() => handleStudySingleNote(n, "resumo")}
+                      className="px-2 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer active:scale-95 flex items-center gap-1 shadow-xs"
+                      style={{
+                        backgroundColor: "rgba(168, 85, 247, 0.18)",
+                        border: "1px solid rgba(168, 85, 247, 0.4)",
+                        color: "#c084fc",
+                      }}
+                      title="Gerar resumo exclusivo com IA a partir desta anotação"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span className="hidden sm:inline">IA</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleStudySingleNote(n, "quiz")}
+                      className="p-1 rounded-lg text-emerald-400 hover:bg-emerald-500/10 border border-emerald-500/30 transition-colors cursor-pointer"
+                      title="Gerar quiz com IA a partir desta anotação"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </button>
+
                     {pdfRef && (
                       <button
                         type="button"
@@ -3696,11 +3852,38 @@ function CompromissoWorkspaceContent({
 
       {/* Ações de IA */}
       <div>
-        <SectionLabel>Estudar este compromisso</SectionLabel>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+          <SectionLabel>Estudar este compromisso</SectionLabel>
+          {selectedNotes.length > 0 && (
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
+              Foco em {selectedNotes.length} anotação(ões) selecionada(s)
+            </span>
+          )}
+        </div>
         <div className="flex flex-wrap gap-2 mb-3">
-          <button onClick={openResumo} className="text-xs px-2.5 py-1.5 rounded-md" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Resumo</button>
-          <button onClick={() => setPanel("quiz")} className="text-xs px-2.5 py-1.5 rounded-md" style={{ color: T.brand, border: `1px solid ${T.border}` }}>
-            Quiz {quizzesC.length > 0 && `(${quizzesC[0].acertos}/${quizzesC[0].total} na última)`}
+          <button
+            onClick={openResumo}
+            className="text-xs px-2.5 py-1.5 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-xs"
+            style={{
+              backgroundColor: selectedNotes.length > 0 ? "rgba(168, 85, 247, 0.2)" : undefined,
+              color: selectedNotes.length > 0 ? "#c084fc" : T.brand,
+              border: `1px solid ${selectedNotes.length > 0 ? "rgba(168, 85, 247, 0.5)" : T.border}`
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{selectedNotes.length > 0 ? `Resumo da Seleção (${selectedNotes.length})` : "Resumo"}</span>
+          </button>
+          <button
+            onClick={() => setPanel("quiz")}
+            className="text-xs px-2.5 py-1.5 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-xs"
+            style={{
+              backgroundColor: selectedNotes.length > 0 ? "rgba(16, 185, 129, 0.2)" : undefined,
+              color: selectedNotes.length > 0 ? "#10b981" : T.brand,
+              border: `1px solid ${selectedNotes.length > 0 ? "rgba(16, 185, 129, 0.5)" : T.border}`
+            }}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>{selectedNotes.length > 0 ? `Quiz da Seleção (${selectedNotes.length})` : `Quiz ${quizzesC.length > 0 ? `(${quizzesC[0].acertos}/${quizzesC[0].total} na última)` : ""}`}</span>
           </button>
           <button onClick={openProfessor} className="text-xs px-2.5 py-1.5 rounded-md" style={{ color: T.brand, border: `1px solid ${T.border}` }}>
             Modo Professor {profAttemptsC.length > 0 && `(${profAttemptsC[0].nota}/10 na última)`}
@@ -3763,7 +3946,21 @@ function CompromissoWorkspaceContent({
         )}
 
         {panel === "quiz" && (
-          <QuizPanel disciplina={commitment.disciplina} sourceTexts={sourceTexts} userId={userId} commitmentId={commitment.id} setQuizAttempts={setQuizAttempts} onClose={() => setPanel(null)} />
+          <div className="space-y-2">
+            {selectedNotes.length > 0 && (
+              <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+                <span className="font-semibold">🎯 Gerando perguntas a partir de {selectedNotes.length} anotação(ões) selecionada(s)</span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNoteIds([])}
+                  className="text-[11px] underline opacity-80 hover:opacity-100 cursor-pointer"
+                >
+                  Usar todo o material
+                </button>
+              </div>
+            )}
+            <QuizPanel disciplina={commitment.disciplina} sourceTexts={sourceTexts} userId={userId} commitmentId={commitment.id} setQuizAttempts={setQuizAttempts} onClose={() => setPanel(null)} />
+          </div>
         )}
 
         {panel === "professor" && (
