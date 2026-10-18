@@ -534,10 +534,10 @@ export function PdfViewerModal({
 
   const handleStartDragSticky = (e, h) => {
     if (h.isPinned) return; // Se fixado, bloqueia arraste
-    e.stopPropagation();
-    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.closest("button")) {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.closest("button") || e.target.closest(".resize-handle")) {
       return;
     }
+    e.stopPropagation();
     const clientX = e.clientX !== undefined ? e.clientX : e.touches?.[0]?.clientX;
     const clientY = e.clientY !== undefined ? e.clientY : e.touches?.[0]?.clientY;
     if (clientX === undefined || clientY === undefined) return;
@@ -1091,6 +1091,7 @@ export function PdfViewerModal({
                     return (
                       <div
                         key={h.id}
+                        onPointerDown={(e) => handleStartDragSticky(e, h)}
                         onClick={(e) => {
                           e.stopPropagation();
                           sfx.pop();
@@ -1100,7 +1101,9 @@ export function PdfViewerModal({
                           isSelected
                             ? "ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900 z-30"
                             : "z-20 hover:shadow-xl"
-                        } ${isDraggingThis ? "z-50 opacity-95 scale-[1.03]" : ""}`}
+                        } ${isDraggingThis ? "z-50 opacity-95 scale-[1.03]" : ""} ${
+                          !isPinned ? "cursor-grab active:cursor-grabbing" : ""
+                        }`}
                         style={{
                           left: `${curX * scale}px`,
                           top: `${curY * scale}px`,
@@ -1208,11 +1211,11 @@ export function PdfViewerModal({
                         {/* Alça de Redimensionamento no Canto Inferior Direito */}
                         <div
                           onPointerDown={(e) => handleStartResizeSticky(e, h)}
-                          className="absolute bottom-0 right-0 w-6 h-6 flex items-end justify-end p-1 cursor-se-resize select-none z-30 group/resize hover:scale-115 active:scale-95 transition-transform"
+                          className="resize-handle absolute bottom-0 right-0 w-7 h-7 flex items-end justify-end p-1.5 cursor-se-resize select-none z-30 group/resize hover:scale-125 active:scale-95 transition-transform"
                           title="Arraste aqui para redimensionar o post-it"
                         >
-                          <svg width="10" height="10" viewBox="0 0 10 10" className="text-black/35 group-hover/resize:text-black/80 transition-colors">
-                            <path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                          <svg width="12" height="12" viewBox="0 0 12 12" className="text-black/40 group-hover/resize:text-black/90 transition-colors drop-shadow-xs">
+                            <path d="M11 1L1 11M11 5L5 11M11 9L9 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
                           </svg>
                         </div>
                       </div>
