@@ -1186,10 +1186,10 @@ export function PdfViewerModal({
                         {/* Alfinete / Pin visual no topo central quando fixado */}
                         {isPinned && (
                           <div
-                            className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-40 text-sm drop-shadow-md select-none pointer-events-none"
+                            className="absolute -top-2.5 left-1/2 -translate-x-1/2 z-40 drop-shadow-md select-none pointer-events-none"
                             title="Post-it fixado no local"
                           >
-                            📌
+                            <Pin size={16} className="text-red-500 fill-red-500 drop-shadow" />
                           </div>
                         )}
 
@@ -1332,7 +1332,7 @@ export function PdfViewerModal({
                           }`}
                           title={hasNote ? h.note : "Adicionar anotação a este grifo"}
                         >
-                          {hasNote ? "📝" : "✏️"}
+                          {hasNote ? <MessageSquare size={10} className="shrink-0" /> : <Plus size={10} className="shrink-0" />}
                           {hasNote && <span className="max-w-[80px] truncate hidden sm:inline text-[9px]">{h.note}</span>}
                         </span>
                       </div>
@@ -1492,7 +1492,7 @@ export function PdfViewerModal({
                         {/* Card Header */}
                         <div className="flex items-center justify-between pb-2 mb-2 border-b border-black/10">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-base">{h.isStickyNote ? "📌" : "🖍️"}</span>
+                            {h.isStickyNote ? <Pin size={13} className="text-amber-600 shrink-0" /> : <Highlighter size={13} className="text-yellow-600 shrink-0" />}
                             <span className="text-xs font-bold">
                               {h.isStickyNote ? `Post-it #${i + 1}` : `Grifo Pág. ${h.page}`}
                             </span>

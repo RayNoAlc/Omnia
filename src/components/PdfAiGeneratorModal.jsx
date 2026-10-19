@@ -4,7 +4,8 @@ import {
   Sparkles, X, BookOpen, CheckCircle2, XCircle, HelpCircle,
   RotateCcw, Copy, Check, Bookmark, ArrowRight, ArrowLeft,
   ChevronDown, ChevronUp, FileText, Layers, CheckSquare, Square,
-  Loader2, AlertCircle, RefreshCw, Eye
+  Loader2, AlertCircle, RefreshCw, Eye, Pin, ListChecks,
+  Scale, PenTool, Highlighter, StickyNote, FileEdit, Trophy
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { T } from "./ui";
@@ -412,13 +413,13 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
     sfx.complete();
 
     let textToSave = "";
-    const headerPrefix = `✨ **Material de Estudo Gerado por IA**\n📄 Arquivo: **${fileName}**\n📚 Disciplina: **${disciplina}**\n📅 Data: ${new Date().toLocaleDateString("pt-BR")}\n\n`;
+    const headerPrefix = `**Material de Estudo Gerado por IA**\nArquivo: **${fileName}**\nDisciplina: **${disciplina}**\nData: ${new Date().toLocaleDateString("pt-BR")}\n\n`;
 
     if (typeof generatedResult === "string") {
-      textToSave = `${headerPrefix}## 📝 Resumo dos Grifos & Anotações\n\n${generatedResult}`;
+      textToSave = `${headerPrefix}## Resumo dos Grifos & Anotações\n\n${generatedResult}`;
     } else if (Array.isArray(generatedResult)) {
       if (genType === "quiz") {
-        textToSave = `${headerPrefix}## 🎯 Simulado de Questões\n\n` +
+        textToSave = `${headerPrefix}## Simulado de Questões\n\n` +
           generatedResult
             .map(
               (q, i) =>
@@ -428,17 +429,17 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
             )
             .join("\n\n---\n\n");
       } else if (genType === "vf") {
-        textToSave = `${headerPrefix}## ⚖️ Questões de Verdadeiro ou Falso\n\n` +
+        textToSave = `${headerPrefix}## Questões de Verdadeiro ou Falso\n\n` +
           generatedResult
-            .map((v, i) => `### Afirmação ${i + 1}\n"${v.afirmacao}"\n\n> **Resultado:** ${v.correta ? "✅ VERDADEIRO" : "❌ FALSO"}\n> **Justificativa:** ${v.explicacao}`)
+            .map((v, i) => `### Afirmação ${i + 1}\n"${v.afirmacao}"\n\n> **Resultado:** ${v.correta ? "VERDADEIRO" : "FALSO"}\n> **Justificativa:** ${v.explicacao}`)
             .join("\n\n---\n\n");
       } else if (genType === "discursiva") {
-        textToSave = `${headerPrefix}## ✍️ Questões Discursivas\n\n` +
+        textToSave = `${headerPrefix}## Questões Discursivas\n\n` +
           generatedResult
             .map((d, i) => `### Questão ${i + 1}\n**${d.pergunta}**\n\n*Critérios esperados:* ${d.criterio}\n\n**Resposta Modelo:**\n${d.respostaModelo}`)
             .join("\n\n---\n\n");
       } else if (genType === "flashcards") {
-        textToSave = `${headerPrefix}## 🗂️ Flashcards de Memorização\n\n` +
+        textToSave = `${headerPrefix}## Flashcards de Memorização\n\n` +
           generatedResult.map((f, i) => `**Card #${i + 1}**\n- **Pergunta/Termo:** ${f.frente}\n- **Resposta/Definição:** ${f.verso}`).join("\n\n");
       }
     }
@@ -567,7 +568,9 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                 }`}
                 style={scope !== "single" ? { backgroundColor: T.surface } : {}}
               >
-                <span>📌 Somente Esta</span>
+                <span className="flex items-center gap-1.5 font-bold">
+                  <Pin size={13} className="text-pink-400" /> Somente Esta
+                </span>
                 <span className="text-[10px] font-normal opacity-70">1 anotação específica</span>
               </button>
 
@@ -584,7 +587,9 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                 }`}
                 style={scope !== "page" ? { backgroundColor: T.surface } : {}}
               >
-                <span>📄 Esta Página</span>
+                <span className="flex items-center gap-1.5 font-bold">
+                  <FileText size={13} className="text-blue-400" /> Esta Página
+                </span>
                 <span className="text-[10px] font-normal opacity-70">Pág. {currentPage} ({highlights.filter(h => h.page === currentPage).length})</span>
               </button>
 
@@ -601,7 +606,9 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                 }`}
                 style={scope !== "all" ? { backgroundColor: T.surface } : {}}
               >
-                <span>📚 Todo o Arquivo</span>
+                <span className="flex items-center gap-1.5 font-bold">
+                  <Layers size={13} className="text-emerald-400" /> Todo o Arquivo
+                </span>
                 <span className="text-[10px] font-normal opacity-70">Todas ({highlights.length})</span>
               </button>
 
@@ -618,7 +625,9 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                 }`}
                 style={scope !== "custom" ? { backgroundColor: T.surface } : {}}
               >
-                <span>☑️ Personalizado</span>
+                <span className="flex items-center gap-1.5 font-bold">
+                  <ListChecks size={13} className="text-purple-400" /> Personalizado
+                </span>
                 <span className="text-[10px] font-normal opacity-70">Escolher caixas</span>
               </button>
             </div>
@@ -640,7 +649,7 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                 >
                   {highlights.map((h, i) => (
                     <option key={h.id} value={h.id}>
-                      {h.isStickyNote ? `📌 Post-it Pág. ${h.page}` : `🖍️ Grifo Pág. ${h.page}`}
+                      {h.isStickyNote ? `[Post-it] Pág. ${h.page}` : `[Grifo] Pág. ${h.page}`}
                       {h.note ? ` — "${h.note.slice(0, 45)}${h.note.length > 45 ? "..." : ""}"` : ` (#${i + 1})`}
                     </option>
                   ))}
@@ -651,7 +660,7 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
             {/* Sub-seletor com checkboxes quando scope === "custom" */}
             {scope === "custom" && (
               <div className="pt-2 border-t max-h-40 overflow-y-auto space-y-1.5 custom-scrollbar" style={{ borderColor: T.border }}>
-                {highlights.map((h, i) => {
+                {highlights.map((h) => {
                   const isChecked = selectedHighlightIds.includes(h.id);
                   return (
                     <div
@@ -663,8 +672,9 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                       style={!isChecked ? { backgroundColor: T.surface } : {}}
                     >
                       {isChecked ? <CheckSquare size={14} className="text-purple-400 shrink-0" /> : <Square size={14} className="shrink-0" />}
-                      <span className="font-bold shrink-0">
-                        {h.isStickyNote ? "📌 Post-it" : "🖍️ Grifo"} (Pág. {h.page}):
+                      <span className="font-bold shrink-0 flex items-center gap-1">
+                        {h.isStickyNote ? <StickyNote size={12} className="text-amber-400" /> : <Highlighter size={12} className="text-yellow-400" />}
+                        <span>{h.isStickyNote ? "Post-it" : "Grifo"} (Pág. {h.page}):</span>
                       </span>
                       <span className="truncate flex-1">
                         {h.note || "Trecho destacado no documento"}
@@ -711,7 +721,10 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                 {scannedItems.map((item, idx) => (
                   <div key={idx} className="p-2.5 rounded-xl border text-[11px] space-y-1" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
                     <div className="flex items-center justify-between font-bold text-purple-400">
-                      <span>{item.isStickyNote ? "📌 Post-it" : "🖍️ Trecho Grifado"} — Página {item.page}</span>
+                      <span className="flex items-center gap-1.5">
+                        {item.isStickyNote ? <StickyNote size={13} className="text-amber-400" /> : <Highlighter size={13} className="text-yellow-400" />}
+                        <span>{item.isStickyNote ? "Post-it" : "Trecho Grifado"} — Página {item.page}</span>
+                      </span>
                     </div>
                     {item.extractedText && (
                       <p className="text-slate-300 italic bg-black/20 p-1.5 rounded-lg border border-black/10">
@@ -719,8 +732,10 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                       </p>
                     )}
                     {item.userNote && (
-                      <p className="text-amber-300 font-medium">
-                        📝 Anotação do Aluno: <span className="text-slate-200">{item.userNote}</span>
+                      <p className="text-amber-300 font-medium flex items-center gap-1.5">
+                        <FileEdit size={12} className="shrink-0 text-amber-400" />
+                        <span>Anotação do Aluno:</span>
+                        <span className="text-slate-200">{item.userNote}</span>
                       </p>
                     )}
                     {!item.extractedText && !item.userNote && (
@@ -740,35 +755,38 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
 
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {[
-                { id: "resumo", label: "Resumo Estruturado", icon: "📝", desc: "Síntese didática" },
-                { id: "quiz", label: "Quiz Múltipla Escolha", icon: "🎯", desc: "5 questões com gabarito" },
-                { id: "vf", label: "Verdadeiro / Falso", icon: "⚖️", desc: "5 itens de fixação" },
-                { id: "discursiva", label: "Questões Discursivas", icon: "✍️", desc: "3 abertas com resposta" },
-                { id: "flashcards", label: "Flashcards", icon: "🗂️", desc: "Memorização ativa" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    sfx.click();
-                    setGenType(tab.id);
-                  }}
-                  className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                    genType === tab.id
-                      ? "bg-gradient-to-b from-purple-500/25 to-indigo-500/25 border-purple-500 shadow-md ring-1 ring-purple-400"
-                      : "border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white"
-                  }`}
-                  style={genType !== tab.id ? { backgroundColor: T.surfaceAlt } : {}}
-                >
-                  <span className="text-lg">{tab.icon}</span>
-                  <span className={`text-xs font-bold ${genType === tab.id ? "text-purple-300" : ""}`}>
-                    {tab.label}
-                  </span>
-                  <span className="text-[10px] opacity-60 leading-tight">
-                    {tab.desc}
-                  </span>
-                </button>
-              ))}
+                { id: "resumo", label: "Resumo Estruturado", icon: FileText, color: "text-blue-400", desc: "Síntese didática" },
+                { id: "quiz", label: "Quiz Múltipla Escolha", icon: HelpCircle, color: "text-pink-400", desc: "5 questões com gabarito" },
+                { id: "vf", label: "Verdadeiro / Falso", icon: Scale, color: "text-amber-400", desc: "5 itens de fixação" },
+                { id: "discursiva", label: "Questões Discursivas", icon: PenTool, color: "text-emerald-400", desc: "3 abertas com resposta" },
+                { id: "flashcards", label: "Flashcards", icon: Sparkles, color: "text-purple-400", desc: "Memorização ativa" },
+              ].map((tab) => {
+                const IconComponent = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      sfx.click();
+                      setGenType(tab.id);
+                    }}
+                    className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer ${
+                      genType === tab.id
+                        ? "bg-gradient-to-b from-purple-500/25 to-indigo-500/25 border-purple-500 shadow-md ring-1 ring-purple-400"
+                        : "border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white"
+                    }`}
+                    style={genType !== tab.id ? { backgroundColor: T.surfaceAlt } : {}}
+                  >
+                    <IconComponent size={20} className={tab.color} />
+                    <span className={`text-xs font-bold ${genType === tab.id ? "text-purple-300" : ""}`}>
+                      {tab.label}
+                    </span>
+                    <span className="text-[10px] opacity-60 leading-tight">
+                      {tab.desc}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -933,8 +951,8 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                       {/* Caixa de Explicação Pedagógica (aparece após responder) */}
                       {quizAnswers[currentQuizIndex] !== undefined && (
                         <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-xs leading-relaxed animate-fadeIn space-y-1">
-                          <span className="font-bold text-purple-300 flex items-center gap-1">
-                            💡 Explicação Pedagógica:
+                          <span className="font-bold text-purple-300 flex items-center gap-1.5">
+                            <Sparkles size={13} className="text-amber-400" /> Explicação Pedagógica:
                           </span>
                           <p className="text-slate-300">
                             {generatedResult[currentQuizIndex].explicacao}
@@ -975,7 +993,9 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                   {/* Resumo Final de Pontuação quando concluído */}
                   {isQuizFinished && (
                     <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/20 to-emerald-500/20 border border-purple-500/40 text-center space-y-2 animate-scaleIn">
-                      <span className="text-2xl">🎉</span>
+                      <div className="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-1">
+                        <Trophy size={20} />
+                      </div>
                       <h4 className="text-sm font-bold text-white">Quiz Concluído!</h4>
                       <p className="text-xs text-slate-300">
                         Você acertou{" "}
@@ -1068,8 +1088,9 @@ Responda EXCLUSIVAMENTE em JSON válido, sem nenhum texto ou bloco markdown ao r
                                 : "bg-rose-500/10 border-rose-500/30 text-rose-200"
                             }`}
                           >
-                            <span className="font-bold">
-                              {isRight ? "✓ Acertou!" : "✗ Incorreto!"} Gabarito: {v.correta ? "Verdadeiro" : "Falso"}.
+                            <span className="font-bold flex items-center gap-1.5">
+                              {isRight ? <CheckCircle2 size={13} className="text-emerald-400 inline shrink-0" /> : <XCircle size={13} className="text-rose-400 inline shrink-0" />}
+                              <span>{isRight ? "Acertou!" : "Incorreto!"} Gabarito: {v.correta ? "Verdadeiro" : "Falso"}.</span>
                             </span>{" "}
                             {v.explicacao}
                           </div>

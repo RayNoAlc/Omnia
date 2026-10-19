@@ -3521,7 +3521,7 @@ function CompromissoWorkspaceContent({
     setResumoLoading(true);
     try {
       const headerPrefix = selectedNotes.length > 0
-        ? `📌 **Resumo Focado em ${selectedNotes.length} Anotação(ões) Selecionada(s)**\n\n`
+        ? `**Resumo Focado em ${selectedNotes.length} Anotação(ões) Selecionada(s)**\n\n`
         : "";
       const texto = await aiGenerateSummary(commitment.disciplina, effectiveSourceTexts);
       setResumoDraft(headerPrefix + texto);
@@ -3539,7 +3539,7 @@ function CompromissoWorkspaceContent({
     setResumoLoading(true);
     try {
       const texto = await aiGenerateSummary(commitment.disciplina, customText);
-      setResumoDraft(`📌 **Resumo Focado na Anotação Selecionada**\n\n${texto}`);
+      setResumoDraft(`**Resumo Focado na Anotação Selecionada**\n\n${texto}`);
     } catch (e) {
       setResumoDraft("Não foi possível gerar o resumo agora: " + (e.message || String(e)));
     } finally {
@@ -3616,8 +3616,9 @@ function CompromissoWorkspaceContent({
         {/* Barra de Ações Rápidas da Seleção */}
         {selectedNoteIds.length > 0 && (
           <div className="flex items-center justify-between p-2 mb-2 rounded-xl bg-purple-950/40 border border-purple-500/40 text-xs text-purple-200">
-            <span className="font-semibold text-[11px]">
-              ✨ Estudar {selectedNoteIds.length} anotação(ões) marcada(s):
+            <span className="font-semibold text-[11px] flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-purple-300" />
+              <span>Estudar {selectedNoteIds.length} anotação(ões) marcada(s):</span>
             </span>
             <div className="flex items-center gap-1.5">
               <button
@@ -3932,7 +3933,10 @@ function CompromissoWorkspaceContent({
           <div className="space-y-2">
             {selectedNotes.length > 0 && (
               <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
-                <span className="font-semibold">🎯 Gerando perguntas a partir de {selectedNotes.length} anotação(ões) selecionada(s)</span>
+                <span className="font-semibold flex items-center gap-1.5">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  <span>Gerando perguntas a partir de {selectedNotes.length} anotação(ões) selecionada(s)</span>
+                </span>
                 <button
                   type="button"
                   onClick={() => setSelectedNoteIds([])}
