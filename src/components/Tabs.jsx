@@ -108,9 +108,9 @@ export function formatTextWithTags(text, T) {
 export function parsePdfNoteReference(text) {
   if (!text || typeof text !== "string") return null;
 
-  // Formato padrão gerado pelo Omnia no Leitor de PDF:
+  // Formato padrão gerado pelo Omnia no Leitor de PDF com ou sem emoji:
   // 🔖 Anotação do documento: **nome_arquivo.pdf** (Pág. 1)
-  const regexPrincipal = /(?:Anotação do documento|Documento):\s*\*\*([^*]+)\*\*\s*\((?:Pág\.?|Página)\s*(\d+)\)/i;
+  const regexPrincipal = /(?:Anotação(?:\s+do)?\s+documento|Documento)?[:\s]*\*\*([^*]+?\.(?:pdf|PDF))\*\*[^(]*\((?:Pág\.?|Página|pág\.?|p\.)\s*(\d+)\)/i;
   const match1 = text.match(regexPrincipal);
   if (match1) {
     return {
@@ -119,13 +119,13 @@ export function parsePdfNoteReference(text) {
     };
   }
 
-  // Variações com nome de PDF e indicação de página
-  const docMatch = text.match(/\*\*([^*]+\.pdf)\*\*/i) || text.match(/([a-zA-Z0-9_\-.,+]+\.pdf)/i);
-  const pageMatch = text.match(/(?:pág\.?|página)\s*(\d+)/i);
-  if (docMatch && pageMatch) {
+  // Variação 2: menção em negrito ou direta de arquivo .pdf com indicação de página
+  const docMatch = text.match(/\*\*([^*]+?\.(?:pdf|PDF))\*\*/i) || text.match(/([a-zA-Z0-9_\-.,+@#%]+\.pdf)/i);
+  const pageMatch = text.match(/(?:pág\.?|página|pag\.?|p\.)\s*(\d+)/i);
+  if (docMatch) {
     return {
       fileName: docMatch[1].trim(),
-      pageNum: parseInt(pageMatch[1], 10) || 1,
+      pageNum: pageMatch ? (parseInt(pageMatch[1], 10) || 1) : 1,
     };
   }
 
@@ -2607,34 +2607,34 @@ function MaterialsList({ materiaisDisc, onDeleteMaterial, onOpenPdfViewer }) {
     }
   }
 
-  async function handleOpenPdfHighlight(m) {
-    try {
-      let url = urls[m.id];
-      if (!url && m.storagePath) {
-        url = await getMaterialSignedUrl(m.storagePath);
-        setUrls((prev) => ({ ...prev, [m.id]: url }));
-      }
-      if (onOpenPdfViewer) {
-        onOpenPdfViewer({
-          url,
-          title: m.nomeArquivo,
-          id: m.id,
-          disciplina: m.disciplina,
-          storagePath: m.storagePath
-        });
-      } else if (url) {
-        window.open(url, "_blank");
-      }
-    } catch {
-      if (onOpenPdfViewer) {
-        onOpenPdfViewer({
-          url: null,
-          title: m.nomeArquivo,
-          id: m.id,
-          disciplina: m.disciplina,
-          storagePath: m.storagePath
-        });
-      }
+  function handleOpenPdfHighlight(m) {
+    sfx.pop();
+    if (onOpenPdfViewer) {
+      onOpenPdfViewer({
+        url: urls[m.id] || null,
+        title: m.nomeArquivo,
+        id: m.id,
+        disciplina: m.disciplina,
+        storagePath: m.storagePath,
+        initialPage: 1
+      });
+    }
+    if (!urls[m.id] && m.storagePath) {
+      getMaterialSignedUrl(m.storagePath).then((url) => {
+        if (url) {
+          setUrls((prev) => ({ ...prev, [m.id]: url }));
+          if (onOpenPdfViewer) {
+            onOpenPdfViewer({
+              url,
+              title: m.nomeArquivo,
+              id: m.id,
+              disciplina: m.disciplina,
+              storagePath: m.storagePath,
+              initialPage: 1
+            });
+          }
+        }
+      }).catch(() => {});
     }
   }
 
@@ -3059,13 +3059,17 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
     }
   }
 
-  async function handleOpenPdfAtPage(docName, targetPage = 1) {
+  function handleOpenPdfAtPage(docName, targetPage = 1) {
     if (!onOpenPdfViewer) return;
-    const cleanName = (docName || "").trim().toLowerCase();
+    const rawClean = (docName || "").trim().toLowerCase();
+    const simpleClean = rawClean.replace(/\.pdf$/i, "").replace(/[^\w]/g, "");
+
     const mat = (materiaisDisc || []).find(m => {
       const mName = (m.nomeArquivo || "").trim().toLowerCase();
       const isPdf = m.tipoArquivo === "pdf" || mName.endsWith(".pdf");
-      return isPdf && (mName === cleanName || mName.includes(cleanName) || cleanName.includes(mName));
+      if (!isPdf) return false;
+      const mSimple = mName.replace(/\.pdf$/i, "").replace(/[^\w]/g, "");
+      return mName === rawClean || mName.includes(rawClean) || rawClean.includes(mName) || (simpleClean && mSimple.includes(simpleClean));
     }) || (materiaisDisc || []).find(m => m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf"));
 
     if (!mat) {
@@ -3074,25 +3078,28 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
     }
 
     sfx.pop();
-    try {
-      const url = await getMaterialSignedUrl(mat.storagePath);
-      onOpenPdfViewer({
-        url,
-        title: mat.nomeArquivo,
-        id: mat.id,
-        disciplina: mat.disciplina || disc || "Geral",
-        storagePath: mat.storagePath,
-        initialPage: Number(targetPage) || 1
-      });
-    } catch {
-      onOpenPdfViewer({
-        url: null,
-        title: mat.nomeArquivo,
-        id: mat.id,
-        disciplina: mat.disciplina || disc || "Geral",
-        storagePath: mat.storagePath,
-        initialPage: Number(targetPage) || 1
-      });
+    onOpenPdfViewer({
+      url: null,
+      title: mat.nomeArquivo,
+      id: mat.id,
+      disciplina: mat.disciplina || disc || "Geral",
+      storagePath: mat.storagePath,
+      initialPage: Number(targetPage) || 1
+    });
+
+    if (mat.storagePath) {
+      getMaterialSignedUrl(mat.storagePath).then((url) => {
+        if (url) {
+          onOpenPdfViewer({
+            url,
+            title: mat.nomeArquivo,
+            id: mat.id,
+            disciplina: mat.disciplina || disc || "Geral",
+            storagePath: mat.storagePath,
+            initialPage: Number(targetPage) || 1
+          });
+        }
+      }).catch(() => {});
     }
   }
 
@@ -3430,54 +3437,53 @@ function CompromissoWorkspaceContent({
       setExtracting(null);
     }
   }
-  async function handleOpenMaterial(m) {
+  function handleOpenMaterial(m) {
     const isPdf = m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf");
     if (isPdf) {
-      try {
-        const url = await getMaterialSignedUrl(m.storagePath);
-        setViewingPdfModal({
-          url,
-          title: m.nomeArquivo,
-          id: m.id,
-          disciplina: commitment?.disciplina || "Geral",
-          storagePath: m.storagePath
-        });
-        return;
-      } catch {
-        setViewingPdfModal({
-          url: null,
-          title: m.nomeArquivo,
-          id: m.id,
-          disciplina: commitment?.disciplina || "Geral",
-          storagePath: m.storagePath
-        });
-        return;
+      sfx.pop();
+      setViewingPdfModal({
+        url: null,
+        title: m.nomeArquivo,
+        id: m.id,
+        disciplina: commitment?.disciplina || "Geral",
+        storagePath: m.storagePath,
+        initialPage: 1
+      });
+      if (m.storagePath) {
+        getMaterialSignedUrl(m.storagePath).then((resolvedUrl) => {
+          if (resolvedUrl) {
+            setViewingPdfModal((prev) => (prev && prev.id === m.id ? { ...prev, url: resolvedUrl } : prev));
+          }
+        }).catch(() => {});
       }
+      return;
     }
-    try {
-      const url = await getMaterialSignedUrl(m.storagePath);
-      window.open(url, "_blank");
-    } catch {
-      // link não abriu, sem problema
-    }
+    getMaterialSignedUrl(m.storagePath).then((url) => {
+      if (url) window.open(url, "_blank");
+    }).catch(() => {});
   }
   async function handleDeleteMaterial(m) {
     await deleteMaterial(m.id, m.storagePath);
     setMaterials((prev) => prev.filter((x) => x.id !== m.id));
   }
 
-  async function handleOpenPdfAtPage(docName, targetPage = 1) {
-    const cleanName = (docName || "").trim().toLowerCase();
+  function handleOpenPdfAtPage(docName, targetPage = 1) {
+    const rawClean = (docName || "").trim().toLowerCase();
+    const simpleClean = rawClean.replace(/\.pdf$/i, "").replace(/[^\w]/g, "");
     
     // Procura primeiro nos materiais deste compromisso, depois em todos os materiais
     const mat = (materiaisC || []).find(m => {
       const mName = (m.nomeArquivo || "").trim().toLowerCase();
       const isPdf = m.tipoArquivo === "pdf" || mName.endsWith(".pdf");
-      return isPdf && (mName === cleanName || mName.includes(cleanName) || cleanName.includes(mName));
+      if (!isPdf) return false;
+      const mSimple = mName.replace(/\.pdf$/i, "").replace(/[^\w]/g, "");
+      return mName === rawClean || mName.includes(rawClean) || rawClean.includes(mName) || (simpleClean && mSimple.includes(simpleClean));
     }) || (materials || []).find(m => {
       const mName = (m.nomeArquivo || "").trim().toLowerCase();
       const isPdf = m.tipoArquivo === "pdf" || mName.endsWith(".pdf");
-      return isPdf && (mName === cleanName || mName.includes(cleanName) || cleanName.includes(mName));
+      if (!isPdf) return false;
+      const mSimple = mName.replace(/\.pdf$/i, "").replace(/[^\w]/g, "");
+      return mName === rawClean || mName.includes(rawClean) || rawClean.includes(mName) || (simpleClean && mSimple.includes(simpleClean));
     }) || (materiaisC || []).find(m => m.tipoArquivo === "pdf" || (m.nomeArquivo || "").toLowerCase().endsWith(".pdf"));
 
     if (!mat) {
@@ -3486,25 +3492,21 @@ function CompromissoWorkspaceContent({
     }
 
     sfx.pop();
-    try {
-      const url = await getMaterialSignedUrl(mat.storagePath);
-      setViewingPdfModal({
-        url,
-        title: mat.nomeArquivo,
-        id: mat.id,
-        disciplina: mat.disciplina || commitment?.disciplina || "Geral",
-        storagePath: mat.storagePath,
-        initialPage: Number(targetPage) || 1
-      });
-    } catch {
-      setViewingPdfModal({
-        url: null,
-        title: mat.nomeArquivo,
-        id: mat.id,
-        disciplina: mat.disciplina || commitment?.disciplina || "Geral",
-        storagePath: mat.storagePath,
-        initialPage: Number(targetPage) || 1
-      });
+    setViewingPdfModal({
+      url: null,
+      title: mat.nomeArquivo,
+      id: mat.id,
+      disciplina: mat.disciplina || commitment?.disciplina || "Geral",
+      storagePath: mat.storagePath,
+      initialPage: Number(targetPage) || 1
+    });
+
+    if (mat.storagePath) {
+      getMaterialSignedUrl(mat.storagePath).then((resolvedUrl) => {
+        if (resolvedUrl) {
+          setViewingPdfModal((prev) => (prev && prev.id === mat.id ? { ...prev, url: resolvedUrl } : prev));
+        }
+      }).catch(() => {});
     }
   }
 
@@ -3815,28 +3817,9 @@ function CompromissoWorkspaceContent({
                   {isPdf && (
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          const url = await getMaterialSignedUrl(m.storagePath);
-                          setViewingPdfModal({
-                            url,
-                            title: m.nomeArquivo,
-                            id: m.id,
-                            disciplina: commitment?.disciplina || "Geral",
-                            storagePath: m.storagePath
-                          });
-                        } catch {
-                          setViewingPdfModal({
-                            url: null,
-                            title: m.nomeArquivo,
-                            id: m.id,
-                            disciplina: commitment?.disciplina || "Geral",
-                            storagePath: m.storagePath
-                          });
-                        }
-                      }}
+                      onClick={() => handleOpenMaterial(m)}
                       title="Abrir no Leitor com Grifador"
-                      className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 hover:opacity-85 transition-opacity"
+                      className="px-2 py-0.5 rounded text-[10px] font-semibold flex items-center gap-1 hover:opacity-85 transition-opacity cursor-pointer active:scale-95"
                       style={{ backgroundColor: TINT.brand, color: T.brand }}
                     >
                       <Highlighter className="w-3 h-3" /> Grifar

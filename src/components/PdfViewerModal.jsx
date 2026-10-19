@@ -76,6 +76,7 @@ export function PdfViewerModal({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [pageSize, setPageSize] = useState(null);
 
   // Ferramentas de grifo e Post-it
   const [isHighlighterActive, setIsHighlighterActive] = useState(true);
@@ -177,10 +178,14 @@ export function PdfViewerModal({
 
         // Estratégia 1: fileBlob local
         if (fileBlob) {
-          buffer = await fileBlob.arrayBuffer();
+          try {
+            buffer = await fileBlob.arrayBuffer();
+          } catch (blobErr) {
+            console.warn("Falha ao ler fileBlob:", blobErr);
+          }
         }
 
-        // Estratégia 2: Download direto autenticado do Supabase Storage
+        // Estratégia 2: Download direto autenticado do Supabase Storage (ignora CORS)
         if (!buffer && storagePath) {
           try {
             const { data: blobData, error: dlErr } = await supabase.storage
@@ -188,9 +193,17 @@ export function PdfViewerModal({
               .download(storagePath);
             if (!dlErr && blobData) {
               buffer = await blobData.arrayBuffer();
+            } else if (storagePath.includes("%")) {
+              const decodedPath = decodeURIComponent(storagePath);
+              const { data: bData2, error: dlErr2 } = await supabase.storage
+                .from("materials")
+                .download(decodedPath);
+              if (!dlErr2 && bData2) {
+                buffer = await bData2.arrayBuffer();
+              }
             }
           } catch (dlEx) {
-            console.warn("Download direto por storagePath falhou, tentando URLs:", dlEx);
+            console.warn("Download direto por storagePath falhou, tentando URLs assinadas:", dlEx);
           }
         }
 
@@ -206,14 +219,20 @@ export function PdfViewerModal({
           }
         }
 
-        // Estratégia 4: Gerar nova signedUrl e dar fetch
+        // Estratégia 4: Gerar nova signedUrl e dar fetch (ou passar direto para pdfjs)
+        let workingUrl = actualUrl;
         if (!buffer && storagePath) {
           try {
             const freshUrl = await getMaterialSignedUrl(storagePath);
             if (freshUrl) {
-              const resp = await fetch(freshUrl);
-              if (resp.ok) {
-                buffer = await resp.arrayBuffer();
+              workingUrl = freshUrl;
+              try {
+                const resp = await fetch(freshUrl);
+                if (resp.ok) {
+                  buffer = await resp.arrayBuffer();
+                }
+              } catch (signFetchEx) {
+                console.warn("Fetch de freshUrl falhou (possível CORS), abrindo direto via URL no pdfjs:", signFetchEx);
               }
             }
           } catch (signEx) {
@@ -231,13 +250,13 @@ export function PdfViewerModal({
             data: new Uint8Array(buffer),
             ...cmapConfig,
           });
-        } else if (actualUrl) {
+        } else if (workingUrl) {
           loadingTask = pdfjsLib.getDocument({
-            url: actualUrl,
+            url: workingUrl,
             ...cmapConfig,
           });
         } else {
-          throw new Error("Nenhum arquivo ou URL de PDF fornecido.");
+          throw new Error("Não foi possível carregar as páginas do PDF. Verifique se o arquivo ainda existe no armazenamento.");
         }
 
         const doc = await loadingTask.promise;
@@ -264,12 +283,12 @@ export function PdfViewerModal({
                 setFitMode("page");
               }
             }
-          }, 80);
+          }, 90);
         }
       } catch (err) {
         if (!isCancelled) {
           console.error("Erro ao carregar PDF:", err);
-          setError("Não foi possível carregar as páginas do PDF. Verifique o link ou o arquivo.");
+          setError("Não foi possível carregar as páginas do PDF. Verifique se o arquivo existe ou tente novamente.");
           setLoading(false);
         }
       }
@@ -287,28 +306,28 @@ export function PdfViewerModal({
     }
   }, [initialPage, pdfDoc]);
 
-  // Recalcula a escala em caso de redimensionamento da janela
+  // Observador reativo de redimensionamento do container (responsivo a drawers, modais e telas móveis)
   useEffect(() => {
-    const handleResize = async () => {
+    if (!containerRef.current || !pdfDoc) return;
+    const el = containerRef.current;
+    let resizeTimer = null;
+    const ro = new ResizeObserver(() => {
       if (fitMode !== "manual" && pdfDoc) {
-        const fit = await calculateFitScale(pdfDoc, pageNum, fitMode);
-        if (fit) setScale(fit);
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(async () => {
+          const fit = await calculateFitScale(pdfDoc, pageNum, fitMode);
+          if (fit && fit > 0) {
+            setScale(fit);
+          }
+        }, 50);
       }
+    });
+    ro.observe(el);
+    return () => {
+      clearTimeout(resizeTimer);
+      ro.disconnect();
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [pdfDoc, pageNum, fitMode, calculateFitScale]);
-
-  // Recalcula a escala automaticamente ao abrir/fechar o Bloco de Notas lateral
-  useEffect(() => {
-    if (fitMode !== "manual" && pdfDoc) {
-      const timer = setTimeout(async () => {
-        const fit = await calculateFitScale(pdfDoc, pageNum, fitMode);
-        if (fit) setScale(fit);
-      }, 70);
-      return () => clearTimeout(timer);
-    }
-  }, [isNotesDrawerOpen, pdfDoc, pageNum, fitMode, calculateFitScale]);
+  }, [pdfDoc, pageNum, fitMode, calculateFitScale, isNotesDrawerOpen]);
 
   // Navegação de páginas com auto-ajuste de escala
   const handlePageChange = async (newPage) => {
@@ -356,11 +375,13 @@ export function PdfViewerModal({
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
 
-      const dpr = window.devicePixelRatio || 1;
+      const cssW = Math.floor(viewport.width);
+      const cssH = Math.floor(viewport.height);
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
-      canvas.style.width = `${Math.floor(viewport.width)}px`;
-      canvas.style.height = `${Math.floor(viewport.height)}px`;
+      canvas.style.width = `${cssW}px`;
+      canvas.style.height = `${cssH}px`;
+      setPageSize({ width: cssW, height: cssH });
 
       const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : null;
 
@@ -1092,12 +1113,12 @@ export function PdfViewerModal({
                 </div>
               </div>
             ) : (
-              <div className="min-h-full min-w-full w-max flex flex-col items-center justify-center p-6 sm:p-10">
+              <div className="w-fit min-w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-8">
                 <div
-                  className="relative shadow-2xl rounded-lg overflow-hidden border border-slate-700/60 bg-white shrink-0"
+                  className="relative shadow-2xl rounded-lg border border-slate-700/60 bg-white shrink-0 my-auto"
                   style={{
-                    width: canvasRef.current?.style?.width || "auto",
-                    height: canvasRef.current?.style?.height || "auto",
+                    width: pageSize ? `${pageSize.width}px` : "auto",
+                    height: pageSize ? `${pageSize.height}px` : "auto",
                   }}
                 >
                 {/* Canvas da Página PDF */}

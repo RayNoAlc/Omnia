@@ -479,11 +479,43 @@ export async function deleteMaterial(id, storagePath) {
   }
 }
 
-/** Gera um link temporário (1h) para baixar/visualizar o arquivo original. */
+/** Gera um link temporário (1h) para baixar/visualizar o arquivo original com suporte resiliente a caracteres especiais. */
 export async function getMaterialSignedUrl(path) {
-  const { data, error } = await supabase.storage.from("materials").createSignedUrl(path, 3600);
-  if (error) throw error;
-  return data.signedUrl;
+  if (!path) return null;
+  // 1. Tenta com o caminho original fornecido
+  try {
+    const { data, error } = await supabase.storage.from("materials").createSignedUrl(path, 3600);
+    if (!error && data?.signedUrl) return data.signedUrl;
+  } catch (err) {
+    console.warn("createSignedUrl original falhou:", err);
+  }
+
+  // 2. Se tiver caracteres especiais ou % codificados, tenta versão decodificada
+  try {
+    const cleanPath = path.includes("%") ? decodeURIComponent(path) : path;
+    const { data, error } = await supabase.storage.from("materials").createSignedUrl(cleanPath, 3600);
+    if (!error && data?.signedUrl) return data.signedUrl;
+  } catch (err) {
+    console.warn("createSignedUrl decodificado falhou:", err);
+  }
+
+  // 3. Tenta encodeURI preservando barras
+  try {
+    const parts = path.split("/");
+    const encodedPath = parts.map(encodeURIComponent).join("/");
+    const { data, error } = await supabase.storage.from("materials").createSignedUrl(encodedPath, 3600);
+    if (!error && data?.signedUrl) return data.signedUrl;
+  } catch (err) {
+    console.warn("createSignedUrl codificado por partes falhou:", err);
+  }
+
+  // 4. Fallback para getPublicUrl
+  try {
+    const { data } = supabase.storage.from("materials").getPublicUrl(path);
+    if (data?.publicUrl) return data.publicUrl;
+  } catch {}
+
+  return null;
 }
 
 /* ---------------------------------------------------------------------- */
