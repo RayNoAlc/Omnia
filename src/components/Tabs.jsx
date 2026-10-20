@@ -1480,7 +1480,19 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
                     {item.kind === "commitment" ? (
                       <div className="flex items-center gap-3 shrink-0">
                         <PriorityDot prioridade={item.prioridade} />
-                        <button onClick={(e) => { e.stopPropagation(); const ans = prompt("Para excluir permanentemente, digite o nome exato do compromisso:\n\n" + item.assunto); if (ans === item.assunto) { onDeleteCommitment(item.id); } else if (ans !== null) { alert("Nome incorreto. Exclusão cancelada."); } }} style={{ color: T.inkSoft }}><Trash2 className="w-4 h-4" /></button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Deseja realmente excluir permanentemente este compromisso?\n\n"${item.assunto}"`)) {
+                              onDeleteCommitment(item.id);
+                            }
+                          }}
+                          style={{ color: T.inkSoft }}
+                          className="hover:text-red-500 transition-colors p-1 cursor-pointer"
+                          title="Excluir compromisso"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     ) : null}
                   </Card>
@@ -3150,7 +3162,19 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
               <div className="text-sm">{c.assunto}</div>
                 <div className="flex items-center gap-3 shrink-0">
                   <TypeTag tipo={c.tipo} />
-                  <button onClick={(e) => { e.stopPropagation(); const ans = prompt("Para excluir permanentemente, digite o nome exato do compromisso:\n\n" + c.assunto); if (ans === c.assunto) { onDeleteCommitment(c.id); } else if (ans !== null) { alert("Nome incorreto. Exclusão cancelada."); } }} style={{ color: T.inkSoft }} className="hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Deseja realmente excluir permanentemente este compromisso?\n\n"${c.assunto}"`)) {
+                        onDeleteCommitment(c.id);
+                      }
+                    }}
+                    style={{ color: T.inkSoft }}
+                    className="hover:text-red-500 transition-colors p-1 cursor-pointer"
+                    title="Excluir compromisso"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </Card>
             </button>
@@ -4081,9 +4105,21 @@ function CompromissoWorkspaceModal({
           </div>
           <div className="flex items-center gap-4 shrink-0">
             {onDeleteCommitment && (
-              <button onClick={() => { const ans = prompt("Para excluir permanentemente, digite o nome exato do compromisso:\n\n" + commitment.assunto); if (ans === commitment.assunto) { onDeleteCommitment(commitment.id); onClose(); } else if (ans !== null) { alert("Nome incorreto. Exclusão cancelada."); } }} style={{ color: T.critico }} className="hover:opacity-80 transition-opacity" title="Excluir"><Trash2 className="w-5 h-5" /></button>
+              <button
+                onClick={() => {
+                  if (window.confirm(`Deseja realmente excluir permanentemente este compromisso?\n\n"${commitment.assunto}"`)) {
+                    onDeleteCommitment(commitment.id);
+                    onClose();
+                  }
+                }}
+                style={{ color: T.critico }}
+                className="hover:opacity-80 transition-opacity p-1 cursor-pointer"
+                title="Excluir compromisso"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
             )}
-            <button onClick={onClose} style={{ color: T.inkSoft }} className="hover:opacity-80 transition-opacity"><X className="w-5 h-5" /></button>
+            <button onClick={onClose} style={{ color: T.inkSoft }} className="hover:opacity-80 transition-opacity p-1 cursor-pointer"><X className="w-5 h-5" /></button>
           </div>
         </div>
 
@@ -4491,7 +4527,19 @@ export function BibliotecaTab({ userId, setCommitments, onDeleteCommitment, note
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                       <PriorityDot prioridade={c.prioridade} />
-                      <button onClick={(e) => { e.stopPropagation(); const ans = prompt("Para excluir permanentemente, digite o nome exato do compromisso:\n\n" + c.assunto); if (ans === c.assunto) { onDeleteCommitment(c.id); } else if (ans !== null) { alert("Nome incorreto. Exclusão cancelada."); } }} style={{ color: T.inkSoft }} className="hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Deseja realmente excluir permanentemente este compromisso?\n\n"${c.assunto}"`)) {
+                            onDeleteCommitment(c.id);
+                          }
+                        }}
+                        style={{ color: T.inkSoft }}
+                        className="hover:text-red-500 transition-colors p-1 cursor-pointer"
+                        title="Excluir compromisso"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </Card>
                 </button>
