@@ -5,7 +5,7 @@ import { sfx } from '../lib/soundEffects';
 import { ReactiveBgmWidget } from '../components/ReactiveBgmWidget';
 import { reactiveBgm } from '../lib/reactiveBgm';
 
-export function AppLayout({ activeTab, onTabChange, onOpenTutorial, TABS, onLogout, isZen, config, children }) {
+export function AppLayout({ activeTab, onTabChange, onOpenTutorial, onOpenSearch, TABS, onLogout, isZen, config, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
 
@@ -56,7 +56,17 @@ export function AppLayout({ activeTab, onTabChange, onOpenTutorial, TABS, onLogo
         style={{ backgroundColor: T.surface, borderColor: T.border }}
       >
         <div className='p-6 flex items-center justify-center border-b' style={{ borderColor: T.border }}>
-          <div className='h-16 w-36 transition-transform duration-300 hover:scale-105'>
+          <button
+            type="button"
+            onClick={() => {
+              sfx.pop();
+              if (onOpenSearch) onOpenSearch();
+              else window.dispatchEvent(new CustomEvent('omnia-search', { detail: '' }));
+            }}
+            className='h-16 w-36 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none'
+            title='Pesquisa Universal (Ctrl+K)'
+            aria-label='Pesquisa Universal Omnia'
+          >
             <div className='w-full h-full' style={{
               maskImage: 'url(/omnia.png)',
               WebkitMaskImage: 'url(/omnia.png)',
@@ -68,7 +78,7 @@ export function AppLayout({ activeTab, onTabChange, onOpenTutorial, TABS, onLogo
               WebkitMaskPosition: 'center',
               backgroundColor: 'var(--ink)'
             }} />
-          </div>
+          </button>
         </div>
 
         <nav className='flex-1 px-3 py-5 space-y-1.5 overflow-y-auto custom-scrollbar'>
@@ -141,7 +151,18 @@ export function AppLayout({ activeTab, onTabChange, onOpenTutorial, TABS, onLogo
         style={{ backgroundColor: `${T.surface}EE`, borderColor: T.border }}
       >
         <div className='flex items-center'>
-          <div className='h-9 w-24'>
+          <button
+            type="button"
+            onClick={() => {
+              sfx.pop();
+              setMobileOpen(false);
+              if (onOpenSearch) onOpenSearch();
+              else window.dispatchEvent(new CustomEvent('omnia-search', { detail: '' }));
+            }}
+            className='h-9 w-24 cursor-pointer focus:outline-none rounded-lg active:scale-95 transition-transform'
+            aria-label='Abrir Pesquisa Universal'
+            title='Pesquisa Universal'
+          >
             <div className='w-full h-full' style={{
               maskImage: 'url(/omnia.png)',
               WebkitMaskImage: 'url(/omnia.png)',
@@ -153,7 +174,7 @@ export function AppLayout({ activeTab, onTabChange, onOpenTutorial, TABS, onLogo
               WebkitMaskPosition: 'center',
               backgroundColor: 'var(--ink)'
             }} />
-          </div>
+          </button>
         </div>
         <div className='flex items-center gap-2'>
           {deferredPrompt && (

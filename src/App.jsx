@@ -132,8 +132,13 @@ function AppInner() {
         console.error("Erro ao setar tab via QA:", err);
       }
     };
+    window.__omniaOpenSearch = (q = "") => {
+      setSearchQuery(q);
+      setShowSearch(true);
+    };
     return () => {
       delete window.__omniaSetTab;
+      delete window.__omniaOpenSearch;
     };
   }, []);
 
@@ -623,6 +628,10 @@ function AppInner() {
       activeTab={tab}
       onTabChange={setTab}
       onOpenTutorial={(opts) => window.startOmniaTutorial && window.startOmniaTutorial(opts)}
+      onOpenSearch={() => {
+        setSearchQuery("");
+        setShowSearch(true);
+      }}
       TABS={visibleTabs}
       onLogout={() => supabase.auth.signOut()}
       isZen={isZen}

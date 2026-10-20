@@ -10066,115 +10066,401 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
   );
 }
 
-export function GlobalSearchModal({ onClose, commitments, notes, materials, setTab, initialQuery = "" }) {
+export function GlobalSearchModal({ onClose, commitments = [], notes = [], materials = [], setTab, initialQuery = "" }) {
   const [q, setQ] = React.useState(initialQuery);
+
   React.useEffect(() => {
     const handleKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const lowerQ = q.toLowerCase();
-  const resCommitments = commitments.filter(c => c.assunto?.toLowerCase().includes(lowerQ) || c.disciplina?.toLowerCase().includes(lowerQ)).slice(0, 3);
-  const resNotes = notes.filter(n => n.texto?.toLowerCase().includes(lowerQ) || n.disciplina?.toLowerCase().includes(lowerQ)).slice(0, 3);
-  const resMaterials = materials.filter(m => m.name?.toLowerCase().includes(lowerQ) || m.disciplina?.toLowerCase().includes(lowerQ)).slice(0, 3);
+  const TAB_SEARCH_DEFINITIONS = useMemo(() => [
+    { id: "hoje", label: "Hoje", desc: "Painel do dia, metas e tarefas recomendadas", icon: Calendar, keywords: ["hoje", "início", "home", "painel", "tarefas", "avisos", "metas"] },
+    { id: "inbox", label: "Inbox", desc: "Captura rápida de pensamentos, áudios e imagens", icon: MessageCircle, keywords: ["inbox", "captura", "entrada", "ideias", "processar", "gravar", "áudio"] },
+    { id: "agenda", label: "Agenda & Calendário", desc: "Compromissos, datas de provas, trabalhos e prazos", icon: Calendar, keywords: ["agenda", "calendário", "calendario", "prazos", "provas", "trabalhos", "datas", "compromissos"] },
+    { id: "desempenho", label: "Desempenho", desc: "Métricas, estatísticas de estudo, horas e progresso", icon: BarChart, keywords: ["desempenho", "estatísticas", "estatisticas", "gráfico", "grafico", "métricas", "progresso", "xp", "nível", "pomodoro"] },
+    { id: "biblioteca", label: "Biblioteca", desc: "Materiais de aula, apostilas, slides e visualizador de PDFs", icon: BookOpen, keywords: ["biblioteca", "materiais", "livros", "pdf", "slides", "arquivos", "documentos", "leitor", "apostilas"] },
+    { id: "foco", label: "Modo Foco", desc: "Cronômetro Pomodoro, música ambiente e sons binaurais", icon: Headphones, keywords: ["foco", "pomodoro", "timer", "cronômetro", "cronometro", "estudo", "zen", "música", "bgm"] },
+    { id: "diario", label: "Diário Acadêmico", desc: "Registro diário de aprendizado, reflexões e humor", icon: BookHeart, keywords: ["diário", "diario", "journal", "reflexão", "reflexao", "anotações", "anotacoes", "pensamentos", "humor"] },
+    { id: "secretaria", label: "Secretária Acadêmica", desc: "Assistente de IA para dúvidas, mentoria e resumos", icon: Brain, keywords: ["secretária", "secretaria", "chat", "ia", "mentor", "tutor", "dúvidas", "duvidas", "perguntas", "assistente"] },
+    { id: "rotina", label: "Minha Rotina", desc: "Grade horária semanal fixa e blocos de rotina", icon: User, keywords: ["rotina", "grade", "horários", "horarios", "semana", "bloqueios", "hábitos", "habitos"] },
+    { id: "config", label: "Configurações", desc: "Aparência, temas, sons, backups e preferências", icon: Settings, keywords: ["config", "configurações", "configuracoes", "tema", "cores", "fonte", "backup", "som", "notificações", "notificacoes", "dev"] }
+  ], []);
+
+  const trimmedQ = q.trim();
+  const lowerQ = trimmedQ.toLowerCase();
+
+  // Filtragem de abas/espaços
+  const resTabs = useMemo(() => {
+    if (!trimmedQ) return [];
+    return TAB_SEARCH_DEFINITIONS.filter(t => 
+      t.label.toLowerCase().includes(lowerQ) ||
+      t.desc.toLowerCase().includes(lowerQ) ||
+      t.keywords.some(k => k.includes(lowerQ) || lowerQ.includes(k))
+    ).slice(0, 3);
+  }, [TAB_SEARCH_DEFINITIONS, trimmedQ, lowerQ]);
+
+  // Filtragem de compromissos
+  const resCommitments = useMemo(() => {
+    if (!trimmedQ) return [];
+    return (commitments || []).filter(c => 
+      c.assunto?.toLowerCase().includes(lowerQ) || 
+      c.disciplina?.toLowerCase().includes(lowerQ) ||
+      c.tipo?.toLowerCase().includes(lowerQ) ||
+      c.detalhes?.toLowerCase().includes(lowerQ)
+    ).slice(0, 5);
+  }, [commitments, trimmedQ, lowerQ]);
+
+  // Filtragem de anotações e diário
+  const resNotes = useMemo(() => {
+    if (!trimmedQ) return [];
+    return (notes || []).filter(n => 
+      n.texto?.toLowerCase().includes(lowerQ) || 
+      n.disciplina?.toLowerCase().includes(lowerQ)
+    ).slice(0, 5);
+  }, [notes, trimmedQ, lowerQ]);
+
+  // Filtragem de materiais/PDFs
+  const resMaterials = useMemo(() => {
+    if (!trimmedQ) return [];
+    return (materials || []).filter(m => 
+      m.name?.toLowerCase().includes(lowerQ) || 
+      m.disciplina?.toLowerCase().includes(lowerQ)
+    ).slice(0, 5);
+  }, [materials, trimmedQ, lowerQ]);
+
+  const hasAnyResults = resTabs.length > 0 || resCommitments.length > 0 || resNotes.length > 0 || resMaterials.length > 0 || isHideDevCommand(trimmedQ) || isToggleDevCommand(trimmedQ) || isSecretDevCommand(trimmedQ);
+
+  const handleNavigateTab = (tabId) => {
+    sfx.pop();
+    setTab(tabId);
+    onClose();
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] px-4" style={{ backgroundColor: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={onClose}>
-      <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden" style={{ backgroundColor: T.bg, border: `1px solid ${T.border}` }} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center p-4 border-b" style={{ borderColor: T.border, backgroundColor: T.surface }}>
-          <Search className="w-5 h-5 mr-3" style={{ color: T.inkSoft }} />
-          <input autoFocus type="text" placeholder="Buscar compromissos, notas, materiais..." value={q} onChange={e => setQ(e.target.value)} className="flex-1 bg-transparent border-none outline-none text-lg" style={{ color: T.ink }} />
-          <button onClick={onClose} className="px-2 py-1 text-xs rounded border ml-2" style={{ color: T.inkSoft, borderColor: T.border }}>ESC</button>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-3 sm:pt-[10vh] px-3 sm:px-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl rounded-2xl sm:rounded-3xl shadow-2xl border flex flex-col max-h-[88vh] sm:max-h-[75vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        style={{ backgroundColor: T.bg, borderColor: T.border }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Barra de Pesquisa Superior */}
+        <div className="flex items-center px-4 py-3 sm:py-3.5 border-b gap-3" style={{ borderColor: T.border, backgroundColor: T.surface }}>
+          <Search className="w-5 h-5 shrink-0" style={{ color: T.brand }} />
+          <input
+            autoFocus
+            type="text"
+            inputMode="search"
+            placeholder="Pesquisar compromissos, notas, materiais, abas..."
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            className="flex-1 bg-transparent border-none outline-none text-base sm:text-lg font-medium placeholder:text-slate-500"
+            style={{ color: T.ink }}
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => setQ("")}
+              className="p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              title="Limpar campo"
+            >
+              <X size={16} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-2.5 py-1 text-xs font-semibold rounded-lg border flex items-center gap-1 transition-colors cursor-pointer hover:bg-white/5 active:scale-95"
+            style={{ color: T.inkSoft, borderColor: T.border }}
+            title="Fechar pesquisa"
+          >
+            <span className="hidden sm:inline">ESC</span>
+            <X size={15} className="sm:hidden" />
+          </button>
         </div>
-        {q && (
-          <div className="max-h-[60vh] overflow-y-auto p-2 space-y-4">
-            {isHideDevCommand(q) && (
-              <div className="p-3 rounded-xl border border-rose-500 bg-rose-500/10 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-sm text-rose-400 flex items-center gap-1.5">
-                    <Shield size={16} /> [DEV] Esconder Opções de Desenvolvedor
-                  </div>
-                  <div className="text-xs text-slate-400">Oculta suite de testes QA, ferramentas de debug e badges de dev</div>
-                </div>
-                <button
-                  onClick={() => { setDevMode(false); onClose(); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 text-white hover:bg-rose-500 transition-colors shadow"
-                >
-                  Esconder Agora
-                </button>
-              </div>
-            )}
-            {isToggleDevCommand(q) && !isHideDevCommand(q) && (
-              <div className="p-3 rounded-xl border border-amber-500 bg-amber-500/10 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-sm text-amber-400 flex items-center gap-1.5">
-                    <Sparkles size={16} /> [DEV] Alternar Modo Desenvolvedor
-                  </div>
-                  <div className="text-xs text-slate-400">Ativa ou desativa ferramentas de desenvolvedor e suite de QA</div>
-                </div>
-                <button
-                  onClick={() => { setDevMode(!isDevModeActive()); onClose(); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow"
-                >
-                  Alternar Agora
-                </button>
-              </div>
-            )}
-            {isSecretDevCommand(q) && (
-              <div className="p-3 rounded-xl border border-amber-500 bg-amber-500/10 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-sm text-amber-500 flex items-center gap-1.5">
-                    <Sparkles size={16} /> [DEV CHEAT] Ativar God Mode
-                  </div>
-                  <div className="text-xs text-slate-400">Liberar 99.999 Moedas, 100.000 XP (Nível Máximo) e 99 Streaks</div>
-                </div>
-                <button
-                  onClick={() => { executeGodModeCheat(null, null); onClose(); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow"
-                >
-                  Ativar Agora
-                </button>
-              </div>
-            )}
-            {resCommitments.length > 0 && (
+
+        {/* Conteúdo com Rolagem */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 space-y-4">
+          {/* Se query vazia: Exibe Hub de Atalhos e Dicas */}
+          {!trimmedQ && (
+            <div className="space-y-4 py-1">
               <div>
-                <div className="text-xs font-bold px-3 py-1 uppercase" style={{ color: T.brand }}>Compromissos</div>
-                {resCommitments.map(c => (
-                  <button key={c.id} onClick={() => { setTab("agenda"); onClose(); }} className="w-full text-left px-3 py-2 rounded-xl hover:opacity-80 transition-all flex items-center justify-between" style={{ backgroundColor: T.surfaceAlt }}>
-                    <span style={{ color: T.ink }} className="font-medium truncate">{c.disciplina} - {c.assunto}</span>
-                  </button>
-                ))}
+                <div className="text-[11px] font-bold uppercase tracking-wider px-2 mb-2" style={{ color: T.inkSoft }}>
+                  Acesso Rápido aos Espaços
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {TAB_SEARCH_DEFINITIONS.slice(0, 6).map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleNavigateTab(item.id)}
+                        className="flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all hover:brightness-110 active:scale-[0.98] cursor-pointer"
+                        style={{ backgroundColor: T.surfaceAlt, borderColor: `${T.border}` }}
+                      >
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${T.brand}18`, color: T.brand }}>
+                          <Icon size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold truncate" style={{ color: T.ink }}>{item.label}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-            {resNotes.length > 0 && (
+
+              {commitments && commitments.length > 0 && (
+                <div>
+                  <div className="text-[11px] font-bold uppercase tracking-wider px-2 mb-2" style={{ color: T.inkSoft }}>
+                    Próximos Compromissos & Prazos
+                  </div>
+                  <div className="space-y-1.5">
+                    {commitments.slice(0, 3).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => handleNavigateTab("agenda")}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                        style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                          <Calendar size={15} className="shrink-0" style={{ color: T.brand }} />
+                          <div className="truncate">
+                            <span className="text-xs font-bold mr-1.5" style={{ color: T.ink }}>{c.disciplina}</span>
+                            <span className="text-xs opacity-75" style={{ color: T.inkSoft }}>— {c.assunto}</span>
+                          </div>
+                        </div>
+                        {c.prazo && (
+                          <span className="text-[11px] font-mono shrink-0 px-2 py-0.5 rounded-md" style={{ backgroundColor: `${T.brand}20`, color: T.brand }}>
+                            {formatDateBR(c.prazo)}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="p-3 rounded-xl border flex items-center gap-2 text-xs opacity-80" style={{ backgroundColor: T.surface, borderColor: T.border, color: T.inkSoft }}>
+                <Sparkles size={15} className="shrink-0 text-amber-400" />
+                <span>Pesquisa Universal: digite uma matéria, prova, anotação ou comando (<code className="font-mono text-cyan-400">/dev</code>) para encontrar qualquer coisa.</span>
+              </div>
+            </div>
+          )}
+
+          {/* Comandos Dev */}
+          {trimmedQ && isHideDevCommand(trimmedQ) && (
+            <div className="p-3 rounded-xl border border-rose-500 bg-rose-500/10 flex items-center justify-between">
               <div>
-                <div className="text-xs font-bold px-3 py-1 uppercase" style={{ color: T.brand }}>Anotações</div>
-                {resNotes.map(n => {
-                  const isDiario = (n.disciplina || "").toLowerCase().includes("diário") || (n.disciplina || "").toLowerCase().includes("diario");
+                <div className="font-bold text-sm text-rose-400 flex items-center gap-1.5">
+                  <Shield size={16} /> [DEV] Esconder Opções de Desenvolvedor
+                </div>
+                <div className="text-xs text-slate-400">Oculta suite de testes QA, ferramentas de debug e badges de dev</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setDevMode(false); onClose(); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-rose-600 text-white hover:bg-rose-500 transition-colors shadow cursor-pointer"
+              >
+                Esconder Agora
+              </button>
+            </div>
+          )}
+
+          {trimmedQ && isToggleDevCommand(trimmedQ) && !isHideDevCommand(trimmedQ) && (
+            <div className="p-3 rounded-xl border border-amber-500 bg-amber-500/10 flex items-center justify-between">
+              <div>
+                <div className="font-bold text-sm text-amber-400 flex items-center gap-1.5">
+                  <Sparkles size={16} /> [DEV] Alternar Modo Desenvolvedor
+                </div>
+                <div className="text-xs text-slate-400">Ativa ou desativa ferramentas de desenvolvedor e suite de QA</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setDevMode(!isDevModeActive()); onClose(); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow cursor-pointer"
+              >
+                Alternar Agora
+              </button>
+            </div>
+          )}
+
+          {trimmedQ && isSecretDevCommand(trimmedQ) && (
+            <div className="p-3 rounded-xl border border-amber-500 bg-amber-500/10 flex items-center justify-between">
+              <div>
+                <div className="font-bold text-sm text-amber-500 flex items-center gap-1.5">
+                  <Sparkles size={16} /> [DEV CHEAT] Ativar God Mode
+                </div>
+                <div className="text-xs text-slate-400">Liberar 99.999 Moedas, 100.000 XP (Nível Máximo) e 99 Streaks</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { executeGodModeCheat(null, null); onClose(); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow cursor-pointer"
+              >
+                Ativar Agora
+              </button>
+            </div>
+          )}
+
+          {/* Resultados: Espaços / Abas */}
+          {trimmedQ && resTabs.length > 0 && (
+            <div>
+              <div className="text-xs font-bold px-2 py-1 uppercase tracking-wider" style={{ color: T.brand }}>
+                Navegação & Espaços
+              </div>
+              <div className="space-y-1.5 mt-1">
+                {resTabs.map((tab) => {
+                  const Icon = tab.icon;
                   return (
-                    <button key={n.id} onClick={() => { setTab(isDiario ? "diario" : "biblioteca"); onClose(); }} className="w-full text-left px-3 py-2 rounded-xl hover:opacity-80 transition-all flex items-center justify-between" style={{ backgroundColor: T.surfaceAlt }}>
-                      <span style={{ color: T.ink }} className="font-medium truncate">{n.disciplina} - {n.texto.slice(0, 40)}...</span>
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => handleNavigateTab(tab.id)}
+                      className="w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                      style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${T.brand}20`, color: T.brand }}>
+                          <Icon size={16} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold" style={{ color: T.ink }}>{tab.label}</div>
+                          <div className="text-[11px] truncate opacity-70" style={{ color: T.inkSoft }}>{tab.desc}</div>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded shrink-0" style={{ backgroundColor: `${T.brand}15`, color: T.brand }}>
+                        Ir para aba
+                      </span>
                     </button>
                   );
                 })}
               </div>
-            )}
-            {resMaterials.length > 0 && (
-              <div>
-                <div className="text-xs font-bold px-3 py-1 uppercase" style={{ color: T.brand }}>Materiais</div>
-                {resMaterials.map(m => (
-                  <button key={m.id} onClick={() => { setTab("biblioteca"); onClose(); }} className="w-full text-left px-3 py-2 rounded-xl hover:opacity-80 transition-all flex items-center justify-between" style={{ backgroundColor: T.surfaceAlt }}>
-                    <span style={{ color: T.ink }} className="font-medium truncate">{m.disciplina} - {m.name}</span>
+            </div>
+          )}
+
+          {/* Resultados: Compromissos */}
+          {trimmedQ && resCommitments.length > 0 && (
+            <div>
+              <div className="text-xs font-bold px-2 py-1 uppercase tracking-wider" style={{ color: T.brand }}>
+                Compromissos ({resCommitments.length})
+              </div>
+              <div className="space-y-1.5 mt-1">
+                {resCommitments.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => handleNavigateTab("agenda")}
+                    className="w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                    style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <Calendar size={16} className="shrink-0" style={{ color: T.brand }} />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold truncate" style={{ color: T.ink }}>
+                          {c.disciplina} <span className="font-normal opacity-80">— {c.assunto}</span>
+                        </div>
+                        {c.tipo && (
+                          <div className="text-[10px] uppercase font-mono tracking-wide opacity-70 mt-0.5" style={{ color: T.inkSoft }}>
+                            {c.tipo} {c.prazo ? `• ${formatDateBR(c.prazo)}` : ''}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {c.prazo && (
+                      <span className="text-[11px] font-mono shrink-0 px-2 py-0.5 rounded" style={{ backgroundColor: `${T.brand}20`, color: T.brand }}>
+                        {formatDateBR(c.prazo)}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
-            )}
-            {resCommitments.length === 0 && resNotes.length === 0 && resMaterials.length === 0 && (
-              <div className="p-4 text-center text-sm" style={{ color: T.inkSoft }}>Nenhum resultado encontrado.</div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* Resultados: Anotações */}
+          {trimmedQ && resNotes.length > 0 && (
+            <div>
+              <div className="text-xs font-bold px-2 py-1 uppercase tracking-wider" style={{ color: T.brand }}>
+                Anotações ({resNotes.length})
+              </div>
+              <div className="space-y-1.5 mt-1">
+                {resNotes.map(n => {
+                  const isDiario = (n.disciplina || "").toLowerCase().includes("diário") || (n.disciplina || "").toLowerCase().includes("diario");
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onClick={() => handleNavigateTab(isDiario ? "diario" : "biblioteca")}
+                      className="w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                      style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                        <FileText size={16} className="shrink-0 text-amber-400" />
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold" style={{ color: T.ink }}>{n.disciplina || "Sem Matéria"}</div>
+                          <div className="text-[11px] truncate opacity-75 mt-0.5" style={{ color: T.inkSoft }}>{n.texto?.slice(0, 60)}...</div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] uppercase px-2 py-0.5 rounded shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: T.inkSoft }}>
+                        {isDiario ? "Diário" : "Biblioteca"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Resultados: Materiais */}
+          {trimmedQ && resMaterials.length > 0 && (
+            <div>
+              <div className="text-xs font-bold px-2 py-1 uppercase tracking-wider" style={{ color: T.brand }}>
+                Materiais ({resMaterials.length})
+              </div>
+              <div className="space-y-1.5 mt-1">
+                {resMaterials.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleNavigateTab("biblioteca")}
+                    className="w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                    style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <BookOpen size={16} className="shrink-0 text-cyan-400" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold truncate" style={{ color: T.ink }}>{m.name}</div>
+                        <div className="text-[11px] opacity-75 mt-0.5 truncate" style={{ color: T.inkSoft }}>{m.disciplina || "Material"}</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] uppercase px-2 py-0.5 rounded shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: T.inkSoft }}>
+                      Abrir
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nenhum resultado */}
+          {trimmedQ && !hasAnyResults && (
+            <div className="p-8 text-center space-y-2">
+              <Search size={32} className="mx-auto opacity-40" style={{ color: T.inkSoft }} />
+              <div className="text-sm font-semibold" style={{ color: T.ink }}>Nenhum resultado encontrado</div>
+              <div className="text-xs opacity-70 max-w-xs mx-auto" style={{ color: T.inkSoft }}>
+                Tente buscar por palavras-chave como nomes de matérias, provas, ou acesse uma aba pelo atalho.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
