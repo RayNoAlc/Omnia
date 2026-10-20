@@ -145,7 +145,167 @@ export function PdfViewerModal({
 
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const pageWrapperRef = useRef(null);
   const renderTaskRef = useRef(null);
+
+  // Escala atual armazenada em ref para acesso instantâneo em event listeners de toque sem closures defasadas
+  const scaleRef = useRef(scale);
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  // Gestos de Touch: Pinch-to-Zoom com 2 dedos no mobile (60-120fps via transform + render vetorial na soltura)
+  const [isPinching, setIsPinching] = useState(false);
+  const [pinchScaleFactor, setPinchScaleFactor] = useState(1);
+  const [pinchOrigin, setPinchOrigin] = useState({ x: 0, y: 0 });
+  const [pinchDisplayScale, setPinchDisplayScale] = useState(scale);
+  const pinchDataRef = useRef({
+    active: false,
+    startDistance: 0,
+    initialScale: 1,
+    centerX: 0,
+    centerY: 0,
+    targetScale: 1,
+    originX: 0,
+    originY: 0,
+  });
+
+  // Listener touch passivo=false no container para prevenir zoom nativo da página e controlar pinch com precisão
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const finishPinch = () => {
+      if (!pinchDataRef.current.active) return;
+      const { targetScale, initialScale, originX, originY } = pinchDataRef.current;
+      pinchDataRef.current.active = false;
+
+      setIsPinching(false);
+      setPinchScaleFactor(1);
+
+      const finalScale = Number(targetScale.toFixed(2));
+      if (Math.abs(finalScale - initialScale) > 0.02) {
+        sfx.pop();
+        setFitMode("manual");
+        setScale(finalScale);
+
+        // Compensa o scroll para manter o ponto pinçado centralizado na tela
+        if (containerRef.current && initialScale > 0) {
+          const ratio = finalScale / initialScale;
+          const currentScrollLeft = containerRef.current.scrollLeft;
+          const currentScrollTop = containerRef.current.scrollTop;
+          const deltaX = originX * (ratio - 1);
+          const deltaY = originY * (ratio - 1);
+
+          requestAnimationFrame(() => {
+            if (containerRef.current) {
+              containerRef.current.scrollLeft = Math.max(0, currentScrollLeft + deltaX);
+              containerRef.current.scrollTop = Math.max(0, currentScrollTop + deltaY);
+            }
+          });
+        }
+      }
+    };
+
+    const handleContainerTouchStart = (e) => {
+      if (e.touches && e.touches.length === 2) {
+        // Intercepta pinch de dois dedos
+        e.preventDefault();
+        setIsDrawing(false);
+        setCurrentBox(null);
+
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        const midX = (t1.clientX + t2.clientX) / 2;
+        const midY = (t1.clientY + t2.clientY) / 2;
+
+        let originX = 0;
+        let originY = 0;
+        if (pageWrapperRef.current) {
+          const rect = pageWrapperRef.current.getBoundingClientRect();
+          originX = midX - rect.left;
+          originY = midY - rect.top;
+        }
+
+        pinchDataRef.current = {
+          active: true,
+          startDistance: Math.max(dist, 10),
+          initialScale: scaleRef.current,
+          centerX: midX,
+          centerY: midY,
+          targetScale: scaleRef.current,
+          originX,
+          originY,
+        };
+
+        setPinchOrigin({ x: originX, y: originY });
+        setPinchScaleFactor(1);
+        setPinchDisplayScale(scaleRef.current);
+        setIsPinching(true);
+      } else if (pinchDataRef.current.active && (!e.touches || e.touches.length < 2)) {
+        finishPinch();
+      }
+    };
+
+    const handleContainerTouchMove = (e) => {
+      if (e.touches && e.touches.length === 2 && pinchDataRef.current.active) {
+        e.preventDefault(); // Evita zoom da página inteira no navegador
+
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        const ratio = dist / pinchDataRef.current.startDistance;
+
+        const rawScale = pinchDataRef.current.initialScale * ratio;
+        // Limita zoom entre 35% e 300%
+        const clampedScale = Math.max(0.35, Math.min(3.0, rawScale));
+        const factor = clampedScale / pinchDataRef.current.initialScale;
+
+        pinchDataRef.current.targetScale = clampedScale;
+        setPinchScaleFactor(factor);
+        setPinchDisplayScale(clampedScale);
+      }
+    };
+
+    const handleContainerTouchEnd = (e) => {
+      if (pinchDataRef.current.active) {
+        if (!e.touches || e.touches.length < 2) {
+          finishPinch();
+        }
+      }
+    };
+
+    const handleContainerTouchCancel = () => {
+      if (pinchDataRef.current.active) {
+        finishPinch();
+      }
+    };
+
+    // Suporte também a pinch com touchpad no laptop (Ctrl + Wheel)
+    const handleContainerWheel = (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.08 : 0.92;
+        setFitMode("manual");
+        setScale((prev) => Math.max(0.35, Math.min(3.0, Number((prev * zoomFactor).toFixed(2)))));
+      }
+    };
+
+    container.addEventListener("touchstart", handleContainerTouchStart, { passive: false });
+    container.addEventListener("touchmove", handleContainerTouchMove, { passive: false });
+    container.addEventListener("touchend", handleContainerTouchEnd, { passive: false });
+    container.addEventListener("touchcancel", handleContainerTouchCancel, { passive: false });
+    container.addEventListener("wheel", handleContainerWheel, { passive: false });
+
+    return () => {
+      container.removeEventListener("touchstart", handleContainerTouchStart);
+      container.removeEventListener("touchmove", handleContainerTouchMove);
+      container.removeEventListener("touchend", handleContainerTouchEnd);
+      container.removeEventListener("touchcancel", handleContainerTouchCancel);
+      container.removeEventListener("wheel", handleContainerWheel);
+    };
+  }, []);
 
   // Calcula escala de auto-fit baseado no tamanho visível do container com margem de respiro confortável
   const calculateFitScale = useCallback(async (doc, num, mode) => {
@@ -448,6 +608,13 @@ export function PdfViewerModal({
   };
 
   const handleTouchStart = (e) => {
+    if (isPinching || (e.touches && e.touches.length > 1)) {
+      if (isDrawing) {
+        setIsDrawing(false);
+        setCurrentBox(null);
+      }
+      return;
+    }
     if (!isHighlighterActive || !e.touches || !e.touches[0] || !canvasRef.current) return;
     const touch = e.touches[0];
     const rect = canvasRef.current.getBoundingClientRect();
@@ -460,6 +627,13 @@ export function PdfViewerModal({
   };
 
   const handleTouchMove = (e) => {
+    if (isPinching || (e.touches && e.touches.length > 1)) {
+      if (isDrawing) {
+        setIsDrawing(false);
+        setCurrentBox(null);
+      }
+      return;
+    }
     if (!isDrawing || !isHighlighterActive || !e.touches || !e.touches[0] || !canvasRef.current) return;
     const touch = e.touches[0];
     const rect = canvasRef.current.getBoundingClientRect();
@@ -572,6 +746,8 @@ export function PdfViewerModal({
   };
 
   const handleStartDragSticky = (e, h) => {
+    if (isPinching || pinchDataRef.current?.active) return;
+    if (e.touches && e.touches.length > 1) return;
     if (h.isPinned) return; // Se fixado, bloqueia arraste
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.closest("button") || e.target.closest(".resize-handle")) {
       return;
@@ -595,6 +771,8 @@ export function PdfViewerModal({
   };
 
   const handleStartResizeSticky = (e, h) => {
+    if (isPinching || pinchDataRef.current?.active) return;
+    if (e.touches && e.touches.length > 1) return;
     e.stopPropagation();
     if (e.cancelable) e.preventDefault();
 
@@ -1148,6 +1326,16 @@ export function PdfViewerModal({
 
         {/* Área Central: Visualizador Canvas + Bloco de Notas Lateral */}
         <div className="flex-1 w-full flex overflow-hidden relative" style={{ backgroundColor: "#0b1120" }}>
+          {/* Indicador Flutuante de Zoom em Tempo Real durante gesto de Pinça (Pinch-to-Zoom) */}
+          {isPinching && (
+            <div className="absolute top-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/95 backdrop-blur-md border border-cyan-500/50 text-cyan-300 font-bold text-xs shadow-2xl tracking-wide select-none">
+                <ZoomIn size={16} className="text-cyan-400 animate-pulse" />
+                <span>Zoom: {Math.round(pinchDisplayScale * 100)}%</span>
+              </div>
+            </div>
+          )}
+
           {/* Visualizador Canvas com Overlay de Grifos */}
           <div
             ref={containerRef}
@@ -1185,10 +1373,14 @@ export function PdfViewerModal({
             ) : (
               <div className="w-fit min-w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-8">
                 <div
+                  ref={pageWrapperRef}
                   className="relative shadow-2xl rounded-lg border border-slate-700/60 bg-white shrink-0 my-auto"
                   style={{
                     width: pageSize ? `${pageSize.width}px` : "auto",
                     height: pageSize ? `${pageSize.height}px` : "auto",
+                    transform: isPinching ? `scale(${pinchScaleFactor})` : "none",
+                    transformOrigin: `${pinchOrigin.x}px ${pinchOrigin.y}px`,
+                    willChange: isPinching ? "transform" : "auto",
                   }}
                 >
                 {/* Canvas da Página PDF */}
