@@ -880,10 +880,11 @@ export function HojeTab({ overdue, blocksHoje, commitmentsHoje, routineItemsHoje
                     {!item.isCommitment && !item.isRoutine && (
                       <button
                         onClick={() => onToggleBlock(item.id)}
-                        className="w-6 h-6 rounded shrink-0 flex items-center justify-center transition-all"
+                        className="w-9 h-9 sm:w-7 sm:h-7 rounded-xl shrink-0 flex items-center justify-center transition-all active:scale-90"
                         style={{ border: `1.5px solid ${item.done ? T.brand : T.border}`, backgroundColor: item.done ? T.brand : "transparent" }}
+                        title={item.done ? "Marcar como pendente" : "Concluir atividade"}
                       >
-                        {item.done && <Check className="w-4 h-4" style={{ color: T.bg }} />}
+                        {item.done && <Check className="w-4 h-4 stroke-[2.5]" style={{ color: T.bg }} />}
                       </button>
                     )}
                     <div className="flex-1 min-w-0">
@@ -1164,30 +1165,30 @@ export function InboxTab({ userId, onSubmit, loading, error, pendingReview, setP
           style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink }}
         />
 
-        <div className="flex flex-wrap items-center gap-2 mt-3">
+        <div className="flex items-center gap-2 mt-3">
           <button
             onClick={() => pdfInputRef.current?.click()}
             disabled={!!extracting}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md disabled:opacity-50"
-            style={{ color: T.inkSoft, border: `1px solid ${T.border}` }}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2.5 rounded-xl border disabled:opacity-50 min-h-[42px] active:scale-95 transition-all shadow-xs"
+            style={{ color: T.ink, border: `1px solid ${T.border}`, backgroundColor: T.surfaceAlt }}
           >
-            <FileText className="w-3.5 h-3.5" /> PDF
+            <FileText className="w-4 h-4 text-rose-400" /> PDF
           </button>
           <button
             onClick={() => imgInputRef.current?.click()}
             disabled={!!extracting}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md disabled:opacity-50"
-            style={{ color: T.inkSoft, border: `1px solid ${T.border}` }}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2.5 rounded-xl border disabled:opacity-50 min-h-[42px] active:scale-95 transition-all shadow-xs"
+            style={{ color: T.ink, border: `1px solid ${T.border}`, backgroundColor: T.surfaceAlt }}
           >
-            <ImageIcon className="w-3.5 h-3.5" /> Foto
+            <ImageIcon className="w-4 h-4 text-blue-400" /> Foto
           </button>
           <button
             onClick={() => audioInputRef.current?.click()}
             disabled={!!extracting}
-            className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md disabled:opacity-50"
-            style={{ color: T.inkSoft, border: `1px solid ${T.border}` }}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 text-xs font-semibold px-3 py-2.5 rounded-xl border disabled:opacity-50 min-h-[42px] active:scale-95 transition-all shadow-xs"
+            style={{ color: T.ink, border: `1px solid ${T.border}`, backgroundColor: T.surfaceAlt }}
           >
-            <Mic className="w-3.5 h-3.5" /> Áudio
+            <Mic className="w-4 h-4 text-emerald-400" /> Áudio
           </button>
 
           <input ref={pdfInputRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => handleFilePicked(e, "pdf")} />
@@ -1207,10 +1208,14 @@ export function InboxTab({ userId, onSubmit, loading, error, pendingReview, setP
           </div>
         )}
 
-        <div className="flex items-center gap-2 mt-3">
-          <PrimaryButton onClick={handleSubmit} disabled={loading || !text.trim() || !!extracting}>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3">
+          <PrimaryButton
+            onClick={handleSubmit}
+            disabled={loading || !text.trim() || !!extracting}
+            className="w-full sm:w-auto min-h-[46px] rounded-xl font-bold flex items-center justify-center gap-2 active:scale-98 shadow-md"
+          >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            {loading ? "Interpretando..." : "Interpretar"}
+            {loading ? "Interpretando com IA..." : "Interpretar com IA"}
           </PrimaryButton>
           {error && <span className="text-xs" style={{ color: T.critico }}>{error}</span>}
         </div>
@@ -1362,10 +1367,10 @@ function PlanosAtivos({ commitments, studyBlocks, onReplan, onReduzir }) {
       <PlanosAtivos commitments={commitments} studyBlocks={studyBlocks} onReplan={onReplan} onReduzir={onReduzir} />
 
         <div className="flex justify-end mb-4">
-          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <button onClick={() => setViewMode("lista")} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === "lista" ? "bg-white dark:bg-gray-700 shadow" : "opacity-50"}`} style={{ color: viewMode === "lista" ? T.brand : T.ink }}>Lista</button>
-            <button onClick={() => setViewMode("kanban")} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === "kanban" ? "bg-white dark:bg-gray-700 shadow" : "opacity-50"}`} style={{ color: viewMode === "kanban" ? T.brand : T.ink }}>Kanban</button>
-            <button onClick={() => setViewMode("calendario")} className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${viewMode === "calendario" ? "bg-white dark:bg-gray-700 shadow" : "opacity-50"}`} style={{ color: viewMode === "calendario" ? T.brand : T.ink }}>Google Cal</button>
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-full sm:w-auto shadow-xs border" style={{ borderColor: T.border }}>
+            <button onClick={() => { sfx.tab(); setViewMode("lista"); }} className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-lg transition-all min-h-[40px] flex items-center justify-center ${viewMode === "lista" ? "bg-white dark:bg-gray-700 shadow-sm" : "opacity-60"}`} style={{ color: viewMode === "lista" ? T.brand : T.ink }}>Lista</button>
+            <button onClick={() => { sfx.tab(); setViewMode("kanban"); }} className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-lg transition-all min-h-[40px] flex items-center justify-center ${viewMode === "kanban" ? "bg-white dark:bg-gray-700 shadow-sm" : "opacity-60"}`} style={{ color: viewMode === "kanban" ? T.brand : T.ink }}>Kanban</button>
+            <button onClick={() => { sfx.tab(); setViewMode("calendario"); }} className={`flex-1 sm:flex-initial px-4 py-2 text-xs font-bold rounded-lg transition-all min-h-[40px] flex items-center justify-center ${viewMode === "calendario" ? "bg-white dark:bg-gray-700 shadow-sm" : "opacity-60"}`} style={{ color: viewMode === "calendario" ? T.brand : T.ink }}>Google Cal</button>
           </div>
         </div>
 
@@ -3107,12 +3112,32 @@ function DisciplinaCard({ userId, disc, notasDisc, compromissosDisc, materiaisDi
     <div>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-y-1">
         <SectionLabel>{disc} · {notasDisc.length + compromissosDisc.length} item(ns)</SectionLabel>
-        <div className="flex gap-1">
-          <button onClick={openResumo} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Resumo</button>
-          <button onClick={() => setPanel("quiz")} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Quiz</button>
-          <button onClick={openProfessor} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Modo Professor</button>
-            <button onClick={() => setPanel("flashcards")} className="text-xs px-2 py-1 rounded" style={{ color: T.brand, border: `1px solid ${T.border}` }}>Flashcards</button>
-            <button onClick={() => handleSyllabus(disc, sourceTexts)} disabled={syllabusLoading} className="text-xs px-2 py-1 rounded flex items-center gap-1 transition-transform hover:scale-105" style={{ color: "#ffffff", backgroundColor: T.brand, border: `1px solid ${T.brand}` }}>{syllabusLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Analisar Syllabus</button>
+        {/* Botões Desktop */}
+        <div className="hidden sm:flex gap-1 flex-wrap">
+          <button onClick={openResumo} className="text-xs px-2.5 py-1.5 rounded-lg border hover:opacity-85" style={{ color: T.brand, borderColor: T.border }}>Resumo</button>
+          <button onClick={() => setPanel("quiz")} className="text-xs px-2.5 py-1.5 rounded-lg border hover:opacity-85" style={{ color: T.brand, borderColor: T.border }}>Quiz</button>
+          <button onClick={openProfessor} className="text-xs px-2.5 py-1.5 rounded-lg border hover:opacity-85" style={{ color: T.brand, borderColor: T.border }}>Modo Professor</button>
+          <button onClick={() => setPanel("flashcards")} className="text-xs px-2.5 py-1.5 rounded-lg border hover:opacity-85" style={{ color: T.brand, borderColor: T.border }}>Flashcards</button>
+          <button onClick={() => handleSyllabus(disc, sourceTexts)} disabled={syllabusLoading} className="text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-transform hover:scale-105" style={{ color: "#ffffff", backgroundColor: T.brand, border: `1px solid ${T.brand}` }}>{syllabusLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Analisar Syllabus</button>
+        </div>
+
+        {/* Botões Mobile (Pills em rolagem suave acessíveis ao polegar) */}
+        <div className="flex sm:hidden overflow-x-auto custom-scrollbar gap-1.5 pb-1 w-full snap-x">
+          <button onClick={openResumo} className="text-xs px-3 py-2 rounded-xl border shrink-0 snap-start active:scale-95 flex items-center gap-1 font-semibold" style={{ color: T.brand, borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+            <Sparkles size={12} /> Resumo
+          </button>
+          <button onClick={() => setPanel("quiz")} className="text-xs px-3 py-2 rounded-xl border shrink-0 snap-start active:scale-95 flex items-center gap-1 font-semibold" style={{ color: T.brand, borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+            <BookOpen size={12} /> Quiz
+          </button>
+          <button onClick={openProfessor} className="text-xs px-3 py-2 rounded-xl border shrink-0 snap-start active:scale-95 flex items-center gap-1 font-semibold" style={{ color: T.brand, borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+            <GraduationCap size={12} /> Professor
+          </button>
+          <button onClick={() => setPanel("flashcards")} className="text-xs px-3 py-2 rounded-xl border shrink-0 snap-start active:scale-95 flex items-center gap-1 font-semibold" style={{ color: T.brand, borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+            <RotateCcw size={12} /> Flashcards
+          </button>
+          <button onClick={() => handleSyllabus(disc, sourceTexts)} disabled={syllabusLoading} className="text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 shrink-0 snap-start active:scale-95 font-semibold text-white shadow-xs" style={{ backgroundColor: T.brand, border: `1px solid ${T.brand}` }}>
+            {syllabusLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />} Syllabus
+          </button>
         </div>
       </div>
 
@@ -3844,33 +3869,38 @@ function CompromissoWorkspaceContent({
             </span>
           )}
         </div>
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
           <button
             onClick={openResumo}
-            className="text-xs px-2.5 py-1.5 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-xs"
+            className="text-xs px-3 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-xs min-h-[44px]"
             style={{
               backgroundColor: selectedNotes.length > 0 ? "rgba(168, 85, 247, 0.2)" : undefined,
               color: selectedNotes.length > 0 ? "#c084fc" : T.brand,
               border: `1px solid ${selectedNotes.length > 0 ? "rgba(168, 85, 247, 0.5)" : T.border}`
             }}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>{selectedNotes.length > 0 ? `Resumo da Seleção (${selectedNotes.length})` : "Resumo"}</span>
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{selectedNotes.length > 0 ? `Resumo (${selectedNotes.length})` : "Resumo com IA"}</span>
           </button>
           <button
             onClick={() => setPanel("quiz")}
-            className="text-xs px-2.5 py-1.5 rounded-md font-semibold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-xs"
+            className="text-xs px-3 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-xs min-h-[44px]"
             style={{
               backgroundColor: selectedNotes.length > 0 ? "rgba(16, 185, 129, 0.2)" : undefined,
               color: selectedNotes.length > 0 ? "#10b981" : T.brand,
               border: `1px solid ${selectedNotes.length > 0 ? "rgba(16, 185, 129, 0.5)" : T.border}`
             }}
           >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>{selectedNotes.length > 0 ? `Quiz da Seleção (${selectedNotes.length})` : `Quiz ${quizzesC.length > 0 ? `(${quizzesC[0].acertos}/${quizzesC[0].total} na última)` : ""}`}</span>
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{selectedNotes.length > 0 ? `Quiz (${selectedNotes.length})` : `Quiz ${quizzesC.length > 0 ? `(${quizzesC[0].acertos}/${quizzesC[0].total})` : ""}`}</span>
           </button>
-          <button onClick={openProfessor} className="text-xs px-2.5 py-1.5 rounded-md" style={{ color: T.brand, border: `1px solid ${T.border}` }}>
-            Modo Professor {profAttemptsC.length > 0 && `(${profAttemptsC[0].nota}/10 na última)`}
+          <button
+            onClick={openProfessor}
+            className="text-xs px-3 py-2.5 rounded-xl font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-xs min-h-[44px]"
+            style={{ color: T.brand, border: `1px solid ${T.border}` }}
+          >
+            <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Modo Professor</span>
           </button>
         </div>
 
@@ -4031,12 +4061,14 @@ function CompromissoWorkspaceModal({
   setNotes, setMaterials, setSummaries, setQuizAttempts, setProfessorAttempts, onClose, onDeleteCommitment
 }) {
   const modal = (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-2 sm:p-4" style={{ backgroundColor: "rgba(13,25,23,0.75)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" style={{ backgroundColor: "rgba(13,25,23,0.75)", backdropFilter: "blur(4px)" }} onClick={onClose}>
       <div
-        className="w-full sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl p-4 shadow-2xl border"
+        className="w-full sm:max-w-xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-2xl p-4 sm:p-6 shadow-2xl border flex flex-col"
         style={{ backgroundColor: T.surface, borderColor: T.border }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Alça visual de bottom-sheet no mobile */}
+        <div className="sm:hidden w-12 h-1.5 rounded-full bg-slate-600/40 mx-auto mb-3 shrink-0" />
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0">
             <div className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: T.inkSoft }}>{commitment.disciplina}</div>
@@ -7589,49 +7621,227 @@ Min.estudados hoje: ${minHoje}`;
   }
 
   const [scratch, setScratch] = useState(() => localStorage.getItem("omnia_scratch") || "");
-    useEffect(() => { localStorage.setItem("omnia_scratch", scratch); }, [scratch]);
+  useEffect(() => { localStorage.setItem("omnia_scratch", scratch); }, [scratch]);
 
-    return (
-      <div className="flex flex-col lg:flex-row gap-4 h-[75vh]">
-        <div className="flex flex-col flex-1 border rounded-xl p-4 shadow-sm" style={{ backgroundColor: T.surface, borderColor: T.border }}>
-  
-      <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className="max-w-[85%] rounded-lg px-3 py-2" style={{ backgroundColor: m.role === "user" ? T.brand : T.surface, color: m.role === "user" ? T.brandInk : T.ink, border: m.role === "user" ? "none" : `1px solid ${T.border}` }}>
-              {m.role === "user" ? (
-                <span className="text-sm">{m.text}</span>
-              ) : (
-                <Suspense fallback={<span className="text-sm">{m.text}</span>}>
-                  <ChatMarkdown text={m.text} />
-                </Suspense>
+  const [mobileTab, setMobileTab] = useState("chat"); // "chat" | "lousa"
+  const [showBriefingBanner, setShowBriefingBanner] = useState(true);
+
+  const hoje = todayISO();
+  const commitmentsHoje = (commitments || []).filter(c => c.prazo === hoje);
+  const minHoje = (sessions || []).filter(s => s.date === hoje).reduce((a, s) => a + s.minutos, 0);
+  const routineHoje = getEffectiveRoutineItemsForDate(hoje, routine, routineBlocks, routineExceptions);
+
+  const handleQuickPrompt = (promptText) => {
+    setInput(promptText);
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Segmented Control no Mobile (oculto no desktop) */}
+      <div className="flex lg:hidden rounded-2xl p-1 border shadow-xs" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+        <button
+          type="button"
+          onClick={() => { sfx.tab(); setMobileTab("chat"); }}
+          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            mobileTab === "chat" ? "shadow-sm scale-[1.01]" : "opacity-70 hover:opacity-100"
+          }`}
+          style={{
+            backgroundColor: mobileTab === "chat" ? T.brand : "transparent",
+            color: mobileTab === "chat" ? T.brandInk : T.ink
+          }}
+        >
+          <MessageCircle size={15} />
+          <span>Secretária & Assistente</span>
+        </button>
+        {config?.enableScratchpad !== false && (
+          <button
+            type="button"
+            onClick={() => { sfx.tab(); setMobileTab("lousa"); }}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+              mobileTab === "lousa" ? "shadow-sm scale-[1.01]" : "opacity-70 hover:opacity-100"
+            }`}
+            style={{
+              backgroundColor: mobileTab === "lousa" ? T.brand : "transparent",
+              color: mobileTab === "lousa" ? T.brandInk : T.ink
+            }}
+          >
+            <Edit3 size={15} />
+            <span>Lousa em Branco</span>
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-4 h-[calc(100dvh-190px)] sm:h-[650px] lg:h-[75vh]">
+        {/* Painel do Chat da Secretária */}
+        <div
+          className={`${
+            mobileTab === "chat" ? "flex" : "hidden lg:flex"
+          } flex-col flex-1 border rounded-2xl p-3.5 sm:p-4 shadow-sm overflow-hidden`}
+          style={{ backgroundColor: T.surface, borderColor: T.border }}
+        >
+          {/* Card de Briefing Executivo do Dia no Mobile */}
+          {showBriefingBanner && (
+            <div className="mb-3 p-3 rounded-2xl border shadow-xs transition-all shrink-0" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 rounded-lg bg-amber-400/20 text-amber-500">
+                    <Sunrise size={15} />
+                  </div>
+                  <span className="text-xs font-bold" style={{ color: T.ink }}>Briefing de Hoje</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowBriefingBanner(false)}
+                  className="text-slate-400 hover:text-white p-1 text-[11px]"
+                  title="Recolher briefing"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center text-[11px] mb-2">
+                <div className="p-1.5 rounded-xl bg-black/10">
+                  <div className="font-mono font-bold" style={{ color: T.brand }}>{commitmentsHoje.length}</div>
+                  <div className="text-[10px] opacity-70" style={{ color: T.inkSoft }}>Compromissos</div>
+                </div>
+                <div className="p-1.5 rounded-xl bg-black/10">
+                  <div className="font-mono font-bold text-amber-400">{minHoje} min</div>
+                  <div className="text-[10px] opacity-70" style={{ color: T.inkSoft }}>Estudados</div>
+                </div>
+                <div className="p-1.5 rounded-xl bg-black/10">
+                  <div className="font-mono font-bold text-emerald-400">{routineHoje.length}</div>
+                  <div className="text-[10px] opacity-70" style={{ color: T.inkSoft }}>Rotinas</div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setInput("Faça um briefing detalhado do meu dia e do que preciso priorizar.");
+                }}
+                className="w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all active:scale-98"
+                style={{
+                  backgroundColor: `${T.brand}15`,
+                  borderColor: `${T.brand}35`,
+                  color: T.brand
+                }}
+              >
+                <Sparkles size={12} />
+                <span>Pedir Briefing Completo com IA</span>
+              </button>
+            </div>
+          )}
+
+          {/* Mensagens */}
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className="max-w-[90%] sm:max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-xs text-sm leading-relaxed"
+                  style={{
+                    backgroundColor: m.role === "user" ? T.brand : T.surfaceAlt,
+                    color: m.role === "user" ? T.brandInk : T.ink,
+                    border: m.role === "user" ? "none" : `1px solid ${T.border}`
+                  }}
+                >
+                  {m.role === "user" ? (
+                    <span className="text-sm">{m.text}</span>
+                  ) : (
+                    <Suspense fallback={<span className="text-sm">{m.text}</span>}>
+                      <ChatMarkdown text={m.text} />
+                    </Suspense>
+                  )}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex items-center gap-2 p-2 text-xs" style={{ color: T.inkSoft }}>
+                <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                <span>Secretária pensando...</span>
+              </div>
+            )}
+            <div ref={endRef} />
+          </div>
+
+          {/* Sugestões de Perguntas Rápidas no Mobile */}
+          <div className="flex items-center gap-1.5 py-2 overflow-x-auto custom-scrollbar shrink-0">
+            {[
+              "Qual minha rotina hoje?",
+              "Prazos desta semana?",
+              "Dicas de estudo"
+            ].map((sug, sIdx) => (
+              <button
+                key={sIdx}
+                type="button"
+                onClick={() => handleQuickPrompt(sug)}
+                className="text-[11px] whitespace-nowrap px-2.5 py-1 rounded-lg border shrink-0 hover:opacity-100 opacity-75 transition-all active:scale-95"
+                style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.inkSoft }}
+              >
+                {sug}
+              </button>
+            ))}
+          </div>
+
+          {/* Campo de Input com Área de Toque Otimizada */}
+          <div className="flex items-center gap-2 pt-2 shrink-0" style={{ borderTop: `1px solid ${T.border}` }}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder="Pergunte ou peça uma mudança na rotina..."
+              className="flex-1 rounded-xl p-3 text-sm outline-none transition-colors min-h-[46px]"
+              style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink }}
+            />
+            
+            <PrimaryButton
+              onClick={send}
+              disabled={loading || !input.trim()}
+              className="min-w-[46px] min-h-[46px] rounded-xl flex items-center justify-center p-0 active:scale-95"
+            >
+              <Send className="w-4 h-4" />
+            </PrimaryButton>
+          </div>
+        </div>
+        
+        {/* Lousa em Branco (Scratchpad) */}
+        {config?.enableScratchpad !== false && (
+          <div
+            className={`${
+              mobileTab === "lousa" ? "flex" : "hidden lg:flex"
+            } flex-col w-full lg:w-1/3 border rounded-2xl p-4 shadow-sm`}
+            style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-sm flex items-center gap-2" style={{ color: T.ink }}>
+                <Edit3 size={16} /> Lousa em Branco
+              </h3>
+              {scratch && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(scratch);
+                    sfx.pop();
+                  }}
+                  className="text-xs px-2 py-1 rounded-lg border hover:opacity-80 transition-opacity flex items-center gap-1"
+                  style={{ borderColor: T.border, color: T.inkSoft }}
+                  title="Copiar rascunho"
+                >
+                  <Copy size={12} />
+                  <span>Copiar</span>
+                </button>
               )}
             </div>
+            <textarea
+              value={scratch}
+              onChange={(e) => setScratch(e.target.value)}
+              placeholder="Use este espaço para rascunhos rápidos ou anotações enquanto conversa com a IA..."
+              className="flex-1 w-full bg-transparent border-none outline-none resize-none text-base sm:text-sm leading-relaxed custom-scrollbar"
+              style={{ color: T.inkSoft }}
+            />
           </div>
-        ))}
-        {loading && <Loader2 className="w-4 h-4 animate-spin" style={{ color: T.inkSoft }} />}
-        <div ref={endRef} />
-      </div>
-      <div className="flex items-center gap-2 pt-3" style={{ borderTop: `1px solid ${T.border}` }}>
-        <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Pergunte ou peça uma mudança na rotina..." className="flex-1 rounded-md p-2.5 text-sm outline-none" style={{ backgroundColor: T.surfaceAlt, border: `1px solid ${T.border}`, color: T.ink }} />
-        
-        <PrimaryButton onClick={send} disabled={loading || !input.trim()}><Send className="w-4 h-4" /></PrimaryButton>
+        )}
       </div>
     </div>
-    
-    {config?.enableScratchpad !== false && (
-      <div className="flex flex-col w-full lg:w-1/3 border rounded-xl p-4 shadow-sm" style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}>
-        <h3 className="font-bold mb-4 flex items-center gap-2" style={{ color: T.ink }}><Edit3 size={18} /> Lousa em Branco</h3>
-        <textarea
-          value={scratch}
-          onChange={(e) => setScratch(e.target.value)}
-          placeholder="Use este espaço para rascunhos rápidos ou anotações enquanto conversa com a IA..."
-          className="flex-1 w-full bg-transparent border-none outline-none resize-none text-sm"
-          style={{ color: T.inkSoft }}
-        />
-      </div>
-    )}
-  </div>
   );
 }
 

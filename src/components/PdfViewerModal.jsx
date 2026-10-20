@@ -4,7 +4,7 @@ import {
   FileText, X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, RotateCw,
   Highlighter, Eraser, Download, Bookmark, Plus, Loader2, Save, Check,
   Maximize2, Minimize2, StickyNote, Trash2, Pin, MessageSquare, ExternalLink, Sparkles,
-  Move, Columns
+  Move, Columns, Hand
 } from "lucide-react";
 import { pdfjsLib } from "../lib/pdf";
 import { supabase } from "../lib/supabaseClient";
@@ -78,8 +78,11 @@ export function PdfViewerModal({
   const [reloadKey, setReloadKey] = useState(0);
   const [pageSize, setPageSize] = useState(null);
 
-  // Ferramentas de grifo e Post-it
-  const [isHighlighterActive, setIsHighlighterActive] = useState(true);
+  // Ferramentas de grifo e Post-it (no mobile inicia em modo leitura/navegação para evitar conflito com scroll por toque)
+  const [isHighlighterActive, setIsHighlighterActive] = useState(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) return false;
+    return true;
+  });
   const [selectedColor, setSelectedColor] = useState(HIGHLIGHT_COLORS[0]);
   const [highlights, setHighlights] = useState(() => {
     try {
@@ -90,6 +93,9 @@ export function PdfViewerModal({
       return [];
     }
   });
+
+  // Adaptação Mobile: Post-it Bottom Sheet dedicado
+  const [mobileEditingSticky, setMobileEditingSticky] = useState(null);
 
   // Bloco de Notas / Post-its Drawer
   const [isNotesDrawerOpen, setIsNotesDrawerOpen] = useState(false);
@@ -741,7 +747,11 @@ export function PdfViewerModal({
     const nextH = [...highlights, newSticky];
     saveHighlights(nextH);
     setActiveHighlightId(newSticky.id);
-    setIsNotesDrawerOpen(true);
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setMobileEditingSticky(newSticky);
+    } else {
+      setIsNotesDrawerOpen(true);
+    }
   };
 
   const handleExportPostItToNotes = (h) => {
@@ -830,8 +840,68 @@ export function PdfViewerModal({
         style={{ backgroundColor: T.surface, borderColor: T.border }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Header */}
-        <div className="px-5 py-3 border-b flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+        {/* Top Header - Mobile (Compact, limpo e voltado para toque) */}
+        <div className="flex md:hidden px-3.5 py-2.5 border-b items-center justify-between gap-2 shrink-0 select-none" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
+              <FileText size={16} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-xs font-bold truncate" style={{ color: T.ink }} title={actualName}>
+                {actualName}
+              </h3>
+              <div className="text-[10px] truncate" style={{ color: T.inkSoft }}>
+                <span>{disciplina}</span>
+                {currentPageHighlights.length > 0 && (
+                  <span className="text-amber-400 font-semibold ml-1.5">
+                    • {currentPageHighlights.length} grifo(s)
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Paginação rápida no Header Mobile */}
+          {numPages > 0 && (
+            <div className="flex items-center gap-1 shrink-0 p-0.5 rounded-xl border bg-black/10" style={{ borderColor: T.border }}>
+              <button
+                type="button"
+                disabled={pageNum <= 1}
+                onClick={() => handlePageChange(Math.max(1, pageNum - 1))}
+                className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all text-slate-300"
+                title="Página anterior"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-[11px] font-mono font-bold px-1 min-w-[3.5ch] text-center" style={{ color: T.ink }}>
+                {pageNum}/{numPages}
+              </span>
+              <button
+                type="button"
+                disabled={pageNum >= numPages}
+                onClick={() => handlePageChange(Math.min(numPages, pageNum + 1))}
+                className="w-8 h-8 rounded-lg flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all text-slate-300"
+                title="Próxima página"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Botão Fechar no Mobile */}
+          <button
+            type="button"
+            onClick={() => { sfx.click(); onClose(); }}
+            className="w-9 h-9 rounded-xl border flex items-center justify-center text-slate-300 active:scale-95 shrink-0"
+            style={{ backgroundColor: T.surface, borderColor: T.border }}
+            title="Fechar leitor"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Top Header - Desktop (100% preservado e oculto no mobile) */}
+        <div className="hidden md:flex px-5 py-3 border-b items-center justify-between gap-3 flex-wrap" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 shrink-0">
               <FileText size={18} />
@@ -1157,6 +1227,9 @@ export function PdfViewerModal({
                           e.stopPropagation();
                           sfx.pop();
                           setActiveHighlightId(h.id);
+                          if (typeof window !== "undefined" && window.innerWidth < 768) {
+                            setMobileEditingSticky(h);
+                          }
                         }}
                         className={`absolute rounded-2xl border p-2.5 flex flex-col group select-none transition-shadow ${
                           isSelected
@@ -1360,13 +1433,21 @@ export function PdfViewerModal({
             )}
           </div>
 
-          {/* Bloco de Notas / Post-its Lateral Retrátil */}
+          {/* Bloco de Notas / Post-its Lateral Retrátil no Desktop, Bottom Sheet no Mobile */}
           {isNotesDrawerOpen && (
-            <aside
-              className="w-full sm:w-80 md:w-96 border-l flex flex-col shadow-2xl z-30 transition-all duration-200 shrink-0"
-              style={{ backgroundColor: T.surface, borderColor: T.border }}
-              onClick={(e) => e.stopPropagation()}
-            >
+            <>
+              {/* Backdrop para fechar no toque fora no mobile */}
+              <div
+                className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-xs"
+                onClick={() => setIsNotesDrawerOpen(false)}
+              />
+              <aside
+                className="fixed inset-x-0 bottom-0 md:static md:inset-auto max-h-[85vh] md:max-h-none w-full md:w-80 lg:w-96 rounded-t-3xl md:rounded-none border-t md:border-t-0 md:border-l flex flex-col shadow-2xl z-50 md:z-30 transition-all duration-200 shrink-0"
+                style={{ backgroundColor: T.surface, borderColor: T.border }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Alça de arraste visual para mobile */}
+                <div className="md:hidden w-12 h-1.5 rounded-full bg-slate-600/50 mx-auto mt-2.5 mb-1" />
               {/* Header do Drawer */}
               <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
                 <div className="flex items-center gap-2">
@@ -1479,6 +1560,9 @@ export function PdfViewerModal({
                         onClick={() => {
                           setActiveHighlightId(h.id);
                           if (h.page !== pageNum) handlePageChange(h.page);
+                          if (typeof window !== "undefined" && window.innerWidth < 768 && h.isStickyNote) {
+                            setMobileEditingSticky(h);
+                          }
                         }}
                         className={`rounded-2xl p-3 border transition-all cursor-pointer relative shadow-sm ${
                           isSelected ? "ring-2 ring-amber-400 shadow-md scale-[1.01]" : "hover:border-slate-500"
@@ -1645,12 +1729,104 @@ export function PdfViewerModal({
                 )}
               </div>
             </aside>
+            </>
           )}
+
+          {/* Dock de Ações Flutuante Mobile (Zona do Polegar) */}
+          <div className="md:hidden absolute bottom-3 inset-x-3 z-30 flex items-center justify-between p-1.5 rounded-2xl border shadow-2xl backdrop-blur-xl animate-in slide-in-from-bottom-2 duration-200" style={{ backgroundColor: `${T.surface}EE`, borderColor: T.border }}>
+            {/* Alternar Modo: Navegar vs Grifar */}
+            <button
+              type="button"
+              onClick={() => {
+                sfx.pop();
+                setIsHighlighterActive(!isHighlighterActive);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-xs ${
+                isHighlighterActive
+                  ? "bg-amber-400 text-black shadow-amber-500/20"
+                  : "bg-white/10 text-slate-200 hover:bg-white/15"
+              }`}
+            >
+              {isHighlighterActive ? <Highlighter size={14} /> : <Hand size={14} />}
+              <span>{isHighlighterActive ? "Grifar" : "Navegar"}</span>
+            </button>
+
+            {/* Seletor rápido de cores quando grifando */}
+            {isHighlighterActive && (
+              <div className="flex items-center gap-1 px-1">
+                {HIGHLIGHT_COLORS.map(c => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => { sfx.pop(); setSelectedColor(c); }}
+                    className={`w-6 h-6 rounded-full border transition-all ${
+                      selectedColor.id === c.id ? "scale-115 ring-2 ring-blue-400 ring-offset-1" : "opacity-70"
+                    }`}
+                    style={{ backgroundColor: c.border, borderColor: T.border }}
+                    title={c.name}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Botão + Post-it */}
+            <button
+              type="button"
+              onClick={() => handleAddPageStickyNote()}
+              className="flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-bold border active:scale-95 transition-all text-amber-300 bg-amber-500/20 border-amber-500/40"
+              title="Colar Post-it nesta página"
+            >
+              <Plus size={14} />
+              <span>Post-it</span>
+            </button>
+
+            {/* Botão Bloco de Notas / Post-its Drawer */}
+            <button
+              type="button"
+              onClick={() => {
+                sfx.click();
+                setIsNotesDrawerOpen(!isNotesDrawerOpen);
+              }}
+              className={`relative p-2 rounded-xl border text-xs font-semibold active:scale-95 transition-all ${
+                isNotesDrawerOpen ? "bg-amber-400 text-black" : "bg-white/10 text-slate-200"
+              }`}
+              style={{ borderColor: T.border }}
+              title="Abrir bloco de notas"
+            >
+              <StickyNote size={16} />
+              {pageNotes.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-black font-bold text-[9px] flex items-center justify-center">
+                  {pageNotes.length}
+                </span>
+              )}
+            </button>
+
+            {/* Botão IA */}
+            <button
+              type="button"
+              onClick={() => handleOpenAiModal("all")}
+              className="p-2 rounded-xl border text-purple-300 bg-purple-500/20 border-purple-500/40 active:scale-95 transition-all"
+              title="Estudar com IA a partir dos grifos e post-its"
+            >
+              <Sparkles size={16} />
+            </button>
+
+            {/* Ajustar à tela */}
+            <button
+              type="button"
+              onClick={handleFitPage}
+              className="p-2 rounded-xl border text-slate-300 bg-white/10 hover:bg-white/15 active:scale-95 transition-all"
+              style={{ borderColor: T.border }}
+              title="Ajustar slide à tela"
+            >
+              <Maximize2 size={16} />
+            </button>
+          </div>
         </div>
 
-        {/* Rodapé: Paginação */}
+        {/* Rodapé: Paginação (Desktop) */}
         {numPages > 0 && (
-          <div className="px-5 py-2.5 border-t flex items-center justify-between text-xs flex-wrap gap-2" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
+          <div className="hidden md:flex px-5 py-2.5 border-t items-center justify-between text-xs flex-wrap gap-2" style={{ borderColor: T.border, backgroundColor: T.surfaceAlt }}>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="text-[11px] text-slate-400 hidden sm:block">
                 Arraste para grifar. Setas ← → para navegar.
@@ -1708,6 +1884,196 @@ export function PdfViewerModal({
               >
                 <ChevronRight size={16} />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Bottom Sheet Mobile para Edição Confortável de Post-it */}
+        {mobileEditingSticky && (
+          <div
+            className="fixed inset-0 z-[100000] flex items-end justify-center bg-black/60 backdrop-blur-xs animate-in fade-in"
+            onClick={() => setMobileEditingSticky(null)}
+          >
+            <div
+              className="w-full max-h-[85vh] flex flex-col rounded-t-3xl border-t shadow-2xl p-4 overflow-y-auto animate-in slide-in-from-bottom duration-200"
+              style={{ backgroundColor: T.surface, borderColor: T.border }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Alça de Arraste */}
+              <div className="w-12 h-1.5 rounded-full bg-slate-600/50 mx-auto mb-3" />
+
+              {/* Cabeçalho */}
+              <div className="flex items-center justify-between pb-3 border-b mb-3" style={{ borderColor: T.border }}>
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-400/20 text-amber-400">
+                    <StickyNote size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold" style={{ color: T.ink }}>
+                      Editar Post-it (Pág. {mobileEditingSticky.page})
+                    </h4>
+                    <span className="text-[11px]" style={{ color: T.inkSoft }}>
+                      Toque para digitar e personalizar com facilidade
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileEditingSticky(null)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Textarea confortável */}
+              <textarea
+                value={mobileEditingSticky.note || ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setMobileEditingSticky((prev) => prev ? { ...prev, note: val } : null);
+                  updateHighlightNote(mobileEditingSticky.id, val);
+                }}
+                placeholder="Escreva sua anotação ou resumo aqui..."
+                rows={4}
+                className="w-full p-3.5 rounded-2xl text-base leading-relaxed border outline-none resize-none mb-3"
+                style={{
+                  backgroundColor: (POST_IT_THEMES[mobileEditingSticky.stickyColor] || POST_IT_THEMES.yellow).bg,
+                  borderColor: (POST_IT_THEMES[mobileEditingSticky.stickyColor] || POST_IT_THEMES.yellow).border,
+                  color: (POST_IT_THEMES[mobileEditingSticky.stickyColor] || POST_IT_THEMES.yellow).text,
+                }}
+              />
+
+              {/* Controles de Cores */}
+              <div className="mb-3">
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: T.inkSoft }}>Cor do Post-it:</label>
+                <div className="flex items-center gap-2">
+                  {Object.keys(POST_IT_THEMES).map((cKey) => {
+                    const isCur = (mobileEditingSticky.stickyColor || "yellow") === cKey;
+                    return (
+                      <button
+                        key={cKey}
+                        type="button"
+                        onClick={() => {
+                          sfx.pop();
+                          setMobileEditingSticky(prev => ({ ...prev, stickyColor: cKey }));
+                          updateHighlightNote(mobileEditingSticky.id, mobileEditingSticky.note || "", { stickyColor: cKey });
+                        }}
+                        className={`flex-1 py-2 px-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                          isCur ? "ring-2 ring-amber-400 ring-offset-2 scale-105" : "opacity-80"
+                        }`}
+                        style={{
+                          backgroundColor: POST_IT_THEMES[cKey].accent,
+                          color: "#1e293b",
+                          borderColor: isCur ? "#eab308" : "transparent"
+                        }}
+                      >
+                        <span>{POST_IT_THEMES[cKey].name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Controles: Fixação, Giro e Orientação */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {/* Fixar / Livre */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTogglePin(mobileEditingSticky);
+                    setMobileEditingSticky(prev => ({ ...prev, isPinned: !prev.isPinned }));
+                  }}
+                  className={`py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                    mobileEditingSticky.isPinned ? "bg-amber-400 text-amber-950 border-amber-400" : "hover:bg-white/5"
+                  }`}
+                  style={!mobileEditingSticky.isPinned ? { backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink } : {}}
+                >
+                  <Pin size={14} className={mobileEditingSticky.isPinned ? "fill-current" : ""} />
+                  <span>{mobileEditingSticky.isPinned ? "Fixado" : "Livre"}</span>
+                </button>
+
+                {/* Girar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCycleRotation(mobileEditingSticky);
+                    const curRot = mobileEditingSticky.rotation || 0;
+                    const idx = ROTATION_PRESETS.indexOf(curRot);
+                    const nextRot = idx >= 0 && idx < ROTATION_PRESETS.length - 1 ? ROTATION_PRESETS[idx + 1] : ROTATION_PRESETS[0];
+                    setMobileEditingSticky(prev => ({ ...prev, rotation: nextRot }));
+                  }}
+                  className="py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border"
+                  style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+                >
+                  <RotateCw size={14} />
+                  <span>{mobileEditingSticky.rotation ? `${mobileEditingSticky.rotation}°` : "0°"}</span>
+                </button>
+
+                {/* Retrato / Paisagem */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleToggleOrientation(mobileEditingSticky);
+                    const curW = mobileEditingSticky.width || 170;
+                    const curH = mobileEditingSticky.height || 110;
+                    const newW = curW >= curH ? Math.min(curH, 160) : Math.max(curH, 220);
+                    const newH = curW >= curH ? Math.max(curW, 210) : Math.min(curW, 130);
+                    setMobileEditingSticky(prev => ({ ...prev, width: newW, height: newH }));
+                  }}
+                  className="py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border"
+                  style={{ backgroundColor: T.surfaceAlt, borderColor: T.border, color: T.ink }}
+                >
+                  <Columns size={14} className={(mobileEditingSticky.width || 170) < (mobileEditingSticky.height || 110) ? "rotate-90" : ""} />
+                  <span>{(mobileEditingSticky.width || 170) < (mobileEditingSticky.height || 110) ? "Retrato" : "Paisagem"}</span>
+                </button>
+              </div>
+
+              {/* Botões Inferiores */}
+              <div className="flex items-center gap-2 pt-2 border-t" style={{ borderColor: T.border }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeHighlight(mobileEditingSticky.id);
+                    setMobileEditingSticky(null);
+                  }}
+                  className="p-3 rounded-xl border text-rose-500 hover:bg-rose-500/10 flex items-center justify-center"
+                  style={{ borderColor: "rgba(244, 63, 94, 0.3)" }}
+                  title="Excluir Post-it"
+                >
+                  <Trash2 size={16} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hId = mobileEditingSticky.id;
+                    setMobileEditingSticky(null);
+                    handleOpenAiModal("single", hId);
+                  }}
+                  className="flex-1 py-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5"
+                  style={{
+                    background: "linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(59, 130, 246, 0.2))",
+                    borderColor: "rgba(168, 85, 247, 0.5)",
+                    color: "#c084fc",
+                  }}
+                >
+                  <Sparkles size={14} />
+                  <span>Estudar com IA</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    sfx.complete();
+                    setMobileEditingSticky(null);
+                  }}
+                  className="flex-1 py-3 rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all text-center"
+                  style={{ backgroundColor: T.brand, color: T.brandInk }}
+                >
+                  Concluir
+                </button>
+              </div>
             </div>
           </div>
         )}
