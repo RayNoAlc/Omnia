@@ -7521,25 +7521,92 @@ export function SecretariaTab({ userId, routine, routineBlocks, routineException
   function buildSystemPrompt() {
     const hoje = todayISO();
     const dia = weekdayShort(hoje);
-    // Contexto compacto — formato pipe para economizar tokens
-    const rec = routineBlocks.map((b) => `${b.id}|${b.titulo}`);
-    const exc = routineExceptions.filter((e) => e.data >= hoje).slice(0, 10).map((e) => `${e.data}|${e.tipoExcecao}|${e.titulo||""}|${e.horaInicio||""}-${e.horaFim||""}`);
-    const cmp = commitments.slice(0, 10).map((c) => `${c.disciplina} — {c.assunto}|${c.prazo||"sem prazo"}`);
-    const minHoje = sessions.filter((s) => s.date === hoje).reduce((a, s) => a + s.minutos, 0);
-    return `Secretária pessoal de estudante de Odontologia. Português BR, direto e prático.
+    const diasCompletos = {
+      Dom: "Domingo",
+      Seg: "Segunda-feira",
+      Ter: "Terça-feira",
+      Qua: "Quarta-feira",
+      Qui: "Quinta-feira",
+      Sex: "Sexta-feira",
+      Sáb: "Sábado"
+    };
+    const nomeDia = diasCompletos[dia] || dia;
+    const [ano, mes, diaNum] = hoje.split("-");
+    const dataFormatada = `${diaNum}/${mes}/${ano}`;
 
-Regras:
-- Tabela/grade inteira -> criar_multiplos_compromissos_recorrentes. Para mudar a cor de materias/disciplinas inteiras, chame a ferramenta pintar_materia_pelo_nome passando o NOME da materia.\n  - Ao mudar cores, use formato HEX (ex: #FF0000, #2DD4A0). Mantenha outros dados iguais se não pedido para mudar.
+    // Aulas e rotinas efetivas para o dia de HOJE
+    const itensHoje = getEffectiveRoutineItemsForDate(hoje, routine, routineBlocks, routineExceptions);
+    const routineHojeStr = itensHoje.length > 0
+      ? itensHoje.map((b) => `• ${b.horaInicio} - ${b.horaFim}: ${b.titulo}${b.tipo ? ` (${b.tipo})` : ""}`).join("\n")
+      : "Nenhuma aula fixa agendada na grade para hoje.";
 
-Recorrentes(id|titulo|dia|hora|cor): ${rec.length ? rec.join("; ") : "nenhum"}\n
-Exceções futuras: ${exc.length ? exc.join("; ") : "nenhuma"}
-Compromissos: ${cmp.length ? cmp.join("; ") : "nenhum"}
-Min.estudados hoje: ${minHoje}`;
+    // Compromissos e entregas com prazo para HOJE
+    const cmpHoje = (commitments || []).filter((c) => c.prazo === hoje);
+    const cmpHojeStr = cmpHoje.length > 0
+      ? cmpHoje.map((c) => `• ${c.disciplina} — ${c.assunto}${c.tipo ? ` [${c.tipo}]` : ""}`).join("\n")
+      : "Nenhum compromisso ou prova com prazo para hoje.";
+
+    // Próximos compromissos (próximos 15 dias)
+    const cmpFuturos = (commitments || [])
+      .filter((c) => c.prazo && c.prazo > hoje)
+      .sort((a, b) => a.prazo.localeCompare(b.prazo))
+      .slice(0, 8);
+    const cmpFuturosStr = cmpFuturos.length > 0
+      ? cmpFuturos.map((c) => `• ${formatDateBR(c.prazo)}: ${c.disciplina} — ${c.assunto}`).join("\n")
+      : "Nenhum compromisso futuro cadastrado.";
+
+    // Grade semanal recorrente completa (com dia da semana e horários)
+    const rec = (routineBlocks || []).map((b) => `${b.id}|${b.titulo}|${b.diaSemana}|${b.horaInicio}-${b.horaFim}`);
+
+    // Exceções futuras
+    const exc = (routineExceptions || [])
+      .filter((e) => e.data >= hoje)
+      .slice(0, 10)
+      .map((e) => `${e.data}|${e.tipoExcecao}|${e.titulo || ""}|${e.horaInicio || ""}-${e.horaFim || ""}`);
+
+    const minHoje = (sessions || []).filter((s) => s.date === hoje).reduce((a, s) => a + s.minutos, 0);
+
+    return `Você é a Secretária Acadêmica do Omnia, assistente pessoal e mentora de estudos de um estudante universitário de Odontologia.
+Responda sempre em Português do Brasil de forma clara, natural, humana e acolhedora.
+
+🚨 CONTEXTO TEMPORAL RIGOROSO:
+- HOJE É EXATAMENTE: ${nomeDia}, ${dataFormatada} (data ISO: ${hoje}).
+- NUNCA invente ou confunda o dia de hoje. Se o usuário perguntar "que dia é hoje?", "qual minha rotina hoje?", "faça um briefing" ou mencionar qualquer coisa relativa a hoje, baseie-se estritamente nesta data (${nomeDia}, ${dataFormatada}).
+
+AGENDA DE HOJE (${nomeDia}, ${dataFormatada}):
+${routineHojeStr}
+
+COMPROMISSOS / PROVAS COM PRAZO HOJE:
+${cmpHojeStr}
+
+TEMPO ESTUDADO HOJE NO MODO FOCO:
+${minHoje} minutos registrados.
+
+PRÓXIMAS PRIORIDADES & ENTREGAS DA SEMANA:
+${cmpFuturosStr}
+
+GRADE SEMANAL RECORRENTE (id|titulo|diaSemana|horario):
+${rec.length ? rec.join("; ") : "nenhum"}
+
+EXCEÇÕES FUTURAS:
+${exc.length ? exc.join("; ") : "nenhuma"}
+
+DIRETRIZES IMPORTANTES:
+1. Ao fazer um Briefing do Dia:
+   - Apresente primeiro a data de hoje com clareza: "${nomeDia}, ${dataFormatada}".
+   - Se for fim de semana ou não tiver aulas programadas hoje, avise com carinho (ex: "Hoje é ${nomeDia}, você não tem aulas presenciais agendadas na sua grade...") e recomende focar nas prioridades e revisões.
+   - Destaque as tarefas ou entregas mais próximas da semana para ajudar na organização e planejamento.
+   - NUNCA inclua IDs técnicos nas mensagens para o usuário (como "ID: d2cad98f..."). IDs são apenas para você chamar ferramentas internamente.
+2. Ao criar, alterar ou cancelar compromissos com ferramentas:
+   - Se o usuário disser "hoje", use a data ${hoje}.
+   - Se disser "amanhã", calcule a data do dia seguinte.
+   - Use as ferramentas disponíveis quando o usuário pedir para criar, alterar, cancelar ou pintar matérias.`;
   }
 
-  async function send() {
-    if (!input.trim() || loading) return;
-    const question = input.trim();
+  async function send(customText) {
+    const textToSend = (typeof customText === "string" ? customText : input).trim();
+    if (!textToSend || loading) return;
+    const question = textToSend;
 
     // Comando para esconder opções de desenvolvedor
     if (isHideDevCommand(question)) {
@@ -7635,7 +7702,15 @@ Min.estudados hoje: ${minHoje}`;
     setLoading(true);
     try {
       const sys = buildSystemPrompt();
-      const convo = [{ role: "user", content: question }];
+      // Enviar até 8 mensagens anteriores para manter memória e contexto na conversa
+      const recentHistory = (messages || [])
+        .filter((m) => m && m.text && (m.role === "user" || m.role === "assistant"))
+        .slice(-8)
+        .map((m) => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.text,
+        }));
+      const convo = [...recentHistory, { role: "user", content: question }];
       let response = await callAIWithTools(sys, convo, ROUTINE_TOOLS);
 
       let iterations = 0;
@@ -7680,7 +7755,18 @@ Min.estudados hoje: ${minHoje}`;
   const routineHoje = getEffectiveRoutineItemsForDate(hoje, routine, routineBlocks, routineExceptions);
 
   const handleQuickPrompt = (promptText) => {
-    setInput(promptText);
+    send(promptText);
+  };
+
+  const handleClearChat = () => {
+    sfx.pop();
+    if (window.confirm("Deseja limpar as mensagens da conversa com a Secretária?")) {
+      const initial = [
+        { role: "assistant", text: "Oi! Além de responder perguntas, agora também consigo mexer na sua rotina — pode pedir pra criar, mudar ou cancelar um compromisso." }
+      ];
+      setMessages(initial);
+      sessionStorage.removeItem("secretariaMessages");
+    }
   };
 
   return (
@@ -7735,16 +7821,31 @@ Min.estudados hoje: ${minHoje}`;
                   <div className="p-1 rounded-lg bg-amber-400/20 text-amber-500">
                     <Sunrise size={15} />
                   </div>
-                  <span className="text-xs font-bold" style={{ color: T.ink }}>Briefing de Hoje</span>
+                  <div>
+                    <span className="text-xs font-bold" style={{ color: T.ink }}>Briefing de Hoje</span>
+                    <span className="text-[10px] ml-1.5 opacity-60 font-medium" style={{ color: T.inkSoft }}>
+                      • {weekdayShort(hoje)}, {formatDateBR(hoje)}
+                    </span>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowBriefingBanner(false)}
-                  className="text-slate-400 hover:text-white p-1 text-[11px]"
-                  title="Recolher briefing"
-                >
-                  <X size={13} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleClearChat}
+                    className="text-slate-400 hover:text-rose-400 p-1 text-[11px] transition-colors"
+                    title="Limpar mensagens do chat"
+                  >
+                    <RotateCcw size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBriefingBanner(false)}
+                    className="text-slate-400 hover:text-white p-1 text-[11px] transition-colors"
+                    title="Recolher briefing"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-2 text-center text-[11px] mb-2">
@@ -7765,9 +7866,9 @@ Min.estudados hoje: ${minHoje}`;
               <button
                 type="button"
                 onClick={() => {
-                  setInput("Faça um briefing detalhado do meu dia e do que preciso priorizar.");
+                  send("Faça um briefing detalhado do meu dia e do que preciso priorizar.");
                 }}
-                className="w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all active:scale-98"
+                className="w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all active:scale-98 cursor-pointer"
                 style={{
                   backgroundColor: `${T.brand}15`,
                   borderColor: `${T.brand}35`,
