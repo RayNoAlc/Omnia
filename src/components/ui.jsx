@@ -1,4 +1,4 @@
-import { Settings, Home, Inbox as InboxIcon, Calendar, BookOpen, Headphones, MessageCircle, User, BarChart3, BookHeart } from "lucide-react";
+import { Settings, Home, Inbox as InboxIcon, Calendar, BookOpen, Headphones, MessageCircle, User, BarChart3, BookHeart, Library } from "lucide-react";
 import { sfx } from "../lib/soundEffects";
 
 export const THEMES = {
@@ -185,6 +185,7 @@ export const TABS = [
   { id: "agenda", label: "Agenda", icon: Calendar },
   { id: "desempenho", label: "Desempenho", icon: BarChart3 },
   { id: "biblioteca", label: "Biblioteca", icon: BookOpen },
+  { id: "midias", label: "Mídias & Leituras", icon: Library },
   { id: "foco", label: "Foco", icon: Headphones },
   { id: "diario", label: "Diário", icon: BookHeart },
   { id: "secretaria", label: "Secretária", icon: MessageCircle },

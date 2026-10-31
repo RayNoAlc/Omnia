@@ -19,7 +19,9 @@ import {
   fetchNotes, addNote, deleteNote,
   fetchSummaries, fetchQuizAttempts, fetchProfessorAttempts, fetchSessions, fetchMaterials,
   fetchStudyGoals, upsertStudyGoal,
+  fetchMediaItems, saveMediaItem, deleteMediaItem,
 } from "./lib/db";
+import { MediaTrackerTab } from "./components/MediaTrackerTab";
 import { classifyInboxText } from "./lib/aiHelpers";
 import { gerarBlocosDeEstudo, todayISO, addDays, uid, getEffectiveRoutineItemsForDate, computeAvisos, executeGodModeCheat, isSecretDevCommand, OMNIA_SECRET_DEV_COMMAND, isHideDevCommand, isToggleDevCommand, setDevMode, isDevModeActive } from "./lib/utils";
 import { useFocusTimer } from "./lib/useFocusTimer";
@@ -321,6 +323,7 @@ function AppInner() {
   const [professorAttempts, setProfessorAttempts] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [studyGoals, setStudyGoals] = useState([]);
+  const [mediaItems, setMediaItems] = useState([]);
 
   const [inboxLoading, setInboxLoading] = useState(false);
   const [inboxError, setInboxError] = useState(null);
@@ -396,13 +399,14 @@ function AppInner() {
         setProfessorAttempts(cache.pa || []);
         setMaterials(cache.mt || []);
         setStudyGoals(cache.sg || []);
+        setMediaItems(cache.med || []);
         setDataLoaded(true);
       }
       
       if (navigator.onLine) {
         let r = await fetchRoutine(userId);
         if (!r) r = await createDefaultRoutine(userId);
-        const [rb, rex, c, sb, n, s, sm, qa, pa, mt, sg] = await Promise.all([
+        const [rb, rex, c, sb, n, s, sm, qa, pa, mt, sg, med] = await Promise.all([
           fetchRoutineBlocks(userId),
           fetchRoutineExceptions(userId),
           fetchCommitments(userId),
@@ -414,13 +418,14 @@ function AppInner() {
           fetchProfessorAttempts(userId),
           fetchMaterials(userId),
           fetchStudyGoals(userId),
+          fetchMediaItems(userId),
         ]);
         
         setRoutine(r); setRoutineBlocks(rb); setRoutineExceptions(rex); setCommitments(c); setStudyBlocks(sb);
         setNotes(n); setSessions(s); setSummaries(sm); setQuizAttempts(qa); setProfessorAttempts(pa);
-        setMaterials(mt); setStudyGoals(sg);
+        setMaterials(mt); setStudyGoals(sg); setMediaItems(med || []);
         
-        await localforage.setItem('omnia_cache_' + userId, { r, rb, rex, c, sb, n, s, sm, qa, pa, mt, sg });
+        await localforage.setItem('omnia_cache_' + userId, { r, rb, rex, c, sb, n, s, sm, qa, pa, mt, sg, med });
         setDataLoaded(true);
       }
     })();
@@ -507,6 +512,19 @@ function AppInner() {
     } catch (e) {
       console.warn("Erro ao deletar nota:", e);
     }
+  }
+
+  async function handleSaveMedia(item) {
+    const saved = await saveMediaItem(userId, item);
+    setMediaItems((prev) => {
+      const filtered = (prev || []).filter((m) => m.id !== saved.id);
+      return [saved, ...filtered];
+    });
+  }
+
+  async function handleDeleteMedia(id) {
+    await deleteMediaItem(userId, id);
+    setMediaItems((prev) => (prev || []).filter((m) => m.id !== id));
   }
   async function handleToggleBlock(id) {
     const block = studyBlocks.find((b) => b.id === id);
@@ -672,6 +690,17 @@ function AppInner() {
               setNotes={setNotes} setMaterials={setMaterials}
               setQuizAttempts={setQuizAttempts} setProfessorAttempts={setProfessorAttempts} />
           )}
+          {tab === "midias" && (
+            <MediaTrackerTab
+              userId={userId}
+              mediaItems={mediaItems}
+              onSaveMedia={handleSaveMedia}
+              onDeleteMedia={handleDeleteMedia}
+              onOpenKinbor={() => {
+                sfx.pop();
+              }}
+            />
+          )}
           {tab === "foco" && (
               <FocoTab isZen={isZen} setIsZen={setIsZen} config={config} updateConfig={updateConfig} userId={userId} commitments={visibleCommitments} sessions={sessions} metaHoje={metaHoje} timer={focusTimer}
               notes={visibleNotes} materials={materials} summaries={summaries}
@@ -693,7 +722,7 @@ function AppInner() {
           )}
         </>
       )}
-      {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} initialQuery={searchQuery} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} />}
+      {showSearch && <GlobalSearchModal onClose={() => setShowSearch(false)} initialQuery={searchQuery} setTab={setTab} commitments={visibleCommitments} notes={visibleNotes} materials={materials} mediaItems={mediaItems} />}
       {showTutorial && (
         <OmniaTutorialModal
           isOpen={showTutorial}

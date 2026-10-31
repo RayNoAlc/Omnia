@@ -562,3 +562,251 @@ export async function addSession(userId, session) {
     date: data.date,
   };
 }
+
+/* ---------------------------------------------------------------------- */
+/* Mídias & Leituras (Lulu Hub)                                           */
+/* ---------------------------------------------------------------------- */
+export async function fetchMediaItems(userId) {
+  const localKey = `omnia_media_items_${userId || "guest"}`;
+  let localData = [];
+  try {
+    localData = JSON.parse(localStorage.getItem(localKey) || "[]");
+    if (!Array.isArray(localData)) localData = [];
+  } catch (e) {
+    localData = [];
+  }
+
+  if (!userId) return localData;
+
+  try {
+    const { data, error } = await supabase
+      .from("media_items")
+      .select("*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false });
+
+    if (!error && Array.isArray(data)) {
+      const mapped = data.map((d) => ({
+        id: d.id,
+        tipo: d.tipo || "livro",
+        titulo: d.titulo || "",
+        subtitulo: d.subtitulo || "",
+        autorCriador: d.autor_criador || "",
+        capaUrl: d.capa_url || "",
+        status: d.status || "quero_consumir",
+        progressoAtual: Number(d.progresso_atual || 0),
+        progressoTotal: Number(d.progresso_total || 0),
+        nota: d.nota !== undefined && d.nota !== null ? Number(d.nota) : null,
+        favorito: Boolean(d.favorito),
+        dataInicio: d.data_inicio || null,
+        dataFim: d.data_fim || null,
+        generos: Array.isArray(d.generos) ? d.generos : [],
+        resenha: d.resenha || { textoLivre: "", citacoesFavoritas: [] },
+        kinborPageId: d.kinbor_page_id || null,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+      }));
+      try {
+        localStorage.setItem(localKey, JSON.stringify(mapped));
+      } catch (e) {}
+      return mapped;
+    }
+  } catch (err) {
+    console.warn("Supabase media_items indisponível, usando cache local:", err);
+  }
+
+  return localData;
+}
+
+export async function saveMediaItem(userId, item) {
+  const localKey = `omnia_media_items_${userId || "guest"}`;
+  const now = new Date().toISOString();
+  const id = item.id || `media_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  const formattedItem = {
+    ...item,
+    id,
+    progressoAtual: Number(item.progressoAtual || 0),
+    progressoTotal: Number(item.progressoTotal || 0),
+    updatedAt: now,
+    createdAt: item.createdAt || now,
+  };
+
+  try {
+    const local = JSON.parse(localStorage.getItem(localKey) || "[]");
+    const filtered = local.filter((x) => x.id !== id);
+    const updated = [formattedItem, ...filtered];
+    localStorage.setItem(localKey, JSON.stringify(updated));
+  } catch (e) {}
+
+  if (!userId) return formattedItem;
+
+  try {
+    const row = {
+      id,
+      user_id: userId,
+      tipo: formattedItem.tipo || "livro",
+      titulo: formattedItem.titulo || "",
+      subtitulo: formattedItem.subtitulo || "",
+      autor_criador: formattedItem.autorCriador || "",
+      capa_url: formattedItem.capaUrl || "",
+      status: formattedItem.status || "quero_consumir",
+      progresso_atual: formattedItem.progressoAtual,
+      progresso_total: formattedItem.progressoTotal,
+      nota: formattedItem.nota,
+      favorito: formattedItem.favorito,
+      data_inicio: formattedItem.dataInicio || null,
+      data_fim: formattedItem.dataFim || null,
+      generos: formattedItem.generos || [],
+      resenha: formattedItem.resenha || {},
+      kinbor_page_id: formattedItem.kinborPageId || null,
+      updated_at: now,
+    };
+
+    const { data, error } = await supabase
+      .from("media_items")
+      .upsert(row, { onConflict: "id" })
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      return formattedItem;
+    }
+  } catch (err) {
+    console.warn("Supabase upsert media_items falhou, mantido local:", err);
+  }
+
+  return formattedItem;
+}
+
+export async function deleteMediaItem(userId, id) {
+  if (!id) return;
+  const localKey = `omnia_media_items_${userId || "guest"}`;
+  try {
+    const local = JSON.parse(localStorage.getItem(localKey) || "[]");
+    const updated = local.filter((x) => x.id !== id);
+    localStorage.setItem(localKey, JSON.stringify(updated));
+  } catch (e) {}
+
+  if (!userId) return;
+  try {
+    await supabase.from("media_items").delete().eq("id", id).eq("user_id", userId);
+  } catch (err) {
+    console.warn("Aviso ao deletar media_item do Supabase:", err);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Caderno Estético Kinbor (Páginas & Colagens)                           */
+/* ---------------------------------------------------------------------- */
+export async function fetchKinborPages(userId) {
+  const localKey = `omnia_kinbor_pages_${userId || "guest"}`;
+  let localData = [];
+  try {
+    localData = JSON.parse(localStorage.getItem(localKey) || "[]");
+    if (!Array.isArray(localData)) localData = [];
+  } catch (e) {
+    localData = [];
+  }
+
+  if (!userId) return localData;
+
+  try {
+    const { data, error } = await supabase
+      .from("kinbor_pages")
+      .select("*")
+      .eq("user_id", userId)
+      .order("data_registro", { ascending: false });
+
+    if (!error && Array.isArray(data)) {
+      const mapped = data.map((p) => ({
+        id: p.id,
+        dataRegistro: p.data_registro,
+        titulo: p.titulo || "",
+        mediaId: p.media_id || null,
+        estiloPapel: p.estilo_papel || "grid_kinbor",
+        clima: p.clima || "sol",
+        humor: p.humor || "calmo",
+        elementos: Array.isArray(p.elementos) ? p.elementos : [],
+        createdAt: p.created_at,
+        updatedAt: p.updated_at,
+      }));
+      try {
+        localStorage.setItem(localKey, JSON.stringify(mapped));
+      } catch (e) {}
+      return mapped;
+    }
+  } catch (err) {
+    console.warn("Supabase kinbor_pages indisponível, usando cache local:", err);
+  }
+
+  return localData;
+}
+
+export async function saveKinborPage(userId, page) {
+  const localKey = `omnia_kinbor_pages_${userId || "guest"}`;
+  const now = new Date().toISOString();
+  const id = page.id || `kinbor_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  const formattedPage = {
+    ...page,
+    id,
+    updatedAt: now,
+    createdAt: page.createdAt || now,
+  };
+
+  try {
+    const local = JSON.parse(localStorage.getItem(localKey) || "[]");
+    const filtered = local.filter((x) => x.id !== id);
+    const updated = [formattedPage, ...filtered];
+    localStorage.setItem(localKey, JSON.stringify(updated));
+  } catch (e) {}
+
+  if (!userId) return formattedPage;
+
+  try {
+    const row = {
+      id,
+      user_id: userId,
+      data_registro: formattedPage.dataRegistro || now.split("T")[0],
+      titulo: formattedPage.titulo || "",
+      media_id: formattedPage.mediaId || null,
+      estilo_papel: formattedPage.estiloPapel || "grid_kinbor",
+      clima: formattedPage.clima || "sol",
+      humor: formattedPage.humor || "calmo",
+      elementos: formattedPage.elementos || [],
+      updated_at: now,
+    };
+
+    const { data, error } = await supabase
+      .from("kinbor_pages")
+      .upsert(row, { onConflict: "id" })
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      return formattedPage;
+    }
+  } catch (err) {
+    console.warn("Supabase upsert kinbor_pages falhou, mantido local:", err);
+  }
+
+  return formattedPage;
+}
+
+export async function deleteKinborPage(userId, id) {
+  if (!id) return;
+  const localKey = `omnia_kinbor_pages_${userId || "guest"}`;
+  try {
+    const local = JSON.parse(localStorage.getItem(localKey) || "[]");
+    const updated = local.filter((x) => x.id !== id);
+    localStorage.setItem(localKey, JSON.stringify(updated));
+  } catch (e) {}
+
+  if (!userId) return;
+  try {
+    await supabase.from("kinbor_pages").delete().eq("id", id).eq("user_id", userId);
+  } catch (err) {
+    console.warn("Aviso ao deletar kinbor_page do Supabase:", err);
+  }
+}

@@ -10114,7 +10114,7 @@ function ConfigTabInner({ config = {}, updateConfig, userId, commitments, notes,
   );
 }
 
-export function GlobalSearchModal({ onClose, commitments = [], notes = [], materials = [], setTab, initialQuery = "" }) {
+export function GlobalSearchModal({ onClose, commitments = [], notes = [], materials = [], mediaItems = [], setTab, initialQuery = "" }) {
   const [q, setQ] = React.useState(initialQuery);
 
   React.useEffect(() => {
@@ -10129,6 +10129,7 @@ export function GlobalSearchModal({ onClose, commitments = [], notes = [], mater
     { id: "agenda", label: "Agenda & Calendário", desc: "Compromissos, datas de provas, trabalhos e prazos", icon: Calendar, keywords: ["agenda", "calendário", "calendario", "prazos", "provas", "trabalhos", "datas", "compromissos"] },
     { id: "desempenho", label: "Desempenho", desc: "Métricas, estatísticas de estudo, horas e progresso", icon: BarChart, keywords: ["desempenho", "estatísticas", "estatisticas", "gráfico", "grafico", "métricas", "progresso", "xp", "nível", "pomodoro"] },
     { id: "biblioteca", label: "Biblioteca", desc: "Materiais de aula, apostilas, slides e visualizador de PDFs", icon: BookOpen, keywords: ["biblioteca", "materiais", "livros", "pdf", "slides", "arquivos", "documentos", "leitor", "apostilas"] },
+    { id: "midias", label: "Mídias & Leituras", desc: "Acompanhe livros, séries, resenhas e caderno Kinbor", icon: BookOpen, keywords: ["mídias", "midias", "livros", "leitura", "leituras", "séries", "series", "filmes", "resenhas", "kinbor", "scrapbook", "clube"] },
     { id: "foco", label: "Modo Foco", desc: "Cronômetro Pomodoro, música ambiente e sons binaurais", icon: Headphones, keywords: ["foco", "pomodoro", "timer", "cronômetro", "cronometro", "estudo", "zen", "música", "bgm"] },
     { id: "diario", label: "Diário Acadêmico", desc: "Registro diário de aprendizado, reflexões e humor", icon: BookHeart, keywords: ["diário", "diario", "journal", "reflexão", "reflexao", "anotações", "anotacoes", "pensamentos", "humor"] },
     { id: "secretaria", label: "Secretária Acadêmica", desc: "Assistente de IA para dúvidas, mentoria e resumos", icon: Brain, keywords: ["secretária", "secretaria", "chat", "ia", "mentor", "tutor", "dúvidas", "duvidas", "perguntas", "assistente"] },
@@ -10178,7 +10179,18 @@ export function GlobalSearchModal({ onClose, commitments = [], notes = [], mater
     ).slice(0, 5);
   }, [materials, trimmedQ, lowerQ]);
 
-  const hasAnyResults = resTabs.length > 0 || resCommitments.length > 0 || resNotes.length > 0 || resMaterials.length > 0 || isHideDevCommand(trimmedQ) || isToggleDevCommand(trimmedQ) || isSecretDevCommand(trimmedQ);
+  // Filtragem de mídias/leituras
+  const resMedia = useMemo(() => {
+    if (!trimmedQ) return [];
+    return (mediaItems || []).filter(m => 
+      m.titulo?.toLowerCase().includes(lowerQ) || 
+      m.subtitulo?.toLowerCase().includes(lowerQ) ||
+      m.autorCriador?.toLowerCase().includes(lowerQ) ||
+      m.resenha?.textoLivre?.toLowerCase().includes(lowerQ)
+    ).slice(0, 5);
+  }, [mediaItems, trimmedQ, lowerQ]);
+
+  const hasAnyResults = resTabs.length > 0 || resCommitments.length > 0 || resNotes.length > 0 || resMaterials.length > 0 || resMedia.length > 0 || isHideDevCommand(trimmedQ) || isToggleDevCommand(trimmedQ) || isSecretDevCommand(trimmedQ);
 
   const handleNavigateTab = (tabId) => {
     sfx.pop();
@@ -10491,6 +10503,39 @@ export function GlobalSearchModal({ onClose, commitments = [], notes = [], mater
                     </div>
                     <span className="text-[10px] uppercase px-2 py-0.5 rounded shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: T.inkSoft }}>
                       Abrir
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Resultados: Mídias & Leituras */}
+          {trimmedQ && resMedia.length > 0 && (
+            <div>
+              <div className="text-xs font-bold px-2 py-1 uppercase tracking-wider" style={{ color: T.brand }}>
+                Mídias & Leituras ({resMedia.length})
+              </div>
+              <div className="space-y-1.5 mt-1">
+                {resMedia.map(m => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => handleNavigateTab("midias")}
+                    className="w-full text-left p-2.5 rounded-xl border flex items-center justify-between transition-all hover:brightness-110 active:scale-[0.99] cursor-pointer"
+                    style={{ backgroundColor: T.surfaceAlt, borderColor: T.border }}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <BookOpen size={16} className="shrink-0 text-amber-400" />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold truncate" style={{ color: T.ink }}>{m.titulo}</div>
+                        <div className="text-[11px] opacity-75 mt-0.5 truncate" style={{ color: T.inkSoft }}>
+                          {m.autorCriador || (m.tipo === "livro" ? "Livro" : m.tipo)} • {m.status === "concluido" ? "Concluído" : "Em andamento"}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] uppercase px-2 py-0.5 rounded shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.06)", color: T.inkSoft }}>
+                      Ver na Estante
                     </span>
                   </button>
                 ))}
